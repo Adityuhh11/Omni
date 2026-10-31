@@ -12,7 +12,6 @@ frontend/dist/*
 frontend/bindings/
 dist/
 
-/Digup Userflow
 
 # Personal, local-only agent files
 CLAUDE.local.md
