@@ -28,8 +28,9 @@ const (
 	// minToolChars is the room below which the tools are not offered: a result cut that small would only mislead.
 	minToolChars = 1500
 	maxSources   = 5
-	// toolOverheadTokens is what the tools' descriptions and the closing "answer now" message take of the context (about 250).
-	toolOverheadTokens = 300
+	// toolOverheadTokens is what the calls and the closing "answer now" message take of the context; the tools' descriptions
+	// are counted apart (toolset.schemaTokens).
+	toolOverheadTokens = 100
 )
 
 // Web is what the chat needs of the web; *websearch.Client satisfies it.
@@ -200,6 +201,9 @@ func (l *lookup) run(ctx context.Context, c Call) string {
 	var args map[string]string
 	if err := json.Unmarshal([]byte(c.Arguments), &args); err != nil {
 		return l.take("Error: the arguments were not valid JSON. Call the tool again with " + argumentOf(c.Name) + " as a string.")
+	}
+	if !l.tools.web { // a model can call a web tool it was not given (earlier turns used it): the switch is the person's consent
+		return l.take("Error: there is no tool called " + c.Name + ". Use only the tools you were given.")
 	}
 	switch c.Name {
 	case "web_search":

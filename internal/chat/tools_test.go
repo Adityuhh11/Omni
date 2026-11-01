@@ -239,7 +239,7 @@ func TestResultsAreCutToTheRoomTheContextHasLeft(t *testing.T) {
 }
 
 func TestBadCallsAreAnswersTheModelCanLearnFrom(t *testing.T) {
-	l := &lookup{web: &fakeWeb{}, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{"https://example.com/a": true}, logf: func(string, ...any) {}}
+	l := &lookup{tools: toolset{web: true}, web: &fakeWeb{}, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{"https://example.com/a": true}, logf: func(string, ...any) {}}
 	ctx := context.Background()
 	for name, tc := range map[string]struct {
 		call Call
@@ -272,7 +272,7 @@ func TestTurningWebSearchOnIsSavedAndShownInTheInfo(t *testing.T) {
 
 func TestAPageNobodyOfferedIsNotFetched(t *testing.T) {
 	web := &fakeWeb{}
-	l := &lookup{web: web, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: addressesIn([]Message{
+	l := &lookup{tools: toolset{web: true}, web: web, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: addressesIn([]Message{
 		{Role: "user", Text: "summarise https://example.com/mine, please."}, {Role: "assistant", Text: "see https://example.com/answer"},
 	}), logf: func(string, ...any) {}}
 	ctx := context.Background()
@@ -292,7 +292,7 @@ func TestAPageNobodyOfferedIsNotFetched(t *testing.T) {
 }
 
 func TestSourcesNeverListAPageTwice(t *testing.T) {
-	l := &lookup{web: &fakeWeb{}, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{}, logf: func(string, ...any) {}}
+	l := &lookup{tools: toolset{web: true}, web: &fakeWeb{}, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{}, logf: func(string, ...any) {}}
 	ctx := context.Background()
 	l.run(ctx, webCall("1", "go release"))
 	l.run(ctx, webCall("2", "go 1.24 release"))
@@ -304,7 +304,7 @@ func TestSourcesNeverListAPageTwice(t *testing.T) {
 // The room left is what a result may take, and it never goes below nothing.
 func TestAResultNeverTakesMoreThanTheRoomLeft(t *testing.T) {
 	for _, room := range []int{0, 300, 1600, 3000} {
-		l := &lookup{web: &fakeWeb{text: strings.Repeat("word ", 4000)}, chars: room, status: func(Status) {}, pages: map[string]bool{},
+		l := &lookup{tools: toolset{web: true}, web: &fakeWeb{text: strings.Repeat("word ", 4000)}, chars: room, status: func(Status) {}, pages: map[string]bool{},
 			allowed: map[string]bool{"https://go.dev/doc/go1.24": true}, logf: func(string, ...any) {}}
 		got := l.run(context.Background(), read("1", "https://go.dev/doc/go1.24"))
 		if len(got) > max(room, 80)+60 { // the notice that something was cut, or the refusal when there is no room
@@ -314,7 +314,7 @@ func TestAResultNeverTakesMoreThanTheRoomLeft(t *testing.T) {
 			t.Errorf("room %d: %d left", room, l.chars)
 		}
 	}
-	l := &lookup{web: &fakeWeb{}, chars: 1000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{"https://a.example/": true}, logf: func(string, ...any) {}}
+	l := &lookup{tools: toolset{web: true}, web: &fakeWeb{}, chars: 1000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{"https://a.example/": true}, logf: func(string, ...any) {}}
 	if got := l.run(context.Background(), read("1", "https://a.example/")); !strings.Contains(got, "no room") {
 		t.Errorf("with 1000 characters left a page should be refused for lack of room: %q", got)
 	}
@@ -334,7 +334,10 @@ func TestALocalToolSwitchedOnIsOfferedRunAndItsSourcesKept(t *testing.T) {
 	r.svc.o.Locals = func() []Local {
 		return []Local{echoTool("files", "echo", false, &ran), echoTool("notes", "other", false, &ran)}
 	}
-	r.svc.o.SetTools = func(on, always []string) error { r.cfg.Tools, r.cfg.AlwaysRun = on, always; return nil }
+	r.svc.o.UpdateTools = func(change func(on, always []string) ([]string, []string)) error {
+		r.cfg.Tools, r.cfg.AlwaysRun = change(r.cfg.Tools, r.cfg.AlwaysRun)
+		return nil
+	}
 	if err := r.svc.SetTool("files", true); err != nil {
 		t.Fatal(err)
 	}
@@ -411,5 +414,29 @@ func TestStoppingWhileAConfirmationWaitsRefusesIt(t *testing.T) {
 	r.await(t)
 	if len(ran) != 0 {
 		t.Fatal("a stopped confirmation ran the tool")
+	}
+}
+
+func TestWebToolsDoNothingWhenWebSearchIsOff(t *testing.T) {
+	web := &fakeWeb{}
+	l := &lookup{web: web, tools: toolset{locals: []Local{{Def: ObjectTool("x", "", nil)}}}, chars: 100000, status: func(Status) {}, pages: map[string]bool{},
+		allowed: map[string]bool{"https://go.dev/doc/go1.24": true}, logf: func(string, ...any) {}}
+	ctx := context.Background()
+	for _, c := range []Call{webCall("1", "secret from a file"), read("2", "https://go.dev/doc/go1.24")} {
+		if got := l.run(ctx, c); !strings.Contains(got, "no tool called") {
+			t.Errorf("%s: %q", c.Name, got)
+		}
+	}
+	if len(web.searches)+len(web.pages) != 0 {
+		t.Fatalf("the web was used with web search off: %v %v", web.searches, web.pages)
+	}
+}
+
+func TestToolDescriptionsAreCountedAgainstTheContext(t *testing.T) {
+	var ran []string
+	one := toolset{locals: []Local{echoTool("a", "a", false, &ran)}}
+	many := toolset{web: true, locals: []Local{echoTool("a", "a", false, &ran), echoTool("b", "b", false, &ran), echoTool("c", "c", true, &ran)}}
+	if (toolset{}).schemaTokens() != 0 || one.schemaTokens() <= 0 || many.schemaTokens() <= one.schemaTokens()*3 {
+		t.Fatalf("none %d, one %d, many %d", toolset{}.schemaTokens(), one.schemaTokens(), many.schemaTokens())
 	}
 }

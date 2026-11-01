@@ -97,10 +97,11 @@ type Options struct {
 	Installed    func() bool
 	// Web looks things up for the model when [chat] web_search is on; nil means the model cannot.
 	Web Web
-	// Locals lists the local tools there are now (scripts come and go); nil means none. SetTools saves which groups are on
-	// and which run without asking ([chat] tools and always_run).
-	Locals   func() []Local
-	SetTools func(on, always []string) error
+	// Locals lists the local tools there are now (scripts come and go); nil means none. UpdateTools changes which groups are
+	// on and which run without asking ([chat] tools and always_run) in one read and write of the settings, so two windows
+	// switching at once do not undo each other.
+	Locals      func() []Local
+	UpdateTools func(change func(on, always []string) ([]string, []string)) error
 	// Emit sends an event to the chat window; OpenSettings opens Settings on a page.
 	Emit         func(event string, data any)
 	OpenSettings func(section string)
@@ -215,8 +216,7 @@ func (s *Service) locals() []Local {
 
 // SetTool switches a group of local tools on or off, from the next question on.
 func (s *Service) SetTool(group string, on bool) error {
-	cfg := s.o.Settings()
-	if err := s.o.SetTools(toggle(cfg.Tools, group, on), cfg.AlwaysRun); err != nil {
+	if err := s.o.UpdateTools(func(tools, always []string) ([]string, []string) { return toggle(tools, group, on), always }); err != nil {
 		return err
 	}
 	s.Refresh()
@@ -225,8 +225,7 @@ func (s *Service) SetTool(group string, on bool) error {
 
 // SetAlwaysRun lets a group's tools that change something run without asking first (on), or makes them ask (off).
 func (s *Service) SetAlwaysRun(group string, on bool) error {
-	cfg := s.o.Settings()
-	if err := s.o.SetTools(cfg.Tools, toggle(cfg.AlwaysRun, group, on)); err != nil {
+	if err := s.o.UpdateTools(func(tools, always []string) ([]string, []string) { return tools, toggle(always, group, on) }); err != nil {
 		return err
 	}
 	s.Refresh()

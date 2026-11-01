@@ -149,8 +149,8 @@ func TestOnlyScriptsWithAToolLineAreToolsAndTheyAlwaysCountAsChanging(t *testing
 	var gotInput string
 	d := Deps{
 		Scripts: fakeScripts{
-			{Name: "Kill Port!", Title: "Kill port", Argument: "a port number", Tool: "Ends what listens on a port."},
-			{Name: "kill-port", Title: "Same name", Tool: "x"},
+			{Name: "Kill Port!.ps1", Title: "Kill port", Argument: "a port number", Tool: "Ends what listens on a port."},
+			{Name: "kill-port.py", Title: "Same name", Tool: "x"},
 			{Name: "plain", Title: "Not a tool"},
 		},
 		RunScript: func(_ context.Context, s scripts.Script, input string) (string, error) {
@@ -165,7 +165,7 @@ func TestOnlyScriptsWithAToolLineAreToolsAndTheyAlwaysCountAsChanging(t *testing
 			scriptTools = append(scriptTools, l)
 		}
 	}
-	if len(scriptTools) != 1 || scriptTools[0].Def.Function.Name != "script_kill_port" || !scriptTools[0].Writes || scriptTools[0].Group != "script:Kill Port!" {
+	if len(scriptTools) != 1 || scriptTools[0].Def.Function.Name != "script_kill_port" || !scriptTools[0].Writes || scriptTools[0].Group != "script:Kill Port!.ps1" {
 		t.Fatalf("script tools %+v", scriptTools)
 	}
 	text, _, err := scriptTools[0].Run(context.Background(), map[string]string{"input": "3000"})

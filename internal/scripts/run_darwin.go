@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,38 @@ var interpreters = map[string][]string{
 	".js":          {"node"},
 	".rb":          {"ruby"},
 	".applescript": {"osascript"},
+}
+
+// homebrew are where Homebrew puts interpreters: an app started from the Finder or at login has only the system's folders on
+// its PATH, so node, ruby or a newer python3 would not be found.
+var homebrew = []string{"/opt/homebrew/bin", "/usr/local/bin"}
+
+// environ is the environment a script runs in, with Homebrew's folders on the PATH (a script's #!/usr/bin/env node needs it).
+func environ() []string {
+	env := os.Environ()
+	for i, kv := range env {
+		if path, ok := strings.CutPrefix(kv, "PATH="); ok {
+			env[i] = "PATH=" + path + ":" + strings.Join(homebrew, ":")
+			return env
+		}
+	}
+	return append(env, "PATH=/usr/bin:/bin:/usr/sbin:/sbin:"+strings.Join(homebrew, ":"))
+}
+
+// lookPath finds an interpreter on the PATH or in Homebrew's folders.
+func lookPath(name string) string {
+	if strings.HasPrefix(name, "/") {
+		return name
+	}
+	if p, err := exec.LookPath(name); err == nil {
+		return p
+	}
+	for _, dir := range homebrew {
+		if info, err := os.Stat(filepath.Join(dir, name)); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+			return filepath.Join(dir, name)
+		}
+	}
+	return name // not found: running it says so
 }
 
 func runnable(name string, mode fs.FileMode) bool {
@@ -38,5 +71,5 @@ func command(ctx context.Context, path, input string) (*exec.Cmd, error) {
 	if !ok {
 		return nil, fmt.Errorf("%s is not a kind of script Omni can run", filepath.Base(path))
 	}
-	return exec.CommandContext(ctx, run[0], append(append(run[1:len(run):len(run)], path), args...)...), nil
+	return exec.CommandContext(ctx, lookPath(run[0]), append(append(run[1:len(run):len(run)], path), args...)...), nil
 }

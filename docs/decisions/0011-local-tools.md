@@ -7,7 +7,7 @@ Date: 2026-11-01. Status: accepted.
 Omni AI may call **local tools**: searches of what Omni already keeps (the file index, the clipboard history, the notes, recent
 activity) and the person's own **scripts**. A tool is a `chat.Local` (a definition, a run function, whether it changes something);
 `internal/aitools` builds them from the other packages and `main` hands them to the chat. Tools come in groups (`files`,
-`clipboard`, `notes`, `activity`, `script:<name>`), each off until switched on (`[chat] tools`). A tool that changes something
+`clipboard`, `notes`, `activity`, `script:<file name>`), each off until switched on (`[chat] tools`). A tool that changes something
 (a new note, any script) asks in the chat window before each run unless its group is in `[chat] always_run`.
 
 A file in the scripts folder with an `@omni.title` line is a command in the bar; with an `@omni.tool` line it is also a tool

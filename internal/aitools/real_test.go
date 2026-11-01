@@ -61,7 +61,7 @@ func TestRealModelChoosesLocalTools(t *testing.T) {
 	var svc *chat.Service
 	svc = chat.NewService(chat.Options{
 		Model: model, Settings: func() config.Chat { mu.Lock(); defer mu.Unlock(); return cfg }, Installed: func() bool { return true },
-		Locals: func() []chat.Local { return locals }, SetTools: func(on, always []string) error { return nil },
+		Locals: func() []chat.Local { return locals }, UpdateTools: func(func(on, always []string) ([]string, []string)) error { return nil },
 		Emit: func(name string, data any) {
 			switch d := data.(type) {
 			case chat.Done:
@@ -78,10 +78,10 @@ func TestRealModelChoosesLocalTools(t *testing.T) {
 	}{
 		{"files", "What does my lease say about having a pet?", "lease-2026.pdf", "300"},
 		{"notes", "What is on my groceries note?", "", "sourdough"},
-		{"script:wifi", "Which Wi-Fi network am I on right now?", "", "HomeNet"},
+		{"script:wifi.ps1", "Which Wi-Fi network am I on right now?", "", "HomeNet"},
 		{"", "What is 12 times 7?", "", "84"},
 	}
-	all := []string{"files", "notes", "script:wifi"}
+	all := []string{"files", "notes", "script:wifi.ps1"}
 	right := map[string]int{}
 	for _, setup := range []string{"own", "all"} {
 		for _, c := range cases {

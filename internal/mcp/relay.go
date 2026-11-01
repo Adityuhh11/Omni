@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"time"
@@ -38,8 +40,11 @@ func Relay(in io.Reader, out io.Writer, file string) error {
 
 func forward(client *http.Client, file string, message []byte) ([]byte, error) {
 	data, err := os.ReadFile(file)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("Omni is not running, or “Use in other AI apps” is off in Settings, Omni AI")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read Omni's MCP address: %w", err)
 	}
 	var addr Address
 	if err := json.Unmarshal(data, &addr); err != nil {

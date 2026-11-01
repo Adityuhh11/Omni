@@ -25,6 +25,10 @@ const (
 	RunTimeout = 60 * time.Second
 	// maxOutput is the most of a script's output that is kept.
 	maxOutput = 64 << 10
+	// pipeWait is how long Run waits, once the script has ended, for what it started to let go of its output.
+	pipeWait = 2 * time.Second
+	// refreshEvery is how old the list may get before List reads the folder again, in the background.
+	refreshEvery = 2 * time.Second
 )
 
 // Outputs are what may be done with what a script prints: nothing, put on the clipboard, or typed into the program the bar
@@ -34,7 +38,7 @@ var Outputs = []string{"silent", "copy", "paste"}
 // Script is one command.
 type Script struct {
 	Path string
-	// Name is the file's name without its extension: it names the script in [chat] tools ("script:<name>") and in the bar.
+	// Name is the file's name: it names the script in [chat] tools ("script:<name>") and in the bar's rows.
 	Name  string
 	Title string
 	// Keyword, typed with a space and text after it, runs the script with that text (`port 3000`); it is the name in lower
@@ -52,8 +56,8 @@ var header = regexp.MustCompile(`@omni\.([a-z]+)[ \t]*(.*)$`)
 // parse reads the @omni lines at the top of a file. ok is false when the file has no title: it is not a command (a helper the
 // commands use, a README).
 func parse(path string, top []byte) (Script, bool) {
-	name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	s := Script{Path: path, Name: name, Output: "silent"}
+	stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	s := Script{Path: path, Name: filepath.Base(path), Output: "silent"}
 	lines := bufio.NewScanner(bytes.NewReader(top))
 	for n := 0; n < headerLines && lines.Scan(); n++ {
 		m := header.FindStringSubmatch(lines.Text())
@@ -77,17 +81,21 @@ func parse(path string, top []byte) (Script, bool) {
 		}
 	}
 	if s.Keyword == "" {
-		s.Keyword = strings.ToLower(strings.Join(strings.Fields(name), ""))
+		s.Keyword = strings.ToLower(strings.Join(strings.Fields(stem), ""))
 	}
 	return s, s.Title != ""
 }
 
-// Folder is the scripts folder. Headers are read again only for files that changed since they were last read.
+// Folder is the scripts folder. The bar asks for the list on every key, so List answers from memory and reads the folder again
+// in the background when the list is older than refreshEvery; headers are read again only for files that changed.
 type Folder struct {
 	dir string
 
-	mu    sync.Mutex
-	known map[string]cached
+	mu         sync.Mutex
+	known      map[string]cached
+	list       []Script
+	read       time.Time
+	refreshing bool
 }
 
 type cached struct {
@@ -102,20 +110,35 @@ func Open(dir string) (*Folder, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("make the scripts folder: %w", err)
 	}
-	return &Folder{dir: dir, known: map[string]cached{}}, nil
+	f := &Folder{dir: dir, known: map[string]cached{}}
+	f.refresh()
+	return f, nil
 }
 
 // Dir is the folder.
 func (f *Folder) Dir() string { return f.dir }
 
-// List returns the commands in the folder, by title.
+// List returns the commands in the folder, by title, as last read: a script added or changed shows a moment later.
 func (f *Folder) List() []Script {
-	entries, err := os.ReadDir(f.dir)
-	if err != nil {
-		return nil
-	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if !f.refreshing && time.Since(f.read) > refreshEvery {
+		f.refreshing = true
+		go f.refresh()
+	}
+	return f.list
+}
+
+// refresh reads the folder.
+func (f *Folder) refresh() {
+	entries, err := os.ReadDir(f.dir)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.refreshing, f.read = false, time.Now()
+	if err != nil {
+		f.list = nil
+		return
+	}
 	seen := map[string]bool{}
 	var out []Script
 	for _, e := range entries {
@@ -143,12 +166,15 @@ func (f *Folder) List() []Script {
 		}
 	}
 	slices.SortFunc(out, func(a, b Script) int { return strings.Compare(strings.ToLower(a.Title), strings.ToLower(b.Title)) })
-	return out
+	f.list = out
 }
 
-// Find returns the command with this name.
+// Find returns the command with this name, read from the folder now (it is about to run).
 func (f *Folder) Find(name string) (Script, bool) {
-	for _, s := range f.List() {
+	f.refresh()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, s := range f.list {
 		if s.Name == name {
 			return s, true
 		}
@@ -181,10 +207,16 @@ func Run(ctx context.Context, s Script, input string) (string, error) {
 		return "", err
 	}
 	cmd.Dir, _ = os.UserHomeDir()
-	cmd.Env = append(os.Environ(), "OMNI_INPUT="+input)
+	cmd.Env = append(environ(), "OMNI_INPUT="+input)
+	// Without this a script that starts something and returns would hold Run until that ends: what it started keeps the
+	// output pipes, and a timeout kills only the script itself.
+	cmd.WaitDelay = pipeWait
 	var stdout, stderr limited
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err = cmd.Run()
+	if errors.Is(err, exec.ErrWaitDelay) && ctx.Err() == nil {
+		err = nil // the script ended well; only what it left running still had the pipes
+	}
 	out := strings.TrimRight(stdout.String(), "\r\n")
 	if ctx.Err() == context.DeadlineExceeded {
 		return out, fmt.Errorf("%s ran for longer than %s and was stopped", s.Title, RunTimeout)

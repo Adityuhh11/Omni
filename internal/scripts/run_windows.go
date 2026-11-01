@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,9 @@ var interpreters = map[string][]string{
 	".bat": {"cmd.exe", "/d", "/c"},
 	".cmd": {"cmd.exe", "/d", "/c"},
 }
+
+// environ is the environment a script runs in.
+func environ() []string { return os.Environ() }
 
 func runnable(name string, _ fs.FileMode) bool {
 	ext := strings.ToLower(filepath.Ext(name))

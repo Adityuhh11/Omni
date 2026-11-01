@@ -47,7 +47,8 @@ description for the model: what the script does and when it is worth calling.
 
 A script can do anything, so by default the chat asks you before each run and shows the input. **Run without asking me first**
 in Settings turns that off for one script. The model sees what the script prints, up to 4,000 characters. Scripts are never
-offered to other AI apps through MCP.
+offered to other AI apps through MCP. The tool's name comes from the file's name without its extension, so of two scripts called
+`port.ps1` and `port.py` only the first is offered (both stay commands in the bar).
 
 ## Examples
 

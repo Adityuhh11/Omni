@@ -207,11 +207,12 @@ func (s *Server) call(ctx context.Context, req request) (any, *rpcError) {
 		if err := json.Unmarshal(req.Params, &p); err != nil {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
-		i := slices.IndexFunc(s.readOnly(), func(t chat.Local) bool { return t.Def.Function.Name == p.Name })
+		tools := s.readOnly() // once: the switches can change between two reads
+		i := slices.IndexFunc(tools, func(t chat.Local) bool { return t.Def.Function.Name == p.Name })
 		if i < 0 {
 			return nil, &rpcError{-32602, "there is no tool called " + p.Name + " (it may be off in Omni's settings)"}
 		}
-		text, sources, err := s.readOnly()[i].Run(ctx, chat.StringArgs(p.Arguments))
+		text, sources, err := tools[i].Run(ctx, chat.StringArgs(p.Arguments))
 		if err != nil {
 			return toolResult(err.Error(), true), nil
 		}

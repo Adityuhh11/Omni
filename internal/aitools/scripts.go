@@ -2,6 +2,7 @@ package aitools
 
 import (
 	"context"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -22,7 +23,8 @@ func (d Deps) scriptTools() []chat.Local {
 		if s.Tool == "" {
 			continue
 		}
-		name := "script_" + strings.Trim(notToolName.ReplaceAllString(strings.ToLower(s.Name), "_"), "_")
+		stem := strings.TrimSuffix(s.Name, filepath.Ext(s.Name))
+		name := "script_" + strings.Trim(notToolName.ReplaceAllString(strings.ToLower(stem), "_"), "_")
 		if names[name] { // two files whose names differ only in what a tool name cannot hold: the first keeps it
 			continue
 		}

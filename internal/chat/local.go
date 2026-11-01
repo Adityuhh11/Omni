@@ -11,7 +11,7 @@ import (
 // Local is a tool that runs on this computer: a look into Omni's own data or a script of the person's (docs/decisions/
 // 0011-local-tools.md). main builds them (internal/aitools); the chat offers the ones whose group is switched on.
 type Local struct {
-	// Group is what switches the tool on in [chat] tools ("files", "notes", "script:backup"); one group may hold several tools.
+	// Group is what switches the tool on in [chat] tools ("files", "notes", "script:backup.ps1"); one group may hold several tools.
 	Group string
 	// GroupTitle names the group in the + menu and in Settings.
 	GroupTitle string
@@ -62,6 +62,16 @@ func (t toolset) list() []Tool {
 		out = append(out, l.Def)
 	}
 	return out
+}
+
+// schemaTokens estimates what the tools' descriptions take of the context (they are sent with every request that offers
+// them, and the server counts them against the context like the messages).
+func (t toolset) schemaTokens() int {
+	if !t.any() {
+		return 0
+	}
+	b, _ := json.Marshal(t.list())
+	return len(b) / charsPerToken
 }
 
 func (t toolset) find(name string) (Local, bool) {

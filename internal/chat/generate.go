@@ -348,13 +348,14 @@ func (s *Service) prepare(ctx context.Context, ep llm.Endpoint, thinking bool, t
 	defer s.mu.Unlock()
 	s.systemTok = sysTokens + messageOverhead
 	s.conv.Messages[len(s.conv.Messages)-1].Tokens = questionTokens
-	reserve := Reserve(thinking, cfg.ContextTokens)
+	reserve := Reserve(thinking, cfg.ContextTokens) + tools.schemaTokens()
 	start, used, err := Fit(s.conv.Messages, s.systemTok, cfg.ContextTokens-reserve)
 	if err != nil {
 		return Request{}, 0, err
 	}
-	// the tools' descriptions and the closing "answer now" message take room too
-	return NewRequest(WireMessages(system, s.conv.Messages[start:]), reserve, thinking), cfg.ContextTokens - reserve - used - toolOverheadTokens, nil
+	// the closing "answer now" message takes room too; the tools' descriptions are in reserve
+	return NewRequest(WireMessages(system, s.conv.Messages[start:]), Reserve(thinking, cfg.ContextTokens), thinking),
+		cfg.ContextTokens - reserve - used - toolOverheadTokens, nil
 }
 
 // size is how much of an answer (text and reasoning) has arrived, to tell whether a failed request got anywhere.

@@ -137,7 +137,7 @@ type Chat struct {
 	// WebSearch lets the model look things up on the web while it answers: its search words go to DuckDuckGo and the pages it
 	// reads are fetched from their sites. Off until the person switches it on, from the chat's + menu.
 	WebSearch bool `toml:"web_search"`
-	// Tools are the groups of local tools the model may use ("files", "clipboard", "notes", "activity", "script:<name>"),
+	// Tools are the groups of local tools the model may use ("files", "clipboard", "notes", "activity", "script:<file name>"),
 	// switched on from the + menu; none at first. Nothing leaves the computer for them, but with WebSearch also on the model
 	// could put what a tool returned into its search words. A group that no longer exists (a deleted script) is ignored.
 	Tools []string `toml:"tools"`

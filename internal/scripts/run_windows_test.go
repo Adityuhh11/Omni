@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func script(t *testing.T, name, text string) Script {
@@ -45,5 +46,17 @@ func TestAFailingScriptSaysWhatItPrintedLast(t *testing.T) {
 	s := script(t, "fail.ps1", "# @omni.title Fail\n[Console]::Error.WriteLine('port 3000 is free')\nexit 3\n")
 	if _, err := Run(context.Background(), s, ""); err == nil || !strings.Contains(err.Error(), "Fail failed: port 3000 is free") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestAScriptThatLeavesSomethingRunningStillReturns(t *testing.T) {
+	s := script(t, "start.bat", "@echo off\r\nREM @omni.title Start\r\nstart /b ping -n 30 127.0.0.1\r\necho started\r\n")
+	began := time.Now()
+	out, err := Run(context.Background(), s, "")
+	if took := time.Since(began); took > 10*time.Second {
+		t.Fatalf("Run waited %v for what the script left running", took)
+	}
+	if err != nil || !strings.Contains(out, "started") {
+		t.Fatalf("out %q, %v", out, err)
 	}
 }

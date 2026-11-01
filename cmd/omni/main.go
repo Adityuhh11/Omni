@@ -371,7 +371,7 @@ func run(afterUpdate bool) error {
 		log.Printf("scripts are off: %v", err)
 	}
 	localTools := aitools.Deps{
-		Files: fileSearch, Clips: clips, Notes: noteStore,
+		Files: fileSearch, Clips: clips,
 		Launches: func(since time.Time) []aitools.Launch {
 			var out []aitools.Launch
 			for _, u := range history.Since(since) {
@@ -381,6 +381,9 @@ func run(afterUpdate bool) error {
 			}
 			return out
 		},
+	}
+	if noteStore != nil { // a nil *Store inside the interface would not look nil, and the notes tools would be offered
+		localTools.Notes = noteStore
 	}
 	var scriptBox palette.ScriptBox
 	if scriptFolder != nil { // not assigned when nil: a nil *Folder inside an interface would not look nil
@@ -411,8 +414,8 @@ func run(afterUpdate bool) error {
 		SetWebSearch: func(on bool) error { return store.Update(func(c *config.Config) { c.Chat.WebSearch = on }) },
 		Web:          websearch.New(),
 		Locals:       localTools.Tools,
-		SetTools: func(on, always []string) error {
-			return store.Update(func(c *config.Config) { c.Chat.Tools, c.Chat.AlwaysRun = on, always })
+		UpdateTools: func(change func(on, always []string) ([]string, []string)) error {
+			return store.Update(func(c *config.Config) { c.Chat.Tools, c.Chat.AlwaysRun = change(c.Chat.Tools, c.Chat.AlwaysRun) })
 		},
 		Installed:    func() bool { return chatSetup.Layout().Installed() },
 		Emit:         func(event string, data any) { app.Event.Emit(event, data) },
