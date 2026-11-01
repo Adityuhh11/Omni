@@ -10,6 +10,7 @@ New here? The repository's `README.md` explains what Omni is, how to install it 
 | `PERFORMANCE.md` | Measured speed and resource use, with a graphics card and without one; how each number was taken. |
 | `DISTRIBUTION.md` | Why Windows warns about an unsigned program, and the route to a signed, trusted install. |
 | `RELEASING.md` | How versions are numbered and how a release is cut. |
+| `SCRIPTS.md` | Script commands: the `@omni` lines, how scripts run, and scripts as Omni AI tools. |
 | `INSTALL-MAC.md` | Installing, updating and removing Omni on a Mac, and the permissions macOS asks for. |
 | `decisions/` | Decision records: what we chose, the alternatives, the numbers behind it. |
 | `/DESIGN.md` | The visual system of the launcher panel (read before changing `frontend/`). |
