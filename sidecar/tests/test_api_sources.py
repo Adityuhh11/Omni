@@ -254,3 +254,14 @@ def test_excluded_folders_are_left_out_and_a_bad_exclude_is_a_422(api, folder):
     for bad in ["../outside", "/abs", "C:/abs", r"a\..\b"]:
         response = api.post("/sources", json={**body, "exclude": [bad]})
         assert response.status_code == 422, bad
+
+
+def test_recent_files_are_listed_newest_first_and_since_a_moment(api, folder):
+    index(api, folder)
+    files = api.get("/files/recent", params={"limit": 10}).json()
+    assert len(files) == 3
+    assert [f["mtime_ns"] for f in files] == sorted((f["mtime_ns"] for f in files), reverse=True)
+    assert set(files[0]) == {"source_id", "uri", "mtime_ns"}
+    newest = files[0]["mtime_ns"]
+    assert api.get("/files/recent", params={"since_ns": newest}).json() == []
+    assert len(api.get("/files/recent", params={"limit": 1}).json()) == 1

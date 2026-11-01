@@ -7,7 +7,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi import Path as PathParam
 
 from omni_memory.api.deps import Engine, get_engine, get_store
@@ -19,6 +19,7 @@ from omni_memory.api.schemas import (
     HealthOut,
     JobOut,
     PaceOut,
+    RecentFileOut,
     RemovedOut,
     RouteCountOut,
     SearchFilters,
@@ -95,6 +96,18 @@ def _local_folder(path: str) -> Path:
 @router.get("/sources", response_model=list[SourceOut])
 def list_sources(store: Annotated[FlatStore, Depends(get_store)]) -> list[SourceInfo]:
     return store.sources()
+
+
+@router.get("/files/recent", response_model=list[RecentFileOut])
+def recent_files(
+    store: Annotated[FlatStore, Depends(get_store)],
+    since_ns: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[RecentFileOut]:
+    return [
+        RecentFileOut(source_id=s, uri=u, mtime_ns=m)
+        for s, u, m in store.recent_files(since_ns, limit)
+    ]
 
 
 @router.post("/sources", status_code=202)
@@ -191,5 +204,7 @@ def search(body: SearchRequest, engine: Annotated[Engine, Depends(get_engine)]) 
 def search_files(
     body: FileSearchRequest, engine: Annotated[Engine, Depends(get_engine)]
 ) -> FileSearchResponse:
-    result = engine.searcher.search_files(body.query, body.k, body.per_file, _filters(body.filters))
+    result = engine.searcher.search_files(
+        body.query, body.k, body.per_file, _filters(body.filters), body.full_text
+    )
     return FileSearchResponse.model_validate(result)

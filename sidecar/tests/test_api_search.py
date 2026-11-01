@@ -13,6 +13,7 @@ HIT_FIELDS = {
     "vector_score",
     "keyword_rank",
     "snippet",
+    "text",
 }
 
 

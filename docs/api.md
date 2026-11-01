@@ -106,6 +106,17 @@ What is indexed: `200` a list, ordered by `id` (empty when nothing is indexed):
 finished, `files` and `chunks` count what the index holds now. This route only reads the index, so unlike the others it
 answers while the model is still loading.
 
+### `GET /files/recent`
+
+Indexed files that changed lately: `GET /files/recent?since_ns=0&limit=50` answers `200` with files whose modification time is
+after `since_ns` (0: any), newest first, at most `limit` (1-200, default 50):
+
+```json
+[{"source_id": "project", "uri": "Backend/jwt.js", "mtime_ns": 1762000000000000000}]
+```
+
+It only reads the index, so it answers while the model is loading. Omni AI's `recent_activity` tool uses it.
+
 ### `POST /survey`
 
 Counts what indexing a folder would read, by kind, without opening any file (a file that lives only in the cloud is
@@ -196,7 +207,7 @@ ADR 0007).
 
 ```json
 {"hits": [{"id": "...", "source_id": "project", "uri": "Backend/jwt.js", "kind": "code", "locator": "{\"lines\":[1,40]}",
-           "score": 0.81, "vector_score": 0.79, "keyword_rank": 1, "snippet": "..."}],
+           "score": 0.81, "vector_score": 0.79, "keyword_rank": 1, "snippet": "...", "text": ""}],
  "confident": true}
 ```
 
@@ -221,9 +232,10 @@ Scores are not calibrated across corpora; use `confident` for "nothing relevant"
 The same search, shown as files: each file once, in the order of its best chunk, with its best matching chunks. This is
 what a result list wants; `POST /search` is the chunk-level view.
 
-Request: `{"query": "...", "k": 10, "per_file": 3, "filters": {...}}`. `k` is the number of files (1-50, default 10),
-`per_file` the number of chunks kept per file (1-10, default 3); `query` and `filters` are as for `/search`. Unknown fields
-are rejected.
+Request: `{"query": "...", "k": 10, "per_file": 3, "filters": {...}, "full_text": false}`. `k` is the number of files (1-50, default 10),
+`per_file` the number of chunks kept per file (1-10, default 3); `query` and `filters` are as for `/search`. `full_text: true`
+puts each chunk's whole body (its text after the path line) in `text`, which is otherwise empty: Omni AI reads it, the bar
+shows `snippet`. Unknown fields are rejected.
 
 `200`:
 
@@ -231,7 +243,7 @@ are rejected.
 {"files": [{"source_id": "project", "uri": "Backend/jwt.js", "kind": "code", "score": 0.81,
             "chunks": [{"id": "...", "source_id": "project", "uri": "Backend/jwt.js", "kind": "code",
                         "locator": "{\"lines\":[1,40]}", "score": 0.81, "vector_score": 0.79,
-                        "keyword_rank": 1, "snippet": "..."}]}],
+                        "keyword_rank": 1, "snippet": "...", "text": ""}]}],
  "confident": true}
 ```
 

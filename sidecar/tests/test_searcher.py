@@ -192,3 +192,12 @@ def test_an_index_too_small_to_measure_keeps_the_default_threshold(world, monkey
     monkeypatch.setattr("omni_memory.search.searcher.noise_ceiling", lambda store, embedder: None)
     assert searcher.calibrate() is None
     assert searcher.confident_cosine == 0.65
+
+
+def test_a_file_search_returns_whole_chunk_bodies_only_when_asked(two_files):
+    searcher, _ = two_files
+    plain = searcher.search_files("zebra", files=1, per_file=1).files[0].chunks[0]
+    assert plain.text == ""
+    full = searcher.search_files("zebra", files=1, per_file=1, full_text=True).files[0].chunks[0]
+    assert "zebra" in full.text
+    assert not full.text.startswith(full.uri)  # the path line is left out, as in the snippet

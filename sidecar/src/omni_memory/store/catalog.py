@@ -54,6 +54,15 @@ class Catalog:
             for uri, size, mtime_ns, sha256 in rows
         }
 
+    def recent_files(self, since_ns: int, limit: int) -> list[tuple[str, str, int]]:
+        # ponytail: sorts the whole files table (ms at 50k files); index mtime_ns if it grows
+        rows = self._db.execute(
+            "SELECT source_id, uri, mtime_ns FROM files WHERE mtime_ns > ? "
+            "ORDER BY mtime_ns DESC LIMIT ?",
+            (since_ns, limit),
+        )
+        return list(rows)
+
     def write_file(self, record: FileRecord) -> None:
         with self._db:
             self._db.execute(
