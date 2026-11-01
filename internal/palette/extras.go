@@ -1,12 +1,14 @@
 package palette
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"unicode/utf8"
 
 	"omni/internal/calc"
 	"omni/internal/rank"
+	"omni/internal/scripts"
 	"omni/internal/system"
 )
 
@@ -28,6 +30,11 @@ type Extras struct {
 	Timer TimerControl
 	// Sound offers to search the sound of audio files and videos (offer.go).
 	Sound SoundOffer
+	// Scripts are the person's script commands (scripts.go); RunScript runs one (scripts.Run) and Paste types text into the
+	// program the bar came from, closing the bar.
+	Scripts   ScriptBox
+	RunScript func(ctx context.Context, s scripts.Script, input string) (string, error)
+	Paste     func(text string) error
 }
 
 // With sets the extras of s and returns it. It is a function, not a method: the exported methods of a service are bound to

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dot, escapeStep, kilo, lastQuestion, meter, sends, thoughtFor, unloadsIn, waiting } from "./chat.ts";
+import { dot, escapeStep, kilo, lastQuestion, meter, sends, thoughtFor, toolGlyph, toolHint, unloadsIn, waiting } from "./chat.ts";
 
 const info = (state: string, extra: object = {}) => ({ enabled: true, installed: true, state, message: "", device: "gpu", ...extra });
 
@@ -77,4 +77,13 @@ test("the waiting line prefers what the program said", () => {
   assert.equal(waiting("thinking", ""), "Thinking…");
   assert.equal(waiting("reading", ""), "Reading…");
   assert.equal(waiting("", ""), "Reading…");
+});
+
+test("a tool group's glyph and hint say what it is and whether it asks", () => {
+  assert.equal(toolGlyph("files"), "file");
+  assert.equal(toolGlyph("script:backup"), "code");
+  assert.equal(toolGlyph("something-new"), "spark");
+  assert.match(toolHint({ group: "script:backup", writes: true, always: false }), /Asks before each run/);
+  assert.match(toolHint({ group: "script:backup", writes: true, always: true }), /without asking/);
+  assert.match(toolHint({ group: "notes", writes: true, always: false }), /Asks before adding/);
 });

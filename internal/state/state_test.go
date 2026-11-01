@@ -317,3 +317,20 @@ func TestAFileThatNeverHadPinsIsSeededEvenAfterOtherThingsWereSaved(t *testing.T
 		t.Fatalf("seed = %v, %v", seeded, err)
 	}
 }
+
+func TestSinceListsLaunchesAfterAMomentNewestFirst(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	for i, id := range []string{"app:a", "app:b", "app:a"} {
+		if err := s.Record(id, "", base.Add(time.Duration(i)*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := s.Since(base)
+	if len(got) != 2 || got[0].ID != "app:a" || !got[0].At.Equal(base.Add(2*time.Hour)) || got[1].ID != "app:b" {
+		t.Fatalf("since = %+v", got)
+	}
+}

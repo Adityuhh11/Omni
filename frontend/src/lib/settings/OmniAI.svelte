@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Browser } from "@wailsio/runtime";
+  import { Browser, Clipboard } from "@wailsio/runtime";
   import { OmniAI } from "../../../bindings/omni/internal/settingsui";
   import type { OmniAIView } from "../../../bindings/omni/internal/settingsui";
-  import { unloadsIn } from "../chat/chat";
+  import { toolHint, unloadsIn } from "../chat/chat";
 
   let page = $state<OmniAIView | null>(null);
   let error = $state("");
@@ -61,6 +61,14 @@
   async function history(change: { keep?: boolean; days?: number }) {
     if (!page) return;
     await run(() => OmniAI.SetHistory(change.keep ?? page!.KeepHistory, change.days ?? page!.HistoryDays));
+  }
+
+  let copiedConfig = $state(false);
+  async function copyConfig() {
+    if (!page) return;
+    await Clipboard.SetText(page.MCPConfig);
+    copiedConfig = true;
+    setTimeout(() => (copiedConfig = false), 1500);
   }
 
   async function remove() {
@@ -154,6 +162,50 @@
       <label class="check"><input type="checkbox" checked={page.OnTop} onchange={(e) => run(() => OmniAI.SetOnTop(e.currentTarget.checked))} /> Keep the chat above other windows</label>
       <p class="help">Off, other windows can cover it and it comes back when you open it again.</p>
     </div>
+  </section>
+
+  <section class="block">
+    <h3>Tools</h3>
+    <p class="help">
+      What Omni AI may use on this computer while it answers. Each is off until you switch it on, here or from the + in the chat. Nothing leaves this
+      computer for them; with web search also on, the model could put what a tool found into the words it searches for.
+    </p>
+    {#each page.Tools ?? [] as tool (tool.group)}
+      <div class="field">
+        <label class="check"><input type="checkbox" checked={tool.on} onchange={(e) => run(() => OmniAI.SetTool(tool.group, e.currentTarget.checked))} /> {tool.title}</label>
+        <p class="help">{toolHint(tool)}</p>
+        {#if tool.writes}
+          <label class="check sub"
+            ><input type="checkbox" checked={tool.always} disabled={!tool.on} onchange={(e) => run(() => OmniAI.SetAlwaysRun(tool.group, e.currentTarget.checked))} /> Run without asking me first</label
+          >
+        {/if}
+      </div>
+    {/each}
+    <div class="row">
+      <span class="help">
+        A script in <span class="mono">{page.ScriptsFolder}</span> with an <span class="mono">@omni.tool</span> line becomes a tool here. See SCRIPTS.md in Omni's
+        documentation.
+      </span>
+      <button type="button" class="btn quiet" onclick={() => run(() => OmniAI.OpenScriptsFolder())}>Show the folder</button>
+    </div>
+  </section>
+
+  <section class="block">
+    <h3>Use in other AI apps</h3>
+    <div class="field">
+      <label class="check"><input type="checkbox" checked={page.MCP} onchange={(e) => run(() => OmniAI.SetMCP(e.currentTarget.checked))} /> Let AI apps on this computer use these tools</label>
+      <p class="help">
+        Claude Desktop, Cursor, VS Code and other apps that speak MCP can then search your files, notes, clipboard and activity, with the tools switched on above
+        that only read. What they read goes wherever that app sends it, which may be a server on the internet. Omni must be running.
+      </p>
+    </div>
+    {#if page.MCP}
+      <div class="field">
+        <span class="label">Add this to the app's MCP settings</span>
+        <pre class="mono config">{page.MCPConfig}</pre>
+        <div><button type="button" class="btn" onclick={copyConfig}>{copiedConfig ? "Copied" : "Copy"}</button></div>
+      </div>
+    {/if}
   </section>
 
   <section class="block">
@@ -277,5 +329,19 @@
   }
   .link:hover {
     color: var(--text);
+  }
+  .check.sub {
+    margin-left: 26px;
+  }
+  .config {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--tile);
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    user-select: text;
   }
 </style>

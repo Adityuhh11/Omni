@@ -12,8 +12,9 @@ import (
 	"omni/internal/websearch"
 )
 
-// The model may look things up on the web when the person switches that on (docs/decisions/0009-web-search-tool.md).
-// It asks for a tool in place of text; Omni runs it, gives the result back as a "tool" message and the model goes on.
+// The model may look things up on the web (docs/decisions/0009-web-search-tool.md) and use local tools (local.go) when the person
+// switches them on. It asks for a tool in place of text; Omni runs it, gives the result back as a "tool" message and the
+// model goes on.
 
 const (
 	// maxToolRounds is how many times the model may ask for tools in one answer; the next request has no tools, so it must answer.
@@ -37,10 +38,11 @@ type Web interface {
 	Read(ctx context.Context, address string, maxChars int) (websearch.Page, error)
 }
 
-// Source is a page an answer drew on; it is kept with the answer and shown under it.
+// Source is a page or a file an answer drew on; it is kept with the answer and shown under it.
 type Source struct {
 	Title string `json:"title"`
-	URL   string `json:"url"`
+	URL   string `json:"url,omitempty"`
+	Path  string `json:"path,omitempty"` // a file on this computer, in place of URL
 }
 
 // Tool is a function the model may call, as the API takes it.
@@ -136,9 +138,12 @@ func assistantCalls(calls []Call) Wire {
 	return w
 }
 
-// lookup runs one answer's tool calls against the web and keeps what is needed afterwards.
+// lookup runs one answer's tool calls and keeps what is needed afterwards.
 type lookup struct {
-	web    Web
+	web   Web
+	tools toolset
+	// ask shows the person a tool that changes something and says whether they allowed it; nil allows nothing.
+	ask    func(ctx context.Context, c Confirm) bool
 	chars  int // room left in the context for results, in characters
 	status func(Status)
 	pages  map[string]bool
@@ -148,12 +153,13 @@ type lookup struct {
 	allowed map[string]bool
 	read    []Source // pages the model opened
 	found   []Source // results of its searches
+	used    []Source // what its local tools returned (files, notes)
 	logf    func(format string, args ...any)
 }
 
-// addSource adds s unless its address is listed already: two searches overlap, and a redirect can land on a listed page.
+// addSource adds s unless its address (or path) is listed already: two searches overlap, and a redirect can land on a listed page.
 func addSource(list []Source, s Source) []Source {
-	if slices.ContainsFunc(list, func(x Source) bool { return x.URL == s.URL }) {
+	if slices.ContainsFunc(list, func(x Source) bool { return x.URL == s.URL && x.Path == s.Path }) {
 		return list
 	}
 	return append(list, s)
@@ -175,17 +181,22 @@ func addressesIn(messages []Message) map[string]bool {
 	return out
 }
 
-// sources are the pages the answer drew on: the ones the model read, or when it read none, what its searches found.
+// sources are what the answer drew on: what its local tools returned, then the pages the model read, or when it read
+// none, what its web searches found.
 func (l *lookup) sources() []Source {
-	out := l.read
-	if len(out) == 0 {
-		out = l.found
+	pages := l.read
+	if len(pages) == 0 {
+		pages = l.found
 	}
+	out := append(slices.Clip(l.used), pages...)
 	return out[:min(len(out), maxSources)]
 }
 
 // run does one call and returns what the model is told. A failure is a result too: the model reads it and says it could not look.
 func (l *lookup) run(ctx context.Context, c Call) string {
+	if local, ok := l.tools.find(c.Name); ok {
+		return l.take(l.runLocal(ctx, local, c.Arguments))
+	}
 	var args map[string]string
 	if err := json.Unmarshal([]byte(c.Arguments), &args); err != nil {
 		return l.take("Error: the arguments were not valid JSON. Call the tool again with " + argumentOf(c.Name) + " as a string.")
@@ -196,7 +207,7 @@ func (l *lookup) run(ctx context.Context, c Call) string {
 	case "read_page":
 		return l.take(l.readPage(ctx, strings.TrimSpace(args["url"])))
 	}
-	return l.take("Error: there is no tool called " + c.Name + ". The tools are web_search and read_page.")
+	return l.take("Error: there is no tool called " + c.Name + ". Use only the tools you were given.")
 }
 
 func argumentOf(tool string) string {

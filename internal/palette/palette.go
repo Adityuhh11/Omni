@@ -100,7 +100,7 @@ type Browser interface {
 type Item struct {
 	// ID names the thing: the kind, a colon and the kind's own id.
 	ID string
-	// Kind is "app", "quicklink", "web", "file" (a tagged file), "tag", "clip", "snippet", "cmd", "calc", "system", "note" or "timer". The page lists quicklinks
+	// Kind is "app", "quicklink", "web", "file" (a tagged file), "tag", "clip", "snippet", "cmd", "calc", "system", "note", "timer" or "script". The page lists quicklinks
 	// first, then apps and files, and the web search last, as the fallback.
 	Kind     string
 	Title    string
@@ -183,6 +183,7 @@ func (s *Service) Query(raw, mode string) Answer {
 		answer.Items = append(answer.Items, calcItems(text)...) // a sum is the answer to a sum, ahead of anything it also spells
 		answer.Items = append(answer.Items, s.timerItems(text)...)
 		answer.Items = append(answer.Items, s.keywordItems(text)...)
+		answer.Items = append(answer.Items, s.scriptItems(text)...)
 		if soundScope.MatchString(raw) {
 			answer.Items = append(answer.Items, s.offerItems(raw, text)...)
 		}
@@ -317,6 +318,9 @@ func (s *Service) Do(id, action, typed string) error {
 	}
 	if rest, ok := strings.CutPrefix(id, "note:"); ok {
 		return s.doNote(rest, action)
+	}
+	if strings.HasPrefix(id, "script:") || id == scriptsFolderID {
+		return s.doScript(id, action)
 	}
 	if rest, ok := strings.CutPrefix(id, "ask:"); ok {
 		return s.doAsk(rest, action)

@@ -74,7 +74,7 @@ func (s *Service) begin(question *Message) (View, error) {
 	s.mu.Unlock()
 	go func() {
 		defer close(finished)
-		s.generate(ctx, cfg.Thinking, cfg.WebSearch && s.o.Web != nil)
+		s.generate(ctx, cfg.Thinking, s.toolsOn(cfg))
 		cancel()
 	}()
 	return view, nil
@@ -91,7 +91,7 @@ type reply struct {
 	firstContent bool
 	endpoint     llm.Endpoint // the server that answered, to count the answer afterwards
 	haveEndpoint bool
-	sources      []Source // the pages the answer drew on, when it looked at the web
+	sources      []Source // the pages and files the answer drew on, when it looked
 	gap          bool     // text came before a tool call, so a break goes before the next text
 }
 
@@ -144,7 +144,7 @@ func (r *reply) anything() bool {
 }
 
 // generate asks the model, streams the answer to the page and records it. It always ends with a Done event.
-func (s *Service) generate(ctx context.Context, thinking, web bool) {
+func (s *Service) generate(ctx context.Context, thinking bool, tools toolset) {
 	release := s.o.Model.Hold()
 	status := func(st Status) { s.o.Emit(EventStatus, st) }
 
@@ -164,7 +164,7 @@ func (s *Service) generate(ctx context.Context, thinking, web bool) {
 			}
 		}
 	}()
-	failed := s.answer(ctx, thinking, web, &r, status)
+	failed := s.answer(ctx, thinking, tools, &r, status)
 	close(stopFlush)
 	<-flushed
 
@@ -232,10 +232,10 @@ func (s *Service) tokensOf(r *reply) int {
 	return utf8.RuneCountInString(text)/3 + messageOverhead
 }
 
-// answer does the work of one answer and returns why it failed, if it did. A stop is not a failure. With web search on, the model
-// may ask for tools first: each round runs them and gives the results back, up to maxToolRounds, and the request after that has no
+// answer does the work of one answer and returns why it failed, if it did. A stop is not a failure. With tools on, the model
+// may ask for them first: each round runs them and gives the results back, up to maxToolRounds, and the request after that has no
 // tools so the model has to answer.
-func (s *Service) answer(ctx context.Context, thinking, web bool, r *reply, status func(Status)) error {
+func (s *Service) answer(ctx context.Context, thinking bool, tools toolset, r *reply, status func(Status)) error {
 	if s.o.Model.Status().State != llm.Ready {
 		status(Status{Phase: "loading", Text: "Starting the model…"})
 	}
@@ -249,7 +249,7 @@ func (s *Service) answer(ctx context.Context, thinking, web bool, r *reply, stat
 	r.endpoint, r.haveEndpoint = ep, true
 	status(Status{Phase: "reading", Text: "Reading…"})
 
-	req, spare, err := s.prepare(ctx, ep, thinking, web)
+	req, spare, err := s.prepare(ctx, ep, thinking, tools)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil
@@ -257,14 +257,14 @@ func (s *Service) answer(ctx context.Context, thinking, web bool, r *reply, stat
 		return err
 	}
 	var look *lookup
-	if web && spare*charsPerToken >= minToolChars {
+	if tools.any() && spare*charsPerToken >= minToolChars {
 		s.mu.Lock()
 		allowed := addressesIn(s.conv.Messages)
 		s.mu.Unlock()
-		look = &lookup{web: s.o.Web, chars: spare * charsPerToken, status: status, pages: map[string]bool{}, allowed: allowed, logf: s.o.Logf}
-		req.Tools = webTools()
-	} else if web { // no room for results: the model is not told it has tools it was not given
-		req.Messages[0].Content = SystemPrompt(s.o.Now(), false)
+		look = &lookup{web: s.o.Web, tools: tools, ask: s.ask, chars: spare * charsPerToken, status: status, pages: map[string]bool{}, allowed: allowed, logf: s.o.Logf}
+		req.Tools = tools.list()
+	} else if tools.any() { // no room for results: the model is not told it has tools it was not given
+		req.Messages[0].Content = SystemPrompt(s.o.Now(), toolset{})
 	}
 	for round := 1; ; round++ {
 		calls, err := s.complete(ctx, &ep, req, r, status)
@@ -325,9 +325,9 @@ func (s *Service) complete(ctx context.Context, ep *llm.Endpoint, req Request, r
 // prepare counts what the new question and the system prompt take, decides which messages the model is shown and builds the
 // request. spare is the tokens of the context still free after the messages and the room kept for the reply: what tool results
 // may take.
-func (s *Service) prepare(ctx context.Context, ep llm.Endpoint, thinking, web bool) (req Request, spare int, err error) {
+func (s *Service) prepare(ctx context.Context, ep llm.Endpoint, thinking bool, tools toolset) (req Request, spare int, err error) {
 	cfg := s.o.Settings()
-	system := SystemPrompt(s.o.Now(), web)
+	system := SystemPrompt(s.o.Now(), tools)
 	sysTokens, err := Tokens(ctx, ep, system)
 	if err != nil {
 		return Request{}, 0, err

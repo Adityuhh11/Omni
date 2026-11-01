@@ -51,7 +51,7 @@ func clip(s string, max int) (string, bool) {
 	return s[:max], true
 }
 
-func search(id, query string) Call {
+func webCall(id, query string) Call {
 	return Call{ID: id, Name: "web_search", Arguments: `{"query":"` + query + `"}`}
 }
 
@@ -71,12 +71,12 @@ func toolMessages(req Request) []Wire {
 
 func TestCompleteGathersAToolCallThatArrivesInPieces(t *testing.T) {
 	f := newFakeLlama(t)
-	f.toolRounds = [][]Call{{search("c1", "go release"), read("c2", "https://go.dev")}}
+	f.toolRounds = [][]Call{{webCall("c1", "go release"), read("c2", "https://go.dev")}}
 	_, calls, err := Complete(context.Background(), f.endpoint(), NewRequest(nil, 10, false), func(string) {}, func(string) {})
 	if err != nil || len(calls) != 2 {
 		t.Fatalf("calls = %+v, err %v", calls, err)
 	}
-	if calls[0] != search("c1", "go release") || calls[1] != read("c2", "https://go.dev") {
+	if calls[0] != webCall("c1", "go release") || calls[1] != read("c2", "https://go.dev") {
 		t.Fatalf("calls = %+v", calls)
 	}
 }
@@ -84,7 +84,7 @@ func TestCompleteGathersAToolCallThatArrivesInPieces(t *testing.T) {
 func TestTheModelSearchesReadsAndAnswersWithTheSourcesItReadShownUnderIt(t *testing.T) {
 	r := newRig(t)
 	r.cfg.WebSearch = true
-	r.llama.toolRounds = [][]Call{{search("c1", "go 1.24 release date")}, {read("c2", "https://go.dev/doc/go1.24")}}
+	r.llama.toolRounds = [][]Call{{webCall("c1", "go 1.24 release date")}, {read("c2", "https://go.dev/doc/go1.24")}}
 	r.llama.answer = "Go 1.24 came out on 11 February 2025."
 	if _, err := r.svc.Send("When did Go 1.24 come out?"); err != nil {
 		t.Fatal(err)
@@ -143,7 +143,7 @@ func TestTheModelSearchesReadsAndAnswersWithTheSourcesItReadShownUnderIt(t *test
 func TestSourcesAreTheSearchResultsWhenNoPageWasRead(t *testing.T) {
 	r := newRig(t)
 	r.cfg.WebSearch = true
-	r.llama.toolRounds = [][]Call{{search("c1", "go")}}
+	r.llama.toolRounds = [][]Call{{webCall("c1", "go")}}
 	if _, err := r.svc.Send("go?"); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestTheModelCannotKeepSearchingForever(t *testing.T) {
 	r := newRig(t)
 	r.cfg.WebSearch = true
 	for i := 0; i < 8; i++ {
-		r.llama.toolRounds = append(r.llama.toolRounds, []Call{search("c", "again")})
+		r.llama.toolRounds = append(r.llama.toolRounds, []Call{webCall("c", "again")})
 	}
 	if _, err := r.svc.Send("search forever"); err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestAFailedSearchIsTheModelsToReadNotTheEndOfTheAnswer(t *testing.T) {
 	r := newRig(t)
 	r.cfg.WebSearch = true
 	r.web.searchErr = errors.New("DuckDuckGo did not answer the search (HTTP 202)")
-	r.llama.toolRounds = [][]Call{{search("c1", "news")}}
+	r.llama.toolRounds = [][]Call{{webCall("c1", "news")}}
 	r.llama.answer = "I could not look that up."
 	if _, err := r.svc.Send("news?"); err != nil {
 		t.Fatal(err)
@@ -228,7 +228,7 @@ func TestResultsAreCutToTheRoomTheContextHasLeft(t *testing.T) {
 	r := newRig(t)
 	r.cfg.WebSearch = true
 	r.web.text = strings.Repeat("word ", 5000)
-	r.llama.toolRounds = [][]Call{{search("c0", "long page")}, {read("c1", "https://go.dev/doc/go1.24")}}
+	r.llama.toolRounds = [][]Call{{webCall("c0", "long page")}, {read("c1", "https://go.dev/doc/go1.24")}}
 	if _, err := r.svc.Send("read it"); err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestBadCallsAreAnswersTheModelCanLearnFrom(t *testing.T) {
 	}{
 		"not json":     {Call{Name: "web_search", Arguments: `{"query": `}, "not valid JSON"},
 		"no such tool": {Call{Name: "delete_files", Arguments: `{}`}, "no tool called delete_files"},
-		"empty query":  {search("1", "   "), `"query" is empty`},
+		"empty query":  {webCall("1", "   "), `"query" is empty`},
 		"empty url":    {read("1", ""), `"url" is empty`},
 	} {
 		if got := l.run(ctx, tc.call); !strings.Contains(got, tc.want) {
@@ -284,7 +284,7 @@ func TestAPageNobodyOfferedIsNotFetched(t *testing.T) {
 		t.Error("an address only the assistant wrote was fetched")
 	}
 	l.run(ctx, read("3", "https://example.com/mine"))
-	l.run(ctx, search("4", "go"))
+	l.run(ctx, webCall("4", "go"))
 	l.run(ctx, read("5", "https://go.dev/blog/go1.24"))
 	if len(web.pages) != 2 {
 		t.Fatalf("pages fetched: %v; the person's address and a search result should be", web.pages)
@@ -294,8 +294,8 @@ func TestAPageNobodyOfferedIsNotFetched(t *testing.T) {
 func TestSourcesNeverListAPageTwice(t *testing.T) {
 	l := &lookup{web: &fakeWeb{}, chars: 100000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{}, logf: func(string, ...any) {}}
 	ctx := context.Background()
-	l.run(ctx, search("1", "go release"))
-	l.run(ctx, search("2", "go 1.24 release"))
+	l.run(ctx, webCall("1", "go release"))
+	l.run(ctx, webCall("2", "go 1.24 release"))
 	if got := l.sources(); len(got) != 2 {
 		t.Fatalf("sources = %+v", got)
 	}
@@ -317,5 +317,99 @@ func TestAResultNeverTakesMoreThanTheRoomLeft(t *testing.T) {
 	l := &lookup{web: &fakeWeb{}, chars: 1000, status: func(Status) {}, pages: map[string]bool{}, allowed: map[string]bool{"https://a.example/": true}, logf: func(string, ...any) {}}
 	if got := l.run(context.Background(), read("1", "https://a.example/")); !strings.Contains(got, "no room") {
 		t.Errorf("with 1000 characters left a page should be refused for lack of room: %q", got)
+	}
+}
+
+func echoTool(group, name string, writes bool, ran *[]string) Local {
+	return Local{Group: group, GroupTitle: "Echo " + group, Def: ObjectTool(name, "echo", map[string]string{"text": "what to echo"}, "text"), Writes: writes,
+		Prompt: "Use " + name + " to echo.", Run: func(_ context.Context, args map[string]string) (string, []Source, error) {
+			*ran = append(*ran, args["text"])
+			return "echoed " + args["text"], []Source{{Title: "a.txt", Path: `C:\a.txt`}}, nil
+		}}
+}
+
+func TestALocalToolSwitchedOnIsOfferedRunAndItsSourcesKept(t *testing.T) {
+	r := newRig(t)
+	var ran []string
+	r.svc.o.Locals = func() []Local {
+		return []Local{echoTool("files", "echo", false, &ran), echoTool("notes", "other", false, &ran)}
+	}
+	r.svc.o.SetTools = func(on, always []string) error { r.cfg.Tools, r.cfg.AlwaysRun = on, always; return nil }
+	if err := r.svc.SetTool("files", true); err != nil {
+		t.Fatal(err)
+	}
+	r.llama.toolRounds = [][]Call{{{ID: "c1", Name: "echo", Arguments: `{"text": 42}`}}}
+	if _, err := r.svc.Send("echo"); err != nil {
+		t.Fatal(err)
+	}
+	done := r.await(t)
+	if len(ran) != 1 || ran[0] != "42" {
+		t.Fatalf("ran %v", ran)
+	}
+	req := r.llama.last()
+	if got := toolMessages(req)[0].Content; got != "echoed 42" {
+		t.Fatalf("tool result %q", got)
+	}
+	if !strings.Contains(req.Messages[0].Content, "Use echo to echo.") || strings.Contains(req.Messages[0].Content, "Use other") {
+		t.Fatalf("system prompt %q", req.Messages[0].Content)
+	}
+	msgs := done.View.Messages
+	if src := msgs[len(msgs)-1].Sources; len(src) != 1 || src[0].Path != `C:\a.txt` {
+		t.Fatalf("sources %+v", src)
+	}
+	info := r.svc.Info().Tools
+	if len(info) != 2 || !info[0].On || info[1].On {
+		t.Fatalf("groups %+v", info)
+	}
+}
+
+func TestAToolThatChangesSomethingAsksFirstUnlessAlwaysRun(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		always, allow bool
+		wantRun       bool
+	}{{"allowed", false, true, true}, {"refused", false, false, false}, {"always", true, false, true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			var ran []string
+			r.svc.o.Locals = func() []Local { return []Local{echoTool("script:x", "run_x", true, &ran)} }
+			r.cfg.Tools = []string{"script:x"}
+			if tc.always {
+				r.cfg.AlwaysRun = []string{"script:x"}
+			}
+			r.ev.onConfirm = func(c Confirm) {
+				if c.Input != "hi" || c.Tool != "run_x" {
+					t.Errorf("confirm %+v", c)
+				}
+				go r.svc.Answer(c.ID, tc.allow)
+			}
+			r.llama.toolRounds = [][]Call{{{ID: "c1", Name: "run_x", Arguments: `{"text":"hi"}`}}}
+			if _, err := r.svc.Send("run it"); err != nil {
+				t.Fatal(err)
+			}
+			r.await(t)
+			if (len(ran) == 1) != tc.wantRun {
+				t.Fatalf("ran %v", ran)
+			}
+			if !tc.wantRun && !strings.Contains(toolMessages(r.llama.last())[0].Content, "did not allow") {
+				t.Fatal("the model was not told")
+			}
+		})
+	}
+}
+
+func TestStoppingWhileAConfirmationWaitsRefusesIt(t *testing.T) {
+	r := newRig(t)
+	var ran []string
+	r.svc.o.Locals = func() []Local { return []Local{echoTool("script:x", "run_x", true, &ran)} }
+	r.cfg.Tools = []string{"script:x"}
+	r.ev.onConfirm = func(Confirm) { go r.svc.Stop() }
+	r.llama.toolRounds = [][]Call{{{ID: "c1", Name: "run_x", Arguments: `{"text":"hi"}`}}}
+	if _, err := r.svc.Send("run it"); err != nil {
+		t.Fatal(err)
+	}
+	r.await(t)
+	if len(ran) != 0 {
+		t.Fatal("a stopped confirmation ran the tool")
 	}
 }

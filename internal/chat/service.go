@@ -3,6 +3,8 @@ package chat
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -13,12 +15,13 @@ import (
 
 // Events the page listens to (Wails events, the names are the page's).
 const (
-	EventDelta  = "chat:delta"  // Delta: more of the answer
-	EventStatus = "chat:status" // Status: what the model is doing before and during the answer
-	EventDone   = "chat:done"   // Done: the answer is finished, stopped or failed
-	EventModel  = "chat:model"  // Info: the model's state or a setting changed
-	EventAsk    = "chat:ask"    // nothing: a question is waiting for the window (TakePending)
-	EventReset  = "chat:reset"  // View: the open conversation was replaced (history cleared from Settings)
+	EventDelta   = "chat:delta"   // Delta: more of the answer
+	EventStatus  = "chat:status"  // Status: what the model is doing before and during the answer
+	EventDone    = "chat:done"    // Done: the answer is finished, stopped or failed
+	EventConfirm = "chat:confirm" // Confirm: a tool that changes something waits for the person to allow it
+	EventModel   = "chat:model"   // Info: the model's state or a setting changed
+	EventAsk     = "chat:ask"     // nothing: a question is waiting for the window (TakePending)
+	EventReset   = "chat:reset"   // View: the open conversation was replaced (history cleared from Settings)
 )
 
 // Delta is a piece of an answer.
@@ -58,15 +61,17 @@ type View struct {
 
 // Info is the model and the settings the window's header shows.
 type Info struct {
-	Enabled     bool   `json:"enabled"`
-	Installed   bool   `json:"installed"`
-	Thinking    bool   `json:"thinking"`
-	WebSearch   bool   `json:"web_search"`
-	KeepHistory bool   `json:"keep_history"`
-	State       string `json:"state"`
-	Message     string `json:"message"`
-	Device      string `json:"device"`
-	UnloadsAt   int64  `json:"unloads_at"` // milliseconds since 1970; 0 when it does not unload
+	Enabled   bool `json:"enabled"`
+	Installed bool `json:"installed"`
+	Thinking  bool `json:"thinking"`
+	WebSearch bool `json:"web_search"`
+	// Tools are the groups of local tools there are, with their switches.
+	Tools       []ToolGroup `json:"tools"`
+	KeepHistory bool        `json:"keep_history"`
+	State       string      `json:"state"`
+	Message     string      `json:"message"`
+	Device      string      `json:"device"`
+	UnloadsAt   int64       `json:"unloads_at"` // milliseconds since 1970; 0 when it does not unload
 }
 
 // Model is the language model as the service uses it; *llm.Server satisfies it.
@@ -92,6 +97,10 @@ type Options struct {
 	Installed    func() bool
 	// Web looks things up for the model when [chat] web_search is on; nil means the model cannot.
 	Web Web
+	// Locals lists the local tools there are now (scripts come and go); nil means none. SetTools saves which groups are on
+	// and which run without asking ([chat] tools and always_run).
+	Locals   func() []Local
+	SetTools func(on, always []string) error
 	// Emit sends an event to the chat window; OpenSettings opens Settings on a page.
 	Emit         func(event string, data any)
 	OpenSettings func(section string)
@@ -112,6 +121,9 @@ type Service struct {
 	finished  chan struct{} // closed when the answer being generated ends
 	pending   string
 	systemTok int // the system prompt's tokens as last counted
+	// confirms are the questions the window is showing, by id, each waiting for Answer.
+	confirms   map[string]chan bool
+	confirmSeq int
 }
 
 // NewService returns the service.
@@ -144,6 +156,7 @@ func (s *Service) Info() Info {
 	st := s.o.Model.Status()
 	info := Info{
 		Enabled: cfg.Enabled, Installed: s.o.Installed(), Thinking: cfg.Thinking, WebSearch: cfg.WebSearch && s.o.Web != nil,
+		Tools:       groups(s.locals(), cfg.Tools, cfg.AlwaysRun),
 		KeepHistory: cfg.KeepHistory,
 		State:       string(st.State), Message: st.Message, Device: st.Device,
 	}
@@ -191,6 +204,87 @@ func (s *Service) SetWebSearch(on bool) error {
 	}
 	s.Refresh()
 	return nil
+}
+
+func (s *Service) locals() []Local {
+	if s.o.Locals == nil {
+		return nil
+	}
+	return s.o.Locals()
+}
+
+// SetTool switches a group of local tools on or off, from the next question on.
+func (s *Service) SetTool(group string, on bool) error {
+	cfg := s.o.Settings()
+	if err := s.o.SetTools(toggle(cfg.Tools, group, on), cfg.AlwaysRun); err != nil {
+		return err
+	}
+	s.Refresh()
+	return nil
+}
+
+// SetAlwaysRun lets a group's tools that change something run without asking first (on), or makes them ask (off).
+func (s *Service) SetAlwaysRun(group string, on bool) error {
+	cfg := s.o.Settings()
+	if err := s.o.SetTools(cfg.Tools, toggle(cfg.AlwaysRun, group, on)); err != nil {
+		return err
+	}
+	s.Refresh()
+	return nil
+}
+
+// toggle returns list with item in it (on) or without it.
+func toggle(list []string, item string, on bool) []string {
+	out := slices.DeleteFunc(slices.Clone(list), func(x string) bool { return x == item })
+	if on {
+		out = append(out, item)
+	}
+	return out
+}
+
+// Answer gives the person's answer to a confirmation the window was shown.
+func (s *Service) Answer(id string, allow bool) {
+	s.mu.Lock()
+	ch := s.confirms[id]
+	delete(s.confirms, id)
+	s.mu.Unlock()
+	if ch != nil {
+		ch <- allow
+	}
+}
+
+// ask shows the window a tool that changes something and waits for the person's answer; a stop counts as no.
+func (s *Service) ask(ctx context.Context, c Confirm) bool {
+	ch := make(chan bool, 1)
+	s.mu.Lock()
+	s.confirmSeq++
+	c.ID = fmt.Sprintf("confirm-%d", s.confirmSeq)
+	if s.confirms == nil {
+		s.confirms = map[string]chan bool{}
+	}
+	s.confirms[c.ID] = ch
+	s.mu.Unlock()
+	s.o.Emit(EventConfirm, c)
+	select {
+	case allow := <-ch:
+		return allow
+	case <-ctx.Done():
+		s.mu.Lock()
+		delete(s.confirms, c.ID)
+		s.mu.Unlock()
+		return false
+	}
+}
+
+// toolsOn are the tools switched on in cfg that this program has.
+func (s *Service) toolsOn(cfg config.Chat) toolset {
+	t := toolset{web: cfg.WebSearch && s.o.Web != nil, always: cfg.AlwaysRun}
+	for _, l := range s.locals() {
+		if slices.Contains(cfg.Tools, l.Group) {
+			t.locals = append(t.locals, l)
+		}
+	}
+	return t
 }
 
 // OpenSettings opens Settings on the Omni AI page.
