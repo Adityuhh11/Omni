@@ -91,8 +91,8 @@ func TestOutputBeyondTheLimitIsDropped(t *testing.T) {
 
 func TestTwoFilesThatDifferOnlyInTheirExtensionAreTwoCommands(t *testing.T) {
 	dir := t.TempDir()
-	for name, title := range map[string]string{"port.ps1": "Kill port", "port.py": "Show port"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("# @omni.title "+title+"\n"), 0o644); err != nil {
+	for name, title := range map[string]string{"port.js": "Kill port", "port.py": "Show port"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("// @omni.title "+title+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
