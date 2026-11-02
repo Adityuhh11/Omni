@@ -57,11 +57,14 @@
       <div class="field">
         <label class="check"><input type="checkbox" checked={group.On} disabled={!page.Enabled} onchange={(e) => run(() => MCP.SetTool(group.Group, e.currentTarget.checked))} /> {group.Title}</label>
         {#each group.Tools ?? [] as tool (tool.Name)}
-          <p class="tool"><span class="mono">{tool.Name}</span> {tool.Description}</p>
+          <details class="tool">
+            <summary><span class="mono">{tool.Name}</span></summary>
+            <p>{tool.Description}</p>
+          </details>
         {/each}
       </div>
     {/each}
-    <p class="help">Only tools that read are offered. Tools that change something, such as adding a note or running a script, stay in Omni, where it can ask you first.</p>
+    <p class="help">Click a tool to see what the other app is told about it. Only tools that read are offered. Tools that change something, such as adding a note or running a script, stay in Omni, where it can ask you first.</p>
   </section>
 
   {#if page.Enabled}
@@ -97,12 +100,20 @@
     margin-bottom: 8px;
   }
   .tool {
-    margin: 4px 0 0 26px;
+    margin: 2px 0 0 26px;
     color: var(--text-2);
     font: 12.5px/1.45 var(--sans);
   }
-  .tool .mono {
+  .tool summary {
+    width: fit-content;
+    padding: 2px 0;
+    cursor: pointer;
+  }
+  .tool summary:hover .mono {
     color: var(--text);
+  }
+  .tool p {
+    margin: 2px 0 6px;
   }
   .config {
     margin: 0;

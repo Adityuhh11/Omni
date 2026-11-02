@@ -164,13 +164,22 @@
     </p>
     {#each page.Tools ?? [] as tool (tool.group)}
       <div class="field">
-        <label class="check"><input type="checkbox" checked={tool.on} onchange={(e) => run(() => OmniAI.SetTool(tool.group, e.currentTarget.checked))} /> {tool.title}</label>
+        <div class="line">
+          <label class="check"><input type="checkbox" checked={tool.on} onchange={(e) => run(() => OmniAI.SetTool(tool.group, e.currentTarget.checked))} /> {tool.title}</label>
+          {#if tool.writes}
+            <select
+              class="ask"
+              aria-label="When {tool.title} changes something"
+              value={tool.always ? "run" : "ask"}
+              disabled={!tool.on}
+              onchange={(e) => run(() => OmniAI.SetAlwaysRun(tool.group, e.currentTarget.value === "run"))}
+            >
+              <option value="ask">Ask me first</option>
+              <option value="run">Run without asking</option>
+            </select>
+          {/if}
+        </div>
         <p class="help">{toolHint(tool)}</p>
-        {#if tool.writes}
-          <label class="check sub"
-            ><input type="checkbox" checked={tool.always} disabled={!tool.on} onchange={(e) => run(() => OmniAI.SetAlwaysRun(tool.group, e.currentTarget.checked))} /> Run without asking me first</label
-          >
-        {/if}
       </div>
     {/each}
     <div class="row">
@@ -304,7 +313,14 @@
   .link:hover {
     color: var(--text);
   }
-  .check.sub {
-    margin-left: 26px;
+  .line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ask {
+    width: auto;
+    height: 30px;
   }
 </style>
