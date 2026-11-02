@@ -3,7 +3,8 @@
   import { onMount, tick } from "svelte";
   import { Browser, Clipboard, Events, Window } from "@wailsio/runtime";
   import { Service as Chat } from "../bindings/omni/internal/chat";
-  import type { Info, Summary, View } from "../bindings/omni/internal/chat";
+  import type { Info, Source, Summary, ToolGroup, View } from "../bindings/omni/internal/chat";
+  import { Service as Files } from "../bindings/omni/internal/files";
   import "./lib/settings/forms.css";
   import Card from "./lib/Card.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
@@ -17,6 +18,9 @@
   import { when } from "./lib/format";
   import { render } from "./lib/markdown";
 
+  /** chat.Confirm, sent with the chat:confirm event (events carry no generated type). */
+  type Confirm = { id: string; title: string; tool: string; input: string };
+
   const EMPTY: View = { id: "", title: "", messages: [], memory_start: 0, used: 0, room: 8192, unsaved: false, busy: false };
 
   let view = $state<View>(EMPTY);
@@ -29,6 +33,7 @@
   let focused = $state(false); // the composer has the keyboard: its ring moves
   let historyOpen = $state(false);
   let menuOpen = $state(false); // the + menu above the composer
+  let asking = $state<Confirm | null>(null); // a tool that changes something, waiting for the person's yes or no
   let history = $state<Summary[]>([]);
   let historyQuery = $state("");
   let confirm = $state<string>(""); // the conversation whose delete is waiting for a second click, or "all"
@@ -45,6 +50,7 @@
   const unload = $derived(info && info.state === "ready" ? unloadsIn(info.unloads_at, now) : "");
   const lastAnswer = $derived(messages.length > 0 && messages[messages.length - 1].role === "assistant" ? messages.length - 1 : -1);
   const canRetry = $derived(!busy && messages.length > 0 && !off);
+  const toolsOn = $derived((info?.tools ?? []).filter((t) => t.on));
 
   async function toEnd(force = false) {
     if (!force && !stuck) return;
@@ -220,9 +226,17 @@
 
   const toggleThinking = () => run(() => Chat.SetThinking(!info?.thinking));
   const toggleWeb = () => run(() => Chat.SetWebSearch(!info?.web_search));
+  const toggleTool = (tool: ToolGroup) => run(() => Chat.SetTool(tool.group, !tool.on));
 
-  function openSource(url: string) {
-    Browser.OpenURL(url);
+  function openSource(source: Source) {
+    if (source.path) Files.Open(source.path, 0);
+    else if (source.url) Browser.OpenURL(source.url);
+  }
+
+  function answer(allow: boolean) {
+    if (!asking) return;
+    Chat.Answer(asking.id, allow);
+    asking = null;
   }
   const hostOf = (url: string) => {
     try {
@@ -287,10 +301,15 @@
         live.thinking += d.thinking ?? "";
         toEnd();
       }),
+      Events.On("chat:confirm", async (e) => {
+        asking = e.data as Confirm;
+        await toEnd(true);
+      }),
       Events.On("chat:done", async (e) => {
         const d = e.data as { view: View; error?: string; restore?: string };
         view = d.view;
         live = null;
+        asking = null;
         error = d.error ?? "";
         if (d.restore) draft = d.restore;
         await toEnd(true);
@@ -301,6 +320,7 @@
       Events.On("chat:reset", (e) => {
         view = e.data as View;
         live = null;
+        asking = null;
         opened = {};
       }),
       Events.On("chat:ask", () => takePending(true)),
@@ -406,9 +426,9 @@
               {#if message.stopped}<p class="stopped">Stopped</p>{/if}
               {#if message.sources?.length}
                 <div class="sources" aria-label="Sources">
-                  {#each message.sources as source (source.url)}
-                    <button type="button" class="source" title="{source.title}: {source.url}" onclick={() => openSource(source.url)}>
-                      <Icon name="web" size={12} />{hostOf(source.url)}
+                  {#each message.sources as source (source.url || source.path)}
+                    <button type="button" class="source" title="{source.title}: {source.url || source.path}" onclick={() => openSource(source)}>
+                      {#if source.path}<Icon name="file" size={12} />{source.title}{:else}<Icon name="web" size={12} />{hostOf(source.url ?? "")}{/if}
                     </button>
                   {/each}
                 </div>
@@ -428,8 +448,19 @@
               <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
               <div class="prose" use:copyable={html} onclick={onProseClick}>{@html html}</div>
             {/if}
-            <!-- A model that wrote a few words before it went to the web still shows where it is. -->
-            {#if !live.text || live.phase === "web"}
+            {#if asking}
+              <div class="ask" role="alertdialog" aria-labelledby="ask-title">
+                <p id="ask-title" class="ask-title">Run {asking.title}?</p>
+                {#if asking.input}<pre class="ask-input">{asking.input}</pre>{/if}
+                <div class="actions">
+                  <button type="button" class="btn primary" onclick={() => answer(true)}>Run</button>
+                  <button type="button" class="btn quiet" onclick={() => answer(false)}>Don't run</button>
+                </div>
+                <p class="ask-hint">Omni AI asks before a tool changes something. Settings, Omni AI can let it run without asking.</p>
+              </div>
+            {/if}
+            <!-- A model that wrote a few words before it used a tool still shows where it is. -->
+            {#if !asking && (!live.text || live.phase === "web" || live.phase === "tool")}
               <p class="waiting"><span class="pip" aria-hidden="true"></span>{waiting(live.phase, live.status)}</p>
             {/if}
           </div>
@@ -449,7 +480,7 @@
            has the keyboard or an answer is coming, and rests as a still metal edge otherwise. -->
       <form class="composer" onsubmit={(event) => { event.preventDefault(); submit(); }}>
         <LiquidRing speed={busy ? 1.5 : 0.6} running={focused || busy} metal={ringsFor(theme)[0]} radius={27} />
-        {#if info?.thinking || info?.web_search}
+        {#if info?.thinking || info?.web_search || toolsOn.length}
           <!-- What is switched on floats over the box's top edge, so it takes no room in the row: a click turns it off. -->
           <div class="pills">
             {#if info?.thinking}
@@ -462,11 +493,17 @@
                 <Icon name="web" size={14} />
               </button>
             {/if}
+            {#if toolsOn.length}
+              {@const names = toolsOn.map((t) => t.title).join(", ")}
+              <button type="button" class="pill" title="On: {names}. Click to choose" aria-label="Tools on: {names}. Click to choose" onclick={() => (menuOpen = true)}>
+                <Icon name="spark" size={14} />
+              </button>
+            {/if}
           </div>
           {/if}
         <div class="plate">
           <div class="line">
-            <PlusMenu bind:open={menuOpen} thinking={info?.thinking ?? false} web={info?.web_search ?? false} disabled={off} onthinking={toggleThinking} onweb={toggleWeb} />
+            <PlusMenu bind:open={menuOpen} thinking={info?.thinking ?? false} web={info?.web_search ?? false} tools={info?.tools ?? []} disabled={off} onthinking={toggleThinking} onweb={toggleWeb} ontool={toggleTool} />
             <textarea
               bind:this={box}
               bind:value={draft}
@@ -896,6 +933,33 @@
   .pill:focus-visible {
     outline: 1px solid var(--chrome);
     outline-offset: 2px;
+  }
+  .ask {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--tile);
+  }
+  .ask-title {
+    margin: 0;
+    font: 560 13.5px/1.3 var(--sans);
+  }
+  .ask-input {
+    margin: 0;
+    max-height: 120px;
+    overflow: auto;
+    font: 450 12px/1.45 var(--mono);
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-2);
+  }
+  .ask-hint {
+    margin: 0;
+    color: var(--text-3);
+    font: 450 11.5px/1.35 var(--sans);
   }
   .sources {
     display: flex;

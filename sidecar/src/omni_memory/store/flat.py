@@ -332,6 +332,11 @@ class FlatStore:
         with self._lock:
             return self._catalog.sources()
 
+    def recent_files(self, since_ns: int, limit: int) -> list[tuple[str, str, int]]:
+        """Indexed files changed after `since_ns`, newest first: (source id, uri, mtime_ns)."""
+        with self._lock:
+            return self._catalog.recent_files(since_ns, limit)
+
     def mark_scanned(
         self, source_id: str, scanned_ns: int, options: IndexOptions | None = None
     ) -> None:

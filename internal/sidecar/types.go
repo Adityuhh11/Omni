@@ -128,6 +128,15 @@ type SearchFilesRequest struct {
 	K       int      `json:"k,omitempty"`        // number of files, 1-50 (engine default 10)
 	PerFile int      `json:"per_file,omitempty"` // chunks kept per file, 1-10 (engine default 3)
 	Filters *Filters `json:"filters,omitempty"`
+	// FullText asks for each chunk's whole body in Chunk.Text (Omni AI reads it; the bar shows snippets).
+	FullText bool `json:"full_text,omitempty"`
+}
+
+// RecentFile is an indexed file and when it last changed.
+type RecentFile struct {
+	SourceID string `json:"source_id"`
+	URI      string `json:"uri"`
+	MtimeNS  int64  `json:"mtime_ns"`
 }
 
 // Chunk is one matching piece of a file.
@@ -141,6 +150,7 @@ type Chunk struct {
 	VectorScore *float64 `json:"vector_score"`
 	KeywordRank *int     `json:"keyword_rank"`
 	Snippet     string   `json:"snippet"`
+	Text        string   `json:"text"` // empty unless the request asked for FullText
 }
 
 // File is one search result: a file and its best matching chunks.

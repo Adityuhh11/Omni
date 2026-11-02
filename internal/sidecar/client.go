@@ -149,6 +149,13 @@ func (c *Client) SearchFiles(ctx context.Context, req SearchFilesRequest) (Searc
 	return out, err
 }
 
+// RecentFiles lists indexed files changed after since (0: any time), newest first, at most limit (1-200).
+func (c *Client) RecentFiles(ctx context.Context, sinceNS int64, limit int) ([]RecentFile, error) {
+	var out []RecentFile
+	err := c.do(ctx, http.MethodGet, fmt.Sprintf("/files/recent?since_ns=%d&limit=%d", sinceNS, limit), nil, &out)
+	return out, err
+}
+
 func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
 	var reader io.Reader
 	if body != nil {

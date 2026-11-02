@@ -91,6 +91,28 @@ func (s *Store) Uses(id string) []time.Time {
 	return uses
 }
 
+// Use is one launch.
+type Use struct {
+	ID string
+	At time.Time
+}
+
+// Since lists every launch after since, newest first.
+func (s *Store) Since(since time.Time) []Use {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []Use
+	for id, stamps := range s.data.Uses {
+		for _, ms := range stamps {
+			if at := time.UnixMilli(ms); at.After(since) {
+				out = append(out, Use{id, at})
+			}
+		}
+	}
+	slices.SortFunc(out, func(a, b Use) int { return b.At.Compare(a.At) })
+	return out
+}
+
 // Learned is how many times the thing was chosen after typing exactly this (ignoring case and edges).
 func (s *Store) Learned(typed, id string) int {
 	s.mu.Lock()

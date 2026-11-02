@@ -55,6 +55,8 @@ type events struct {
 	all   []any
 	names []string
 	done  chan Done
+	// onConfirm answers a confirmation the service asks for; nil leaves it waiting.
+	onConfirm func(Confirm)
 }
 
 func (e *events) emit(name string, data any) {
@@ -64,6 +66,9 @@ func (e *events) emit(name string, data any) {
 	e.mu.Unlock()
 	if d, ok := data.(Done); ok && name == EventDone {
 		e.done <- d
+	}
+	if c, ok := data.(Confirm); ok && e.onConfirm != nil {
+		e.onConfirm(c)
 	}
 }
 

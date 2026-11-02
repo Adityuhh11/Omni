@@ -32,10 +32,14 @@ _SNIPPET_CHARS = 240
 _MIN_FILE_SEARCH_CHUNKS = 60  # enough chunks that ten files rarely run short
 
 
+def _body(chunk: Chunk) -> str:
+    """The chunk's text after its path line."""
+    return chunk.text.partition("\n")[2]
+
+
 def _snippet(chunk: Chunk) -> str:
-    """The chunk body (text after the path line), whitespace collapsed and shortened."""
-    _, _, body = chunk.text.partition("\n")
-    return " ".join(body.split())[:_SNIPPET_CHARS]
+    """The chunk body, whitespace collapsed and shortened."""
+    return " ".join(_body(chunk).split())[:_SNIPPET_CHARS]
 
 
 class Searcher:
@@ -84,12 +88,14 @@ class Searcher:
         self._audio_ceiling = DEFAULT_AUDIO_CEILING if audio is None else audio
         return ceiling
 
-    def search(self, query: str, k: int = 10, filters: Filters | None = None) -> SearchResult:
+    def search(
+        self, query: str, k: int = 10, filters: Filters | None = None, full_text: bool = False
+    ) -> SearchResult:
         """Top-`k` chunks for `query`, best first; no hits for a blank query or `k <= 0`.
 
         `confident` is true when the best hit's cosine (an audio window's shifted by `audio_offset`)
         reaches `confident_cosine` or the query is part of its path (typing a file name is a
-        deliberate match, whatever the cosine says).
+        deliberate match, whatever the cosine says). `full_text` adds each chunk's whole body.
         """
         if not query.strip() or k <= 0:
             return SearchResult([], confident=False)
@@ -127,6 +133,7 @@ class Searcher:
                     vector_score=vector_scores.get(chunk_id),
                     keyword_rank=keyword_ranks.get(chunk_id),
                     snippet=_snippet(chunk),
+                    text=_body(chunk) if full_text else "",
                 )
             )
         confident = bool(hits) and (
@@ -140,13 +147,16 @@ class Searcher:
         files: int = 10,
         per_file: int = 3,
         filters: Filters | None = None,
+        full_text: bool = False,
     ) -> FileSearchResult:
         """The best `files` files for `query`, each with its best `per_file` matching chunks.
 
         Chunks are ranked as in `search`, then grouped by file in rank order, so a file's place is
         its best chunk's place and a file with many matching chunks does not crowd out the others.
         """
-        result = self.search(query, max(_MIN_FILE_SEARCH_CHUNKS, files * per_file), filters)
+        result = self.search(
+            query, max(_MIN_FILE_SEARCH_CHUNKS, files * per_file), filters, full_text
+        )
         grouped: dict[tuple[str, str], list[SearchHit]] = {}
         for hit in result.hits:
             grouped.setdefault((hit.source_id, hit.uri), []).append(hit)

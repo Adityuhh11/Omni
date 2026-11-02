@@ -47,6 +47,12 @@ type OmniAIOptions struct {
 	RebindHotkey func(accelerator string) error
 	HotkeyError  func() string
 	OpenFolder   func(path string) error
+	// Tools lists the groups of local tools with their switches; SetTool and SetAlwaysRun change them (chat.Service).
+	Tools        func() []chat.ToolGroup
+	SetTool      func(group string, on bool) error
+	SetAlwaysRun func(group string, on bool) error
+	// ScriptsDir is the scripts folder.
+	ScriptsDir string
 }
 
 // OmniAI is bound to the Omni AI page of the settings window. Methods that change something return the reason they were
@@ -89,6 +95,9 @@ type OmniAIView struct {
 
 	Conversations int
 	HistoryFolder string
+	// Tools are the groups of tools the model may be given; ScriptsFolder is where scripts go.
+	Tools         []chat.ToolGroup
+	ScriptsFolder string
 	// The values each choice offers, from the settings file's own lists.
 	Loads                                         []string
 	ContextChoices, UnloadChoices, HistoryChoices []int
@@ -114,6 +123,7 @@ func (p *OmniAI) View() OmniAIView {
 	if !model.UnloadsAt.IsZero() {
 		v.UnloadsAt = model.UnloadsAt.UnixMilli()
 	}
+	p.toolsView(&v)
 	if p.o.History != nil {
 		v.HistoryFolder = p.o.History.Dir()
 		if list, err := p.o.History.Search("", 0); err == nil {

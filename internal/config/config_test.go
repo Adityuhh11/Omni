@@ -456,7 +456,8 @@ func TestOmniAIIsOffByDefaultLoadsOnDemandAndKeepsHistory(t *testing.T) {
 func TestChatSettingsRoundTripAndAreValidated(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	cfg := Default()
-	cfg.Chat = Chat{Enabled: true, Hotkey: "Ctrl+Alt+A", Load: "at_start", UnloadAfterMinutes: 0, ContextTokens: 16384, KeepHistory: false, HistoryDays: 0, Thinking: true, OnTop: false}
+	cfg.Chat = Chat{Enabled: true, Hotkey: "Ctrl+Alt+A", Load: "at_start", UnloadAfterMinutes: 0, ContextTokens: 16384, KeepHistory: false, HistoryDays: 0, Thinking: true, OnTop: false,
+		Tools: []string{"files", "script:backup"}, AlwaysRun: []string{"script:backup"}, MCP: true, MCPTools: []string{"notes"}}
 	if err := cfg.Save(path); err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +465,7 @@ func TestChatSettingsRoundTripAndAreValidated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back.Chat != cfg.Chat {
+	if !reflect.DeepEqual(back.Chat, cfg.Chat) {
 		t.Fatalf("round trip = %+v, want %+v", back.Chat, cfg.Chat)
 	}
 

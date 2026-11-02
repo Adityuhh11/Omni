@@ -3,7 +3,7 @@
   import { Browser } from "@wailsio/runtime";
   import { OmniAI } from "../../../bindings/omni/internal/settingsui";
   import type { OmniAIView } from "../../../bindings/omni/internal/settingsui";
-  import { unloadsIn } from "../chat/chat";
+  import { toolHint, unloadsIn } from "../chat/chat";
 
   let page = $state<OmniAIView | null>(null);
   let error = $state("");
@@ -157,6 +157,41 @@
   </section>
 
   <section class="block">
+    <h3>Tools</h3>
+    <p class="help">
+      What Omni AI may use on this computer while it answers. Each is off until you switch it on, here or from the + in the chat. Nothing leaves this
+      computer for them; with web search also on, the model could put what a tool found into the words it searches for.
+    </p>
+    {#each page.Tools ?? [] as tool (tool.group)}
+      <div class="field">
+        <div class="line">
+          <label class="check"><input type="checkbox" checked={tool.on} onchange={(e) => run(() => OmniAI.SetTool(tool.group, e.currentTarget.checked))} /> {tool.title}</label>
+          {#if tool.writes}
+            <select
+              class="ask"
+              aria-label="When {tool.title} changes something"
+              value={tool.always ? "run" : "ask"}
+              disabled={!tool.on}
+              onchange={(e) => run(() => OmniAI.SetAlwaysRun(tool.group, e.currentTarget.value === "run"))}
+            >
+              <option value="ask">Ask me first</option>
+              <option value="run">Run without asking</option>
+            </select>
+          {/if}
+        </div>
+        <p class="help">{toolHint(tool)}</p>
+      </div>
+    {/each}
+    <div class="row">
+      <span class="help">
+        A script in <span class="mono">{page.ScriptsFolder}</span> with an <span class="mono">@omni.tool</span> line becomes a tool here. See SCRIPTS.md in Omni's
+        documentation.
+      </span>
+      <button type="button" class="btn quiet" onclick={() => run(() => OmniAI.OpenScriptsFolder())}>Show the folder</button>
+    </div>
+  </section>
+
+  <section class="block">
     <h3>Past chats</h3>
     <div class="field">
       <label class="check"><input type="checkbox" checked={page.KeepHistory} onchange={(e) => history({ keep: e.currentTarget.checked })} /> Keep my chats</label>
@@ -277,5 +312,15 @@
   }
   .link:hover {
     color: var(--text);
+  }
+  .line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ask {
+    width: auto;
+    height: 30px;
   }
 </style>
