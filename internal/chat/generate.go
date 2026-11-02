@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"omni/internal/llm"
 )
@@ -229,7 +228,7 @@ func (s *Service) tokensOf(r *reply) int {
 			return n + messageOverhead
 		}
 	}
-	return utf8.RuneCountInString(text)/3 + messageOverhead
+	return Estimate(text) + messageOverhead
 }
 
 // answer does the work of one answer and returns why it failed, if it did. A stop is not a failure. With tools on, the model

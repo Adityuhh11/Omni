@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { escapeStep, kilo, lastQuestion, meter, sends, thoughtFor, toolGlyph, toolHint, unloadsIn, waiting } from "./chat.ts";
+import { addressHost, escapeStep, kilo, lastQuestion, meter, sends, thoughtFor, toolGlyph, toolHint, unloadsIn, waiting } from "./chat.ts";
 
 test("tokens are written short", () => {
   assert.equal(kilo(0), "0");
@@ -74,4 +74,14 @@ test("a tool group's glyph and hint say what it is and whether it asks", () => {
   assert.match(toolHint({ group: "script:backup", writes: true, always: false }), /Asks before each run/);
   assert.match(toolHint({ group: "script:backup", writes: true, always: true }), /without asking/);
   assert.match(toolHint({ group: "notes", writes: true, always: false }), /Asks before adding/);
+});
+
+test("an address is local only when it names this computer", () => {
+  assert.deepEqual(addressHost("http://localhost:1234/v1"), { host: "localhost:1234", local: true });
+  assert.equal(addressHost("http://127.0.0.1:11434").local, true);
+  assert.equal(addressHost("http://[::1]:8080").local, true);
+  assert.deepEqual(addressHost(" https://api.openai.com/v1 "), { host: "api.openai.com", local: false });
+  assert.equal(addressHost("http://192.168.1.5:1234").local, false);
+  assert.equal(addressHost("http://localhost.evil.test").local, false);
+  assert.deepEqual(addressHost("not an address"), { host: "", local: false });
 });

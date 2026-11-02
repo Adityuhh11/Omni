@@ -41,6 +41,7 @@ import (
 	"omni/internal/power"
 	"omni/internal/scripts"
 	"omni/internal/search"
+	"omni/internal/secrets"
 	"omni/internal/settings"
 	"omni/internal/settingsui"
 	"omni/internal/sidecar"
@@ -408,9 +409,16 @@ func run(afterUpdate bool) error {
 		}
 	}
 	setMCP(cfg.Chat.MCP)
+	// The chat asks the bundled model, or the one the person pointed it at (a server of their own, or a service with a key).
+	const customKeyName = "chat-custom-key"
+	customKey := func() string { key, _ := secrets.Get(customKeyName); return key } // not stored: no key
+	chatAsks := llm.Switch{Bundled: chatModel, Key: customKey, Custom: func() (string, string, bool) {
+		c := store.Get().Chat
+		return c.CustomURL, c.CustomModel, c.Custom
+	}}
 	chatSvc = chat.NewService(chat.Options{
 		Store:        chatStore,
-		Model:        chatModel,
+		Model:        chatAsks,
 		Settings:     func() config.Chat { return store.Get().Chat },
 		SetThinking:  func(on bool) error { return store.Update(func(c *config.Config) { c.Chat.Thinking = on }) },
 		SetWebSearch: func(on bool) error { return store.Update(func(c *config.Config) { c.Chat.WebSearch = on }) },
@@ -419,7 +427,7 @@ func run(afterUpdate bool) error {
 		UpdateTools: func(change func(on, always []string) ([]string, []string)) error {
 			return store.Update(func(c *config.Config) { c.Chat.Tools, c.Chat.AlwaysRun = change(c.Chat.Tools, c.Chat.AlwaysRun) })
 		},
-		Installed:    func() bool { return chatSetup.Layout().Installed() },
+		Installed:    func() bool { return store.Get().Chat.Custom || chatSetup.Layout().Installed() },
 		Emit:         func(event string, data any) { app.Event.Emit(event, data) },
 		OpenSettings: func(section string) { settingsWindow.OpenAt(section) },
 		Logf:         log.Printf,
@@ -508,6 +516,8 @@ func run(afterUpdate bool) error {
 			SetTool:      chatSvc.SetTool,
 			SetAlwaysRun: chatSvc.SetAlwaysRun,
 			ScriptsDir:   filepath.Join(filepath.Dir(path), "scripts"),
+			CustomKey:    customKey,
+			SetCustomKey: func(key string) error { return secrets.Set(customKeyName, key) },
 		})),
 		application.NewService(settingsui.NewMCP(settingsui.MCPOptions{Store: store, Tools: localTools.Tools, Self: self, Apps: mcpconnect.Apps, Connect: mcpconnect.Connect, Disconnect: mcpconnect.Disconnect})),
 		application.NewService(settingsui.New(settingsui.Options{

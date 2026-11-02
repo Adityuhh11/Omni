@@ -3,6 +3,17 @@
 
 export type ModelInfo = { enabled: boolean; installed: boolean; state: string; message: string; device: string };
 
+/** The host of an address, and whether it is on this computer (where what is asked does not leave it). Not an address: no host. */
+export function addressHost(address: string): { host: string; local: boolean } {
+  try {
+    const url = new URL(address.trim());
+    const host = url.hostname.replace(/^\[|\]$/g, "");
+    return { host: url.host, local: host === "localhost" || host === "::1" || /^127(\.\d{1,3}){3}$/.test(host) };
+  } catch {
+    return { host: "", local: false };
+  }
+}
+
 /** Tokens as a short number: 640, 3.1k, 8k. */
 export function kilo(n: number): string {
   if (n < 1000) return String(Math.max(0, Math.round(n)));

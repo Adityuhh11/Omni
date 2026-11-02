@@ -62,3 +62,53 @@ func TestRealModelUsesTheWeb(t *testing.T) {
 		}
 	}
 }
+
+// TestRealServerAsAnotherModel asks a question through llm.Switch as if the bundled llama.cpp server were somebody else's
+// OpenAI-style server (the person's LM Studio, a cloud service): the request must be the plain kind, the tokens estimated,
+// and nothing may start or hold the bundled model for it. Same conditions as the test above, without the network.
+func TestRealServerAsAnotherModel(t *testing.T) {
+	if os.Getenv("OMNI_CHAT_DIR") == "" {
+		t.Skip("OMNI_CHAT_DIR is not set")
+	}
+	layout, err := llm.Locate("")
+	if err != nil || !layout.Installed() {
+		t.Fatalf("no install: %v", err)
+	}
+	cfg := config.Default().Chat
+	cfg.Enabled = true
+	bundled := llm.NewServer(llm.Options{
+		Layout: func() llm.Layout { return layout }, ContextTokens: func() int { return cfg.ContextTokens },
+		IdleMinutes: func() int { return 0 }, Logf: t.Logf,
+	})
+	t.Cleanup(bundled.Unload)
+	stand, err := bundled.Ensure(t.Context()) // started by the test only to have a server to ask; the switch below does not own it
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCustom := false
+	asks := llm.Switch{Bundled: bundled, Key: func() string { return stand.Key },
+		Custom: func() (string, string, bool) { return stand.URL + "/v1", "some-model", useCustom }}
+	ev := &events{done: make(chan Done, 8)}
+	svc := NewService(Options{
+		Model: asks, Settings: func() config.Chat { return cfg }, Installed: func() bool { return true },
+		Emit: ev.emit, Logf: t.Logf, SetThinking: func(bool) error { return nil }, SetWebSearch: func(bool) error { return nil },
+	})
+	for _, custom := range []bool{true, false} {
+		useCustom = custom
+		svc.New()
+		if _, err := svc.Send("What is 12 times 7?"); err != nil {
+			t.Fatal(err)
+		}
+		var done Done
+		select {
+		case done = <-ev.done:
+		case <-time.After(3 * time.Minute):
+			t.Fatal("no answer")
+		}
+		last := done.View.Messages[len(done.View.Messages)-1]
+		t.Logf("custom=%v: %s (error %q)", custom, strings.TrimSpace(last.Text), done.Error)
+		if done.Error != "" || !strings.Contains(last.Text, "84") {
+			t.Errorf("custom=%v: %+v", custom, done)
+		}
+	}
+}
