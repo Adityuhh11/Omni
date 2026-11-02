@@ -65,7 +65,7 @@ Released: `v0.2.0` to `v0.9.0` (settings window, llama.cpp engine, pins, clipboa
 `v1.2.0` is the latest release. How versions are numbered and a release is cut is in `RELEASING.md`.
 All feature branches are merged and deleted; `dev` and `main` are level.
 
-After phase 13, agreed with the owner: **BYOK** (any OpenAI-style endpoint for Omni AI: LM Studio or Ollama on this computer, or a cloud key in the credential store; opt-in and a privacy-table row), then **model choices** sized to the graphics memory, each measured like ADR 0008.
+Phase 13 is done, including **BYOK** (13f): Omni AI can ask any OpenAI-style server. Choosing the local model is left to LM Studio and Ollama, which show what fits a given card; Omni does not ship a catalog or download models from Hugging Face (owner's decision, 2026-11-03, `decisions/0014-bring-your-own-model.md`).
 
 The goal now is a project that is stable enough to open up and announce slowly. In phases, each ending with `main` releasable:
 
