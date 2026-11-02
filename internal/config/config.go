@@ -9,6 +9,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"omni/internal/atomicfile"
 	"os"
 	"path/filepath"
@@ -151,6 +152,12 @@ type Chat struct {
 	MCPTools []string `toml:"mcp_tools"`
 	// OnTop keeps the chat window above other windows.
 	OnTop bool `toml:"on_top"`
+	// Custom asks the model at CustomURL (an OpenAI-style server: LM Studio or Ollama on this computer, or a cloud service) instead
+	// of the bundled one. Off until the person chooses it; the key, if the server wants one, is in the credential store
+	// (docs/decisions/0014-bring-your-own-model.md). What the model is asked, and what the tools give it, goes to that server.
+	Custom      bool   `toml:"custom"`
+	CustomURL   string `toml:"custom_url,omitempty"`
+	CustomModel string `toml:"custom_model,omitempty"`
 }
 
 // ChatLoads are the allowed values of Chat.Load: the model starts when it is first asked, or when Omni starts.
@@ -398,6 +405,13 @@ func (c Config) validateChat() error {
 		return fmt.Errorf("chat context_tokens %d must be one of %v", chat.ContextTokens, ChatContexts)
 	case chat.HistoryDays < 0 || chat.HistoryDays > maxHistoryDays:
 		return fmt.Errorf("chat history_days %d must be between 0 and %d", chat.HistoryDays, maxHistoryDays)
+	case chat.Custom && chat.CustomModel == "":
+		return fmt.Errorf("chat custom_model must name the model to ask when custom is on")
+	}
+	if chat.Custom || chat.CustomURL != "" {
+		if u, err := url.Parse(chat.CustomURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fmt.Errorf("chat custom_url %q must be an http or https address", chat.CustomURL)
+		}
 	}
 	return nil
 }

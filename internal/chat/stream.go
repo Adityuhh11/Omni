@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"omni/internal/llm"
 )
@@ -18,12 +19,14 @@ type Request struct {
 	Messages      []Wire          `json:"messages"`
 	Stream        bool            `json:"stream"`
 	StreamOptions map[string]bool `json:"stream_options"`
-	MaxTokens     int             `json:"max_tokens"`
+	MaxTokens     int             `json:"max_tokens,omitempty"`
+	// Model is for servers that hold several; the bundled one ignores it.
+	Model string `json:"model,omitempty"`
 	// Stop is set when thinking is off: with it off the model sometimes writes a closing </think> it never opened and then
 	// repeats its answer; stopping there keeps the first, complete answer (docs/eval/2026-10-28-chat-model.md).
 	Stop []string `json:"stop,omitempty"`
 	// Template switches thinking per request: {"enable_thinking": false}.
-	Template map[string]bool `json:"chat_template_kwargs"`
+	Template map[string]bool `json:"chat_template_kwargs,omitempty"`
 	// Tools are what the model may call instead of answering (tools.go); empty offers none.
 	Tools []Tool `json:"tools,omitempty"`
 }
@@ -37,6 +40,14 @@ func NewRequest(messages []Wire, maxTokens int, thinking bool) Request {
 	if !thinking {
 		r.Stop = []string{"</think>"}
 	}
+	return r
+}
+
+// forModel makes the request fit a server that is not the bundled one: it names the model and leaves out what only llama.cpp
+// knows (the template switch, the stop on </think>) or what some services refuse (max_tokens, which newer OpenAI models have
+// replaced). The reply's length is then the service's own limit.
+func (r Request) forModel(model string) Request {
+	r.Model, r.Template, r.Stop, r.MaxTokens = model, nil, nil, 0
 	return r
 }
 
@@ -78,6 +89,9 @@ type chunk struct {
 // answer is finished or ctx ends; a cut answer is not an error to the caller, who keeps what arrived. When the model asked to
 // call tools instead of (or after) writing, the calls are returned whole.
 func Complete(ctx context.Context, ep llm.Endpoint, req Request, text, thinking func(string)) (Usage, []Call, error) {
+	if ep.Model != "" {
+		req = req.forModel(ep.Model)
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return Usage{}, nil, err
@@ -152,8 +166,14 @@ func statusError(resp *http.Response) error {
 	return &StatusError{Status: resp.StatusCode, Message: message}
 }
 
-// Tokens asks the server how many tokens text is, exactly.
+// Estimate is how many tokens text is when nobody can be asked: three characters to a token is close enough.
+func Estimate(text string) int { return utf8.RuneCountInString(text) / 3 }
+
+// Tokens asks the server how many tokens text is, exactly. Only llama.cpp can be asked; for any other server it is an estimate.
 func Tokens(ctx context.Context, ep llm.Endpoint, text string) (int, error) {
+	if ep.Model != "" {
+		return Estimate(text), nil
+	}
 	body, _ := json.Marshal(map[string]string{"content": text})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ep.URL+"/tokenize", bytes.NewReader(body))
 	if err != nil {

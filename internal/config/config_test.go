@@ -505,3 +505,26 @@ func TestNoTwoHotkeysMayShareACombination(t *testing.T) {
 		t.Errorf("four different hotkeys were refused: %v", err)
 	}
 }
+
+func TestACustomModelNeedsAnHTTPAddressAndAName(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		on        bool
+		url, mdl  string
+		wantValid bool
+	}{
+		{"off, nothing set", false, "", "", true},
+		{"on, local server", true, "http://localhost:1234/v1", "qwen", true},
+		{"on, cloud", true, "https://api.openai.com/v1", "gpt", true},
+		{"on, no name", true, "http://localhost:1234", "", false},
+		{"on, no address", true, "", "qwen", false},
+		{"on, not http", true, "ftp://x", "qwen", false},
+		{"off but a bad address is still refused", false, "nonsense", "", false},
+	} {
+		cfg := Default()
+		cfg.Chat.Custom, cfg.Chat.CustomURL, cfg.Chat.CustomModel = c.on, c.url, c.mdl
+		if err := cfg.Validate(); (err == nil) != c.wantValid {
+			t.Errorf("%s: Validate = %v", c.name, err)
+		}
+	}
+}
