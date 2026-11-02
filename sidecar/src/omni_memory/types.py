@@ -135,6 +135,7 @@ class SearchHit:
     )  # cosine, an audio window's shifted (see Searcher); None if not returned
     keyword_rank: int | None  # 1-based bm25 rank; None if the keyword search did not return it
     snippet: str
+    text: str = ""  # the whole chunk body, when the search asked for it (Omni AI reads it)
 
 
 @dataclass(frozen=True, slots=True)

@@ -226,3 +226,38 @@ func (f *fakeLlama) streamCalls(w http.ResponseWriter, calls []Call) {
 	}
 	fmt.Fprint(w, "data: [DONE]\n\n")
 }
+
+func TestAServerThatIsNotLlamaCppGetsOnlyWhatOpenAIAcceptsAndIsNeverAskedToTokenize(t *testing.T) {
+	var body map[string]any
+	var tokenized bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/tokenize":
+			tokenized = true
+		case "/v1/chat/completions":
+			if r.Header.Get("Authorization") != "Bearer sk-1" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\ndata: [DONE]\n\n")
+		}
+	}))
+	defer srv.Close()
+	ep := llm.CustomEndpoint(srv.URL+"/v1", "gpt-x", "sk-1")
+	var got strings.Builder
+	if _, _, err := Complete(context.Background(), ep, NewRequest([]Wire{{Role: "user", Content: "hi"}}, 1024, false), func(p string) { got.WriteString(p) }, func(string) {}); err != nil {
+		t.Fatal(err)
+	}
+	if got.String() != "Hi" || body["model"] != "gpt-x" {
+		t.Fatalf("answer %q, body %v", got.String(), body)
+	}
+	for _, llamaOnly := range []string{"chat_template_kwargs", "stop", "max_tokens"} {
+		if _, ok := body[llamaOnly]; ok {
+			t.Errorf("the request carries %q, which only llama.cpp takes or newer OpenAI models refuse", llamaOnly)
+		}
+	}
+	if n, err := Tokens(context.Background(), ep, "twelve chars"); err != nil || n != 4 || tokenized {
+		t.Fatalf("tokens = %d, %v, asked the server: %v", n, err, tokenized)
+	}
+}

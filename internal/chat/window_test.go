@@ -101,7 +101,7 @@ func TestWireMessagesPutTheSystemPromptFirstAndSkipEmptyAnswers(t *testing.T) {
 }
 
 func TestSystemPromptStatesTheDate(t *testing.T) {
-	got := SystemPrompt(time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC), false)
+	got := SystemPrompt(time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC), toolset{})
 	if !strings.Contains(got, "Wednesday, 28 October 2026") {
 		t.Fatalf("system prompt lacks the date: %q", got)
 	}

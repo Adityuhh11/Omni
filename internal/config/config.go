@@ -9,6 +9,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"omni/internal/atomicfile"
 	"os"
 	"path/filepath"
@@ -137,8 +138,26 @@ type Chat struct {
 	// WebSearch lets the model look things up on the web while it answers: its search words go to DuckDuckGo and the pages it
 	// reads are fetched from their sites. Off until the person switches it on, from the chat's + menu.
 	WebSearch bool `toml:"web_search"`
+	// Tools are the groups of local tools the model may use ("files", "clipboard", "notes", "activity", "script:<file name>"),
+	// switched on from the + menu; none at first. Nothing leaves the computer for them, but with WebSearch also on the model
+	// could put what a tool returned into its search words. A group that no longer exists (a deleted script) is ignored.
+	Tools []string `toml:"tools"`
+	// AlwaysRun are the groups whose tools that change something (a new note, a script) run without asking first.
+	AlwaysRun []string `toml:"always_run"`
+	// MCP lets other AI apps on this computer (Claude Desktop, Cursor, VS Code) use the tools in MCPTools that only read,
+	// through `omni mcp` (internal/mcp). What they read goes wherever that app sends it.
+	MCP bool `toml:"mcp"`
+	// MCPTools are the groups of tools those apps may use, by the names Tools uses; none at first, and apart from Tools: what
+	// Omni AI reads stays here, what another app reads may not (docs/decisions/0012-mcp-own-switches.md).
+	MCPTools []string `toml:"mcp_tools"`
 	// OnTop keeps the chat window above other windows.
 	OnTop bool `toml:"on_top"`
+	// Custom asks the model at CustomURL (an OpenAI-style server: LM Studio or Ollama on this computer, or a cloud service) instead
+	// of the bundled one. Off until the person chooses it; the key, if the server wants one, is in the credential store
+	// (docs/decisions/0014-bring-your-own-model.md). What the model is asked, and what the tools give it, goes to that server.
+	Custom      bool   `toml:"custom"`
+	CustomURL   string `toml:"custom_url,omitempty"`
+	CustomModel string `toml:"custom_model,omitempty"`
 }
 
 // ChatLoads are the allowed values of Chat.Load: the model starts when it is first asked, or when Omni starts.
@@ -386,6 +405,13 @@ func (c Config) validateChat() error {
 		return fmt.Errorf("chat context_tokens %d must be one of %v", chat.ContextTokens, ChatContexts)
 	case chat.HistoryDays < 0 || chat.HistoryDays > maxHistoryDays:
 		return fmt.Errorf("chat history_days %d must be between 0 and %d", chat.HistoryDays, maxHistoryDays)
+	case chat.Custom && chat.CustomModel == "":
+		return fmt.Errorf("chat custom_model must name the model to ask when custom is on")
+	}
+	if chat.Custom || chat.CustomURL != "" {
+		if u, err := url.Parse(chat.CustomURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fmt.Errorf("chat custom_url %q must be an http or https address", chat.CustomURL)
+		}
 	}
 	return nil
 }

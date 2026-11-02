@@ -142,11 +142,15 @@ opened. The program touches the network in exactly these cases, all started or s
 | You press **Download and turn on** (or **Update**) in Omni AI | `github.com`, `huggingface.co` | ordinary downloads of pinned files (llama.cpp and the model); nothing you ask is ever sent anywhere |
 | You open a web search or link | your browser | what you typed after the trigger |
 | You switch on **Search the web** in the Omni AI chat's + menu (off by default) | `duckduckgo.com`, or `wikipedia.org` when DuckDuckGo asks for a check; then the pages the model chooses to read | the words the model chooses to search for (it composes them from your question and, after a read, from pages; it is a small model); then ordinary requests for pages that searches returned or that you wrote. Local and private addresses are refused |
+| You choose **Another model** in Settings, Omni AI, and use it (off by default) | the address you typed: LM Studio or Ollama on this computer, or a service (OpenAI and others) | your questions and the conversation, and what the tools you switched on found for them. The API key, kept in the system credential store, goes as that service's `Authorization` header. The page says whether the address is on this computer |
+| You switch on **Let AI apps on this computer use these tools** in Settings, Omni AI (off by default) | the AI app you connect (Claude Desktop, Cursor, VS Code…) | what that app asks Omni's tools that read (your files, notes, clipboard history, activity) and are switched on; the app may send it to its own servers |
 | You press **Check for updates**, or turned on the daily check (off by default) | `api.github.com` | a request for the latest release number, nothing about you |
 | You press **Update to X** | `github.com` | a download of that release, checked against its published SHA-256 |
 
 The engine and the Omni AI model server listen on `127.0.0.1` only, behind a random per-run token (the engine also rejects foreign `Host` headers).
-Clipboard history is off by default and stored only on your machine. See [`docs/decisions/0005-update-check.md`](docs/decisions/0005-update-check.md).
+Clipboard history is off by default and stored only on your machine. Omni AI's tools (your files, notes, clipboard, activity,
+browser history and bookmarks (read from a copy of each browser's own files, which are never changed) and your scripts, [`docs/SCRIPTS.md`](docs/SCRIPTS.md)) run on this computer and are off until you switch them on; with web search
+also on, the model could put what a tool found into the words it searches for. See [`docs/decisions/0005-update-check.md`](docs/decisions/0005-update-check.md).
 
 ## Settings and where things are
 

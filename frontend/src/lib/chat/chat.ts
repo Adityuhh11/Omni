@@ -1,23 +1,16 @@
-// The small decisions of the chat window that need no page: what the status dot says, how tokens and times are written, and
+// The small decisions of the chat window that need no page: how tokens and times are written, and
 // which message a key recalls. Kept apart so they are tested with node.
-
-/** The model's state as the header's dot shows it. `tone` picks the colour; `busy` makes the dot pulse. */
-export type Dot = { tone: "off" | "ready" | "busy" | "bad"; label: string; busy: boolean };
 
 export type ModelInfo = { enabled: boolean; installed: boolean; state: string; message: string; device: string };
 
-export function dot(info: ModelInfo | null): Dot {
-  if (!info) return { tone: "off", label: "", busy: false };
-  if (!info.enabled || !info.installed) return { tone: "off", label: "Omni AI is off", busy: false };
-  switch (info.state) {
-    case "ready":
-      return { tone: "ready", label: info.device === "cpu" ? "Ready, on the processor" : "Ready", busy: false };
-    case "loading":
-      return { tone: "busy", label: "Starting the model…", busy: true };
-    case "failed":
-      return { tone: "bad", label: info.message || "The model did not start", busy: false };
-    default:
-      return { tone: "off", label: "Not loaded; it starts when you ask", busy: false };
+/** The host of an address, and whether it is on this computer (where what is asked does not leave it). Not an address: no host. */
+export function addressHost(address: string): { host: string; local: boolean } {
+  try {
+    const url = new URL(address.trim());
+    const host = url.hostname.replace(/^\[|\]$/g, "");
+    return { host: url.host, local: host === "localhost" || host === "::1" || /^127(\.\d{1,3}){3}$/.test(host) };
+  } catch {
+    return { host: "", local: false };
   }
 }
 
@@ -64,7 +57,31 @@ export function sends(event: { key: string; shiftKey: boolean; isComposing: bool
   return event.key === "Enter" && !event.shiftKey && !event.isComposing && draft.trim() !== "";
 }
 
-export type Phase = "loading" | "reading" | "web" | "thinking" | "answering" | "";
+export type Phase = "loading" | "reading" | "web" | "tool" | "thinking" | "answering" | "";
+
+/** The glyph of a group of tools in the + menu. */
+export function toolGlyph(group: string): "file" | "clip" | "note" | "history" | "web" | "code" | "spark" {
+  if (group.startsWith("script:")) return "code";
+  return ({ files: "file", clipboard: "clip", notes: "note", activity: "history", browser: "web" } as const)[group] ?? "spark";
+}
+
+/** What a group of tools does, in the + menu and in Settings. */
+export function toolHint(tool: { group: string; writes: boolean; always: boolean }): string {
+  const asks = tool.always ? "Runs without asking." : "Asks before each run.";
+  switch (tool.group) {
+    case "files":
+      return "Searches the folders file search indexes.";
+    case "clipboard":
+      return "Reads what you copied.";
+    case "notes":
+      return `Reads your notes and adds new ones. ${tool.always ? "Adds without asking." : "Asks before adding."}`;
+    case "browser":
+      return "Searches the pages you visited or bookmarked in your browsers.";
+    case "activity":
+      return "Sees the files you changed, the apps you opened and what you copied.";
+  }
+  return tool.writes ? `Your script. ${asks}` : "A tool on this computer.";
+}
 
 /** The line shown in place of an answer that has not started. */
 export function waiting(phase: Phase, text: string): string {

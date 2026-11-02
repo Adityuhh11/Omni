@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -20,8 +21,10 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"omni"
+	"omni/internal/aitools"
 	"omni/internal/apps"
 	"omni/internal/autostart"
+	"omni/internal/browsers"
 	"omni/internal/chat"
 	"omni/internal/clipboard"
 	"omni/internal/config"
@@ -30,11 +33,15 @@ import (
 	"omni/internal/hotkey"
 	"omni/internal/indexing"
 	"omni/internal/llm"
+	"omni/internal/mcp"
+	"omni/internal/mcpconnect"
 	"omni/internal/notes"
 	"omni/internal/palette"
 	"omni/internal/panel"
 	"omni/internal/power"
+	"omni/internal/scripts"
 	"omni/internal/search"
+	"omni/internal/secrets"
 	"omni/internal/settings"
 	"omni/internal/settingsui"
 	"omni/internal/sidecar"
@@ -59,6 +66,13 @@ func main() {
 	if runHelper() {
 		return
 	}
+	if len(os.Args) == 2 && os.Args[1] == "mcp" { // an AI app started us to reach the running Omni: stdout is the protocol, no log
+		if err := runMCPRelay(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == removeDataFlag {
 		if err := runRemoveData(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -76,6 +90,15 @@ func main() {
 		closeLog()
 		os.Exit(1)
 	}
+}
+
+// runMCPRelay relays an AI app's MCP messages to the running Omni (internal/mcp).
+func runMCPRelay() error {
+	dir, err := config.DataDir()
+	if err != nil {
+		return err
+	}
+	return mcp.Relay(os.Stdin, os.Stdout, mcp.DefaultFile(dir))
 }
 
 const maxLogBytes = 5 << 20
@@ -345,14 +368,66 @@ func run(afterUpdate bool) error {
 	} else {
 		chatHistory = chatStore // not assigned when nil: a nil *Store inside the interface would not look nil
 	}
+	fileSearch := search.New(engine.Client(), sourceRoots, engine.Status) // the bar's and Omni AI's
+	scriptFolder, err := scripts.Open(filepath.Join(filepath.Dir(path), "scripts"))
+	if err != nil {
+		log.Printf("scripts are off: %v", err)
+	}
+	localTools := aitools.Deps{
+		Files: fileSearch, Clips: clips, Browser: browsers.Search,
+		Launches: func(since time.Time) []aitools.Launch {
+			var out []aitools.Launch
+			for _, u := range history.Since(since) {
+				if app, ok := catalog.Index.Find(strings.TrimPrefix(u.ID, "app:")); ok {
+					out = append(out, aitools.Launch{Name: app.Name, At: u.At})
+				}
+			}
+			return out
+		},
+	}
+	if noteStore != nil { // a nil *Store inside the interface would not look nil, and the notes tools would be offered
+		localTools.Notes = noteStore
+	}
+	var scriptBox palette.ScriptBox
+	if scriptFolder != nil { // not assigned when nil: a nil *Folder inside an interface would not look nil
+		localTools.Scripts, scriptBox = scriptFolder, scriptFolder
+	}
+	mcpServer := &mcp.Server{Version: version, File: mcp.DefaultFile(dataDir), Tools: func() []chat.Local {
+		var on []chat.Local
+		for _, t := range localTools.Tools() {
+			if slices.Contains(store.Get().Chat.MCPTools, t.Group) {
+				on = append(on, t)
+			}
+		}
+		return on
+	}}
+	setMCP := func(on bool) {
+		if !on {
+			mcpServer.Stop()
+		} else if err := mcpServer.Start(); err != nil {
+			log.Printf("MCP server: %v", err)
+		}
+	}
+	setMCP(cfg.Chat.MCP)
+	// The chat asks the bundled model, or the one the person pointed it at (a server of their own, or a service with a key).
+	const customKeyName = "chat-custom-key"
+	customKey := func() string { key, _ := secrets.Get(customKeyName); return key } // not stored: no key
+	chatAsks := llm.Switch{Bundled: chatModel, Key: customKey, Custom: func() (string, string, bool) {
+		c := store.Get().Chat
+		return c.CustomURL, c.CustomModel, c.Custom
+	}}
 	chatSvc = chat.NewService(chat.Options{
 		Store:        chatStore,
-		Model:        chatModel,
+		Model:        chatAsks,
 		Settings:     func() config.Chat { return store.Get().Chat },
 		SetThinking:  func(on bool) error { return store.Update(func(c *config.Config) { c.Chat.Thinking = on }) },
 		SetWebSearch: func(on bool) error { return store.Update(func(c *config.Config) { c.Chat.WebSearch = on }) },
 		Web:          websearch.New(),
-		Installed:    func() bool { return chatSetup.Layout().Installed() },
+		Locals:       localTools.Tools,
+		UpdateTools: func(change func(on, always []string) ([]string, []string)) error {
+			return store.Update(func(c *config.Config) { c.Chat.Tools, c.Chat.AlwaysRun = change(c.Chat.Tools, c.Chat.AlwaysRun) })
+		},
+		Installed:    func() bool { return store.Get().Chat.Custom || chatSetup.Layout().Installed() },
 		Emit:         func(event string, data any) { app.Event.Emit(event, data) },
 		OpenSettings: func(section string) { settingsWindow.OpenAt(section) },
 		Logf:         log.Printf,
@@ -396,7 +471,7 @@ func run(afterUpdate bool) error {
 	for _, service := range []application.Service{
 		application.NewService(panel.NewService(bar)),
 		application.NewService(status.New(store.Get, bar.HotkeyError, engine.Status, indexer.Status)),
-		application.NewService(search.New(engine.Client(), sourceRoots, engine.Status)),
+		application.NewService(fileSearch),
 		application.NewService(opener),
 		application.NewService(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
 			Copy: func(text string) error {
@@ -413,8 +488,11 @@ func run(afterUpdate bool) error {
 				chatSvc.Ask(text)
 				chatWindow.OpenAt("new")
 			},
-			OpenChat: chatWindow.OpenAt,
-			Timer:    countdown,
+			OpenChat:  chatWindow.OpenAt,
+			Timer:     countdown,
+			Scripts:   scriptBox,
+			RunScript: scripts.Run,
+			Paste:     clipboard.NewPaster(app.Clipboard.SetText, bar.Previous, bar.Hide).Paste,
 			Sound: &soundoffer.Service{
 				Settings: store, Surveys: surveys, Waivers: history, Now: time.Now,
 				// An engine from before audio search would refuse the sync the choice starts: it is offered after the update.
@@ -434,7 +512,14 @@ func run(afterUpdate bool) error {
 			RebindHotkey: func(accelerator string) error { return chatKey.Rebind(accelerator, toggleChat) },
 			HotkeyError:  chatKey.Error,
 			OpenFolder:   openFolder,
+			Tools:        func() []chat.ToolGroup { return chatSvc.Info().Tools },
+			SetTool:      chatSvc.SetTool,
+			SetAlwaysRun: chatSvc.SetAlwaysRun,
+			ScriptsDir:   filepath.Join(filepath.Dir(path), "scripts"),
+			CustomKey:    customKey,
+			SetCustomKey: func(key string) error { return secrets.Set(customKeyName, key) },
 		})),
+		application.NewService(settingsui.NewMCP(settingsui.MCPOptions{Store: store, Tools: localTools.Tools, Self: self, Apps: mcpconnect.Apps, Connect: mcpconnect.Connect, Disconnect: mcpconnect.Disconnect})),
 		application.NewService(settingsui.New(settingsui.Options{
 			Store:    store,
 			Setup:    setup,
@@ -529,8 +614,11 @@ func run(afterUpdate bool) error {
 			surveys.Set(updated.Roots, updated.Exclude)
 			watchFolders(updated.Roots)
 		}
-		if old.Chat != updated.Chat {
+		if !reflect.DeepEqual(old.Chat, updated.Chat) {
 			chatSvc.Refresh()
+			if old.Chat.MCP != updated.Chat.MCP {
+				setMCP(updated.Chat.MCP)
+			}
 			icon.SetChat(updated.Chat.Enabled)
 			if old.Chat.UnloadAfterMinutes != updated.Chat.UnloadAfterMinutes {
 				chatModel.Rearm()
@@ -641,6 +729,7 @@ func run(afterUpdate bool) error {
 	runErr := app.Run()
 
 	stop()
+	mcpServer.Stop()
 	chatModel.Unload()
 	stopped := make(chan struct{})
 	go func() { engineSwitch.Wait(); close(stopped) }()

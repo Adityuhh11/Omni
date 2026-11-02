@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"context"
 	"strings"
 
 	"omni/internal/chat"
@@ -47,6 +48,17 @@ type OmniAIOptions struct {
 	RebindHotkey func(accelerator string) error
 	HotkeyError  func() string
 	OpenFolder   func(path string) error
+	// Tools lists the groups of local tools with their switches; SetTool and SetAlwaysRun change them (chat.Service).
+	Tools        func() []chat.ToolGroup
+	SetTool      func(group string, on bool) error
+	SetAlwaysRun func(group string, on bool) error
+	// ScriptsDir is the scripts folder.
+	ScriptsDir string
+	// CustomKey and SetCustomKey are the API key of a model somebody else runs, in the system credential store; ListModels asks
+	// such a server for its models (llm.ListModels when nil).
+	CustomKey    func() string
+	SetCustomKey func(key string) error
+	ListModels   func(ctx context.Context, ep llm.Endpoint) ([]string, error)
 }
 
 // OmniAI is bound to the Omni AI page of the settings window. Methods that change something return the reason they were
@@ -87,8 +99,14 @@ type OmniAIView struct {
 	ModelState, ModelMessage, Device string
 	UnloadsAt                        int64
 
+	// Custom is the choice of a model somebody else runs.
+	Custom CustomView
+
 	Conversations int
 	HistoryFolder string
+	// Tools are the groups of tools the model may be given; ScriptsFolder is where scripts go.
+	Tools         []chat.ToolGroup
+	ScriptsFolder string
 	// The values each choice offers, from the settings file's own lists.
 	Loads                                         []string
 	ContextChoices, UnloadChoices, HistoryChoices []int
@@ -114,6 +132,8 @@ func (p *OmniAI) View() OmniAIView {
 	if !model.UnloadsAt.IsZero() {
 		v.UnloadsAt = model.UnloadsAt.UnixMilli()
 	}
+	v.Custom = p.customView(cfg)
+	p.toolsView(&v)
 	if p.o.History != nil {
 		v.HistoryFolder = p.o.History.Dir()
 		if list, err := p.o.History.Search("", 0); err == nil {
@@ -127,7 +147,7 @@ func (p *OmniAI) View() OmniAIView {
 // Omni AI is switched on when it finishes (main does that).
 func (p *OmniAI) TurnOn() string {
 	st := p.o.Setup.State()
-	if st.Installed && !st.NeedsUpdate {
+	if p.o.Store.Get().Chat.Custom || st.Installed && !st.NeedsUpdate {
 		return reason(p.o.Store.Update(func(c *config.Config) { c.Chat.Enabled = true }))
 	}
 	return p.install()

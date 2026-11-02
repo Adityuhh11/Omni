@@ -3,14 +3,24 @@
   import { Browser } from "@wailsio/runtime";
   import { OmniAI } from "../../../bindings/omni/internal/settingsui";
   import type { OmniAIView } from "../../../bindings/omni/internal/settingsui";
-  import { unloadsIn } from "../chat/chat";
+  import { addressHost, toolHint, unloadsIn } from "../chat/chat";
 
   let page = $state<OmniAIView | null>(null);
   let error = $state("");
   let confirming = $state<"" | "remove" | "clear">("");
+  let showCustom = $state(false);
+
+  // What is typed in the section about another model; it starts from what is saved, and is not overwritten by the page's refreshes.
+  let draft = $state({ url: "", model: "", key: "", loaded: false });
+  let test = $state<{ busy: boolean; error: string; models: string[] } | null>(null);
 
   const refresh = async () => {
     page = await OmniAI.View();
+    if (!draft.loaded) {
+      draft.url = page.Custom.URL;
+      draft.model = page.Custom.Model;
+      draft.loaded = true;
+    }
   };
 
   // While a download runs the page asks every second for its progress; otherwise now and then, for the model's state.
@@ -28,8 +38,10 @@
 
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0);
   const percent = $derived(page && page.Total > 0 ? Math.min(100, Math.round((page.Done / page.Total) * 100)) : 0);
+  const where = $derived(addressHost(draft.url));
   const headline = $derived.by(() => {
     if (!page) return "";
+    if (page.Custom.On) return page.Enabled ? "On" : "Off";
     if (page.Installing) return "Downloading";
     if (!page.Installed) return "Not installed";
     if (page.NeedsUpdate) return "Needs an update";
@@ -37,6 +49,7 @@
   });
   const modelText = $derived.by(() => {
     if (!page) return "";
+    if (page.Custom.On) return `Asking ${page.Custom.Model} at ${page.Custom.Host}.`;
     switch (page.ModelState) {
       case "ready":
         return `In memory, on ${page.Device === "cpu" ? "the processor" : "the graphics card"}${page.UnloadsAt ? `; ${unloadsIn(page.UnloadsAt)}` : ""}.`;
@@ -63,6 +76,22 @@
     await run(() => OmniAI.SetHistory(change.keep ?? page!.KeepHistory, change.days ?? page!.HistoryDays));
   }
 
+  async function testConnection() {
+    test = { busy: true, error: "", models: [] };
+    const answer = await OmniAI.TestCustom(draft.url, draft.key);
+    test = { busy: false, error: answer.Error, models: answer.Models ?? [] };
+    if (!answer.Error && !draft.model && answer.Models?.length === 1) draft.model = answer.Models[0];
+  }
+
+  async function useCustom() {
+    if (draft.key.trim()) {
+      error = await OmniAI.SetCustomKey(draft.key);
+      if (error) return;
+      draft.key = "";
+    }
+    await run(() => OmniAI.UseCustom(draft.url, draft.model));
+  }
+
   async function remove() {
     confirming = "";
     await run(() => OmniAI.Remove());
@@ -76,8 +105,15 @@
 
 <h2>Omni AI</h2>
 <p class="lede">
-  Ask questions in a small chat window. A language model answers on this computer: nothing you write leaves it. Open it by typing
-  <span class="mono">ask</span> in the bar.
+  Ask questions in a small chat window.
+  {#if page?.Custom.On && !page.Custom.Local}
+    The model you chose answers, at {page.Custom.Host}: what you write goes there.
+  {:else if page?.Custom.On}
+    The model you chose answers, on this computer: nothing you write leaves it.
+  {:else}
+    A language model answers on this computer: nothing you write leaves it.
+  {/if}
+  Open it by typing <span class="mono">ask</span> in the bar.
 </p>
 
 {#if page}
@@ -86,9 +122,12 @@
       <span class="dot" class:on={page.Enabled && page.ModelState === "ready"} class:bad={page.ModelState === "failed" || !!page.Error} aria-hidden="true"></span>
       <div class="who">
         <h3>{headline}</h3>
-        {#if page.Installed && !page.Installing && !page.NeedsUpdate}<p class="help">{page.Enabled ? modelText : "Installed and off."}</p>{/if}
+        {#if page.Custom.On}<p class="help">{page.Enabled ? modelText : "Off."}</p>
+        {:else if page.Installed && !page.Installing && !page.NeedsUpdate}<p class="help">{page.Enabled ? modelText : "Installed and off."}</p>{/if}
       </div>
-      {#if page.Installing}
+      {#if page.Custom.On}
+        <button type="button" class="btn" class:primary={!page.Enabled} onclick={() => run(() => (page!.Enabled ? OmniAI.TurnOff() : OmniAI.TurnOn()))}>{page.Enabled ? "Turn off" : "Turn on"}</button>
+      {:else if page.Installing}
         <button type="button" class="btn" onclick={() => run(() => OmniAI.CancelInstall())}>Cancel</button>
       {:else if !page.Installed}
         <button type="button" class="btn primary" onclick={() => run(() => OmniAI.TurnOn())}>Download and turn on</button>
@@ -101,7 +140,9 @@
       {/if}
     </header>
 
-    {#if page.Installing}
+    {#if page.Custom.On}
+      <!-- nothing to download or load: that server is not Omni's -->
+    {:else if page.Installing}
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent} aria-label={page.StepName}>
         <div class="fill" style:transform="scaleX({(page.Total > 0 ? percent : 4) / 100})"></div>
       </div>
@@ -124,6 +165,50 @@
     {#if error}<p class="error">{error}</p>{/if}
   </section>
 
+  <section class="block">
+    <h3>Which model</h3>
+    <div class="field">
+      <label class="check"><input type="radio" name="ai-source" checked={!page.Custom.On && !showCustom} onchange={() => { showCustom = false; run(() => OmniAI.UseBundled()); }} /> The one Omni downloads: private, it runs on this computer</label>
+      <label class="check"><input type="radio" name="ai-source" checked={page.Custom.On || showCustom} onchange={() => (showCustom = true)} /> Another model: LM Studio or Ollama on this computer, or a service with an API key</label>
+    </div>
+    {#if page.Custom.On || showCustom}
+      <div class="field">
+        <label class="label" for="ai-url">Address</label>
+        <input id="ai-url" type="text" class="mono" placeholder="http://localhost:1234/v1" bind:value={draft.url} spellcheck="false" />
+        <p class="help">LM Studio: <span class="mono">http://localhost:1234/v1</span>. Ollama: <span class="mono">http://localhost:11434/v1</span>. OpenAI: <span class="mono">https://api.openai.com/v1</span>.</p>
+      </div>
+      <div class="field">
+        <label class="label" for="ai-key">API key</label>
+        <input id="ai-key" type="password" class="mono" placeholder={page.Custom.HasKey ? "Saved; type a new one to replace it" : "Only if the service asks for one"} bind:value={draft.key} autocomplete="off" spellcheck="false" />
+        <p class="help">
+          Kept in the system credential store, never in a file.
+          {#if page.Custom.HasKey}<button type="button" class="link" onclick={() => run(() => OmniAI.SetCustomKey(""))}>Forget the saved key</button>{/if}
+        </p>
+      </div>
+      <div class="field">
+        <label class="label" for="ai-model">Model</label>
+        <input id="ai-model" type="text" class="mono" list="ai-models" placeholder="the model's name, as the server calls it" bind:value={draft.model} spellcheck="false" />
+        <datalist id="ai-models">{#each test?.models ?? [] as name}<option value={name}></option>{/each}</datalist>
+      </div>
+      {#if draft.url.trim() && !where.local}
+        <p class="warn">
+          {where.host ? `Everything you ask, and anything the tools give the model (your files, notes, clipboard, browser history, if you switched those on), is sent to ${where.host}.` : "That is not an address."}
+          Its terms and its charges apply, not Omni's.
+        </p>
+      {:else if where.local}
+        <p class="help">This address is on this computer: nothing you ask leaves it.</p>
+      {/if}
+      <div class="row">
+        <span class="help">
+          {#if test?.busy}Asking the server…{:else if test?.error}{test.error}{:else if test}Connected. {test.models.length} model{test.models.length === 1 ? "" : "s"} offered.{/if}
+        </span>
+        <button type="button" class="btn" disabled={!draft.url.trim() || test?.busy} onclick={testConnection}>Test the connection</button>
+        <button type="button" class="btn primary" disabled={!draft.url.trim() || !draft.model.trim()} onclick={useCustom}>{page.Custom.On ? "Save" : "Use this model"}</button>
+      </div>
+    {/if}
+  </section>
+
+  {#if !page.Custom.On}
   <section class="block">
     <h3>When the model is in memory</h3>
     <div class="field">
@@ -155,12 +240,52 @@
       <p class="help">Off, other windows can cover it and it comes back when you open it again.</p>
     </div>
   </section>
+  {/if}
+
+  <section class="block">
+    <h3>Tools</h3>
+    <p class="help">
+      What Omni AI may use on this computer while it answers. Each is off until you switch it on, here or from the + in the chat.
+      {#if page.Custom.On && !page.Custom.Local}
+        What a tool finds is given to the model, so it goes to {page.Custom.Host} with your question.
+      {:else}
+        Nothing leaves this computer for them; with web search also on, the model could put what a tool found into the words it searches for.
+      {/if}
+    </p>
+    {#each page.Tools ?? [] as tool (tool.group)}
+      <div class="field">
+        <div class="line">
+          <label class="check"><input type="checkbox" checked={tool.on} onchange={(e) => run(() => OmniAI.SetTool(tool.group, e.currentTarget.checked))} /> {tool.title}</label>
+          {#if tool.writes}
+            <select
+              class="ask"
+              aria-label="When {tool.title} changes something"
+              value={tool.always ? "run" : "ask"}
+              disabled={!tool.on}
+              onchange={(e) => run(() => OmniAI.SetAlwaysRun(tool.group, e.currentTarget.value === "run"))}
+            >
+              <option value="ask">Ask me first</option>
+              <option value="run">Run without asking</option>
+            </select>
+          {/if}
+        </div>
+        <p class="help">{toolHint(tool)}</p>
+      </div>
+    {/each}
+    <div class="row">
+      <span class="help">
+        A script in <span class="mono">{page.ScriptsFolder}</span> with an <span class="mono">@omni.tool</span> line becomes a tool here. See SCRIPTS.md in Omni's
+        documentation.
+      </span>
+      <button type="button" class="btn quiet" onclick={() => run(() => OmniAI.OpenScriptsFolder())}>Show the folder</button>
+    </div>
+  </section>
 
   <section class="block">
     <h3>Past chats</h3>
     <div class="field">
       <label class="check"><input type="checkbox" checked={page.KeepHistory} onchange={(e) => history({ keep: e.currentTarget.checked })} /> Keep my chats</label>
-      <p class="help">Saved as plain files in <span class="mono">{page.HistoryFolder}</span>, not encrypted. Nothing leaves this computer. A single chat can be marked "Not saved" in its window.</p>
+      <p class="help">Saved as plain files in <span class="mono">{page.HistoryFolder}</span>, not encrypted. Saving sends nothing anywhere. A single chat can be marked "Not saved" in its window.</p>
     </div>
     <div class="field">
       <label class="label" for="ai-days">Delete chats I have not opened for</label>
@@ -277,5 +402,23 @@
   }
   .link:hover {
     color: var(--text);
+  }
+  .line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ask {
+    width: auto;
+    height: 30px;
+  }
+  .warn {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+    border-radius: 10px;
+    color: var(--text);
+    font: 12.5px/1.45 var(--sans);
   }
 </style>

@@ -155,6 +155,12 @@ class SourceOut(_Response):
     chunks: int
 
 
+class RecentFileOut(BaseModel):
+    source_id: str
+    uri: str
+    mtime_ns: int
+
+
 class RemovedOut(BaseModel):
     removed_chunks: int
 
@@ -182,6 +188,7 @@ class SearchHitOut(_Response):
     vector_score: float | None
     keyword_rank: int | None
     snippet: str
+    text: str  # empty unless the request asked for full_text
 
 
 class SearchResponse(BaseModel):
@@ -194,6 +201,7 @@ class FileSearchRequest(_Request):
     k: int = Field(default=10, ge=1, le=50)  # files
     per_file: int = Field(default=3, ge=1, le=10)  # matching chunks shown per file
     filters: SearchFilters | None = None
+    full_text: bool = False  # each chunk's whole body in `text`, for Omni AI
 
 
 class FileOut(_Response):

@@ -19,6 +19,7 @@ type fakeEngine struct {
 	respond func(ctx context.Context, req sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error)
 	mu      sync.Mutex // searches overlap in the stale-answer tests
 	asked   []sidecar.SearchFilesRequest
+	recent  []sidecar.RecentFile // nil: an engine from before /files/recent
 }
 
 func (f *fakeEngine) SearchFiles(ctx context.Context, req sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error) {
@@ -26,6 +27,13 @@ func (f *fakeEngine) SearchFiles(ctx context.Context, req sidecar.SearchFilesReq
 	f.asked = append(f.asked, req)
 	f.mu.Unlock()
 	return f.respond(ctx, req)
+}
+
+func (f *fakeEngine) RecentFiles(_ context.Context, sinceNS int64, limit int) ([]sidecar.RecentFile, error) {
+	if f.recent == nil {
+		return nil, &sidecar.APIError{Status: 404}
+	}
+	return f.recent[:min(limit, len(f.recent))], nil
 }
 
 // newTest is New for files that exist only in the test: every path counts as present.
@@ -407,5 +415,61 @@ func TestAMomentInARecordingIsTimedSoAPlayerCanOpenItThere(t *testing.T) {
 	}
 	if note.Timed || note.Seconds != 0 {
 		t.Fatalf("a note has no moment: %+v", note)
+	}
+}
+
+func TestALookupAsksForWholeTextAndKeepsTheFilesItWasAskedFor(t *testing.T) {
+	root := filepath.Join(testpath.P(`C:\`), "Data")
+	engine := &fakeEngine{respond: func(_ context.Context, req sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error) {
+		var files []sidecar.File
+		for i := range req.K {
+			c := chunk("text", `{"lines":[1,9]}`, "short")
+			c.Text = "the whole piece"
+			files = append(files, sidecar.File{SourceID: "s1", URI: fmt.Sprintf("f%d.txt", i), Kind: "text", Chunks: []sidecar.Chunk{c}})
+		}
+		return sidecar.SearchFilesResponse{Confident: true, Files: files}, nil
+	}}
+	svc := newTest(engine, map[string]string{"s1": root}, ready)
+	svc.Search("bar search", 7) // a lookup must not make the bar's answers stale
+	got := svc.Lookup(context.Background(), "doc: lease pets", 2, 2)
+
+	asked := engine.asked[1]
+	if !asked.FullText || asked.PerFile != 2 || asked.Query != "lease pets" || asked.Filters == nil {
+		t.Fatalf("asked %+v", asked)
+	}
+	if len(got.Rows) != 2 || got.Rows[0].Matches[0].Text != "the whole piece" || !got.Confident {
+		t.Fatalf("lookup = %+v", got)
+	}
+	if svc.isStale(7) {
+		t.Fatal("the lookup made the bar's search stale")
+	}
+}
+
+func TestALookupOnAnEngineFromBeforeFullTextFallsBackToSnippets(t *testing.T) {
+	engine := &fakeEngine{respond: func(_ context.Context, req sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error) {
+		if req.FullText {
+			return sidecar.SearchFilesResponse{}, &sidecar.APIError{Status: 422, Detail: "extra field"}
+		}
+		return sidecar.SearchFilesResponse{Confident: true, Files: []sidecar.File{{SourceID: "s1", URI: "a.txt", Kind: "text",
+			Chunks: []sidecar.Chunk{chunk("text", `{"lines":[1,2]}`, "a snippet")}}}}, nil
+	}}
+	got := newTest(engine, map[string]string{"s1": testpath.P(`C:\D`)}, ready).Lookup(context.Background(), "x", 4, 2)
+	if got.State != StateResults || len(got.Rows) != 1 || got.Rows[0].Matches[0].Snippet != "a snippet" {
+		t.Fatalf("lookup = %+v", got)
+	}
+}
+
+func TestRecentPlacesFilesOnDiskAndKeepsTheLimit(t *testing.T) {
+	root := testpath.P(`C:\D`)
+	engine := &fakeEngine{recent: []sidecar.RecentFile{
+		{SourceID: "s1", URI: "new.txt", MtimeNS: 2e18}, {SourceID: "gone", URI: "x.txt", MtimeNS: 2e18 - 1}, {SourceID: "s1", URI: "a/old.txt", MtimeNS: 1e18},
+		{SourceID: "s1", URI: "older.txt", MtimeNS: 1e17},
+	}}
+	got, err := newTest(engine, map[string]string{"s1": root}, ready).Recent(context.Background(), time.Time{}, 2)
+	if err != nil || len(got) != 2 || got[0].Path != filepath.Join(root, "new.txt") || got[1].Path != filepath.Join(root, "a", "old.txt") {
+		t.Fatalf("recent = %+v, %v", got, err)
+	}
+	if _, err := newTest(&fakeEngine{}, nil, ready).Recent(context.Background(), time.Time{}, 2); err == nil || !strings.Contains(err.Error(), "Update") {
+		t.Fatalf("an old engine: %v", err)
 	}
 }

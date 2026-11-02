@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +44,45 @@ const (
 // Engine is the part of the memory engine client that search needs.
 type Engine interface {
 	SearchFiles(ctx context.Context, req sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error)
+	RecentFiles(ctx context.Context, sinceNS int64, limit int) ([]sidecar.RecentFile, error)
+}
+
+// Changed is an indexed file and when it last changed.
+type Changed struct {
+	Path     string
+	Modified time.Time
+}
+
+// Recent lists the indexed files changed after since, newest first, at most limit; files of folders no longer configured and
+// files deleted since the last sync are left out.
+func (s *Service) Recent(ctx context.Context, since time.Time, limit int) ([]Changed, error) {
+	if st := s.status(); st.State != sidecar.StateReady {
+		return nil, errors.New("file search is not running")
+	}
+	ctx, cancel := context.WithTimeout(ctx, searchTimeout)
+	defer cancel()
+	var sinceNS int64
+	if !since.IsZero() {
+		sinceNS = since.UnixNano()
+	}
+	files, err := s.engine.RecentFiles(ctx, sinceNS, limit+spareFiles)
+	var apiErr *sidecar.APIError
+	if errors.As(err, &apiErr) && apiErr.Status == http.StatusNotFound {
+		return nil, errors.New("file search needs its update first: press Update in Settings, File search")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list recent files: %w", err)
+	}
+	roots := s.roots()
+	var out []Changed
+	for _, f := range files {
+		root, ok := roots[f.SourceID]
+		path := filepath.Join(root, filepath.FromSlash(f.URI))
+		if ok && s.exists(path) && len(out) < limit {
+			out = append(out, Changed{Path: path, Modified: time.Unix(0, f.MtimeNS)})
+		}
+	}
+	return out, nil
 }
 
 // Match is one place in a file that matched.
@@ -52,6 +92,8 @@ type Match struct {
 	Snippet  string
 	// Line is where the match starts in a code or text file (0 if unknown), for opening an editor there.
 	Line int
+	// Text is the whole matching piece, for Lookup only.
+	Text string
 	// Timed says the match is a moment in a sound or a video, Seconds from its start: a player can open it there.
 	Timed   bool
 	Seconds float64
@@ -119,7 +161,25 @@ func (s *Service) Search(query string, token int) Results {
 	s.mu.Unlock()
 	defer cancel()
 
-	out := Results{Token: token, State: StateResults}
+	out := s.find(ctx, query, sidecar.SearchFilesRequest{K: maxFiles + spareFiles, PerFile: matchesPerFile})
+	out.Token = token
+	if s.isStale(token) || errors.Is(ctx.Err(), context.Canceled) {
+		return Results{Token: token, Stale: true}
+	}
+	return out
+}
+
+// Lookup is a search for Omni AI: the best few files with their best matches' whole text. It runs beside the bar's searches and
+// cancels none of them.
+func (s *Service) Lookup(ctx context.Context, query string, files, perFile int) Results {
+	ctx, cancel := context.WithTimeout(ctx, searchTimeout)
+	defer cancel()
+	return s.find(ctx, query, sidecar.SearchFilesRequest{K: files + spareFiles, PerFile: perFile, FullText: true})
+}
+
+// find runs req for query (a scope word before it narrows the kinds) and places the files on disk, at most req.K - spareFiles.
+func (s *Service) find(ctx context.Context, query string, req sidecar.SearchFilesRequest) Results {
+	out := Results{State: StateResults}
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return out
@@ -135,25 +195,30 @@ func (s *Service) Search(query string, token int) Results {
 	switch st := s.status(); st.State {
 	case sidecar.StateReady:
 	case sidecar.StateOff:
-		return Results{Token: token, State: StateOff, Message: "File search is off. Turn it on in Settings."}
+		return Results{State: StateOff, Message: "File search is off. Turn it on in Settings."}
 	case sidecar.StateFailed:
-		return Results{Token: token, State: StateUnavailable, Message: st.Message}
+		return Results{State: StateUnavailable, Message: st.Message}
 	default:
-		return Results{Token: token, State: StateWarming, Message: "Search is starting up..."}
+		return Results{State: StateWarming, Message: "Search is starting up..."}
 	}
 
-	resp, err := s.engine.SearchFiles(ctx, sidecar.SearchFilesRequest{
-		Query: query, K: maxFiles + spareFiles, PerFile: matchesPerFile, Filters: filters,
-	})
-	if s.isStale(token) || errors.Is(ctx.Err(), context.Canceled) {
-		return Results{Token: token, Stale: true}
+	limit := req.K - spareFiles
+	req.Query, req.Filters = query, filters
+	resp, err := s.engine.SearchFiles(ctx, req)
+	var apiErr *sidecar.APIError
+	if req.FullText && errors.As(err, &apiErr) && apiErr.Status == http.StatusUnprocessableEntity {
+		req.FullText = false // an engine from before full_text, not yet updated: snippets are better than no answer
+		resp, err = s.engine.SearchFiles(ctx, req)
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return out
 	}
 	if err != nil {
 		if sidecar.NotReady(err) {
-			return Results{Token: token, State: StateWarming, Message: "Search is starting up..."}
+			return Results{State: StateWarming, Message: "Search is starting up..."}
 		}
 		log.Printf("search %q failed: %v", query, err)
-		return Results{Token: token, State: StateError, Message: sidecar.Explain(err)}
+		return Results{State: StateError, Message: sidecar.Explain(err)}
 	}
 	out.Confident = resp.Confident
 	for _, file := range resp.Files {
@@ -161,8 +226,8 @@ func (s *Service) Search(query string, token int) Results {
 			out.Rows = append(out.Rows, row)
 		}
 	}
-	if len(out.Rows) > maxFiles {
-		out.Rows = out.Rows[:maxFiles]
+	if len(out.Rows) > limit {
+		out.Rows = out.Rows[:limit]
 	}
 	return out
 }
@@ -194,7 +259,7 @@ func (s *Service) row(file sidecar.File) (Row, bool) {
 		Score:  file.Score,
 	}
 	for _, chunk := range file.Chunks {
-		match := Match{Location: location(chunk.Locator), Snippet: chunk.Snippet, Line: firstLine(chunk.Locator)}
+		match := Match{Location: location(chunk.Locator), Snippet: chunk.Snippet, Text: chunk.Text, Line: firstLine(chunk.Locator)}
 		if t := parseLocator(chunk.Locator).T; t != nil {
 			match.Timed, match.Seconds = true, *t
 		}

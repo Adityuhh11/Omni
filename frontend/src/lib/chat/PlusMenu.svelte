@@ -2,16 +2,21 @@
   import { tick } from "svelte";
   import Icon from "../Icon.svelte";
   import RoundButton from "../RoundButton.svelte";
+  import type { ToolGroup } from "../../../bindings/omni/internal/chat";
+  import { toolGlyph, toolHint } from "./chat";
 
   interface Props {
     open: boolean;
     thinking: boolean;
     web: boolean;
+    /** The groups of tools on this computer the model may be given. */
+    tools?: ToolGroup[];
     disabled?: boolean;
     onthinking: () => void;
     onweb: () => void;
+    ontool: (group: ToolGroup) => void;
   }
-  let { open = $bindable(), thinking, web, disabled = false, onthinking, onweb }: Props = $props();
+  let { open = $bindable(), thinking, web, tools = [], disabled = false, onthinking, onweb, ontool }: Props = $props();
 
   let root = $state<HTMLDivElement | undefined>();
   let first = $state<HTMLButtonElement | undefined>();
@@ -38,7 +43,7 @@
     icon="plus"
     look="tile"
     label="Tools"
-    title="Think, search the web"
+    title="Think, search the web, use your files and scripts"
     pressed={open}
     {disabled}
     onclick={() => (open = !open)}
@@ -55,6 +60,13 @@
         <span class="words"><span class="name">Search the web</span><span class="hint">Looks things up online. The words it searches for go to DuckDuckGo or Wikipedia.</span></span>
         <span class="switch" class:on={web} aria-hidden="true"></span>
       </button>
+      {#each tools as tool (tool.group)}
+        <button type="button" aria-pressed={tool.on} class="item" onclick={() => ontool(tool)}>
+          <span class="glyph"><Icon name={toolGlyph(tool.group)} size={18} /></span>
+          <span class="words"><span class="name">{tool.title}</span><span class="hint">{toolHint(tool)}</span></span>
+          <span class="switch" class:on={tool.on} aria-hidden="true"></span>
+        </button>
+      {/each}
     </div>
   {/if}
 </div>
@@ -70,6 +82,8 @@
     left: -2px;
     z-index: 6;
     width: 292px;
+    max-height: min(420px, calc(100vh - 140px));
+    overflow-y: auto;
     padding: 5px;
     border: 1px solid var(--line);
     border-radius: 18px;

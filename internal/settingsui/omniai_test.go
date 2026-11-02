@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -179,5 +180,70 @@ func TestHistorySettingsAndClearing(t *testing.T) {
 	}
 	if msg := r.page.SetOnTop(false); msg != "" || r.store.Get().Chat.OnTop || r.page.View().OnTop {
 		t.Fatalf("SetOnTop: %q", msg)
+	}
+}
+
+func TestUsingAnotherModelTurnsOmniAIOnFreesTheBundledOneAndGoingBackFollowsTheInstall(t *testing.T) {
+	r := newOmniRig(t)
+	key := ""
+	r.page.o.CustomKey = func() string { return key }
+	r.page.o.SetCustomKey = func(k string) error { key = k; return nil }
+
+	if msg := r.page.UseCustom(" http://localhost:1234/v1 ", " qwen "); msg != "" {
+		t.Fatal(msg)
+	}
+	c := r.store.Get().Chat
+	if !c.Custom || !c.Enabled || c.CustomURL != "http://localhost:1234/v1" || c.CustomModel != "qwen" || r.model.unloaded != 1 {
+		t.Fatalf("chat = %+v, unloaded %d", c, r.model.unloaded)
+	}
+	if v := r.page.View().Custom; !v.On || !v.Local || v.Host != "localhost:1234" || v.HasKey {
+		t.Fatalf("view = %+v", v)
+	}
+	if msg := r.page.SetCustomKey(" sk-1 "); msg != "" || key != "sk-1" || !r.page.View().Custom.HasKey {
+		t.Fatalf("key %q, %q", key, msg)
+	}
+	if msg := r.page.TurnOff(); msg != "" || r.page.TurnOn() != "" || !r.store.Get().Chat.Enabled || r.setup.started != 0 {
+		t.Fatal("turning on with another model must not start the download")
+	}
+	if r.page.UseCustom("ftp://nope", "m") == "" {
+		t.Fatal("a bad address was accepted")
+	}
+
+	if msg := r.page.UseBundled(); msg != "" {
+		t.Fatal(msg)
+	}
+	if c := r.store.Get().Chat; c.Custom || c.Enabled { // the bundled model is not installed, so Omni AI cannot stay on
+		t.Fatalf("chat = %+v", c)
+	}
+	r.setup.state.Installed = true
+	r.page.UseCustom("https://api.example.com/v1", "m")
+	r.page.UseBundled()
+	if c := r.store.Get().Chat; c.Custom || !c.Enabled {
+		t.Fatalf("chat = %+v", c)
+	}
+}
+
+func TestTestCustomListsTheModelsWithTheTypedKeyOrTheSavedOne(t *testing.T) {
+	r := newOmniRig(t)
+	var used llm.Endpoint
+	r.page.o.CustomKey = func() string { return "saved" }
+	r.page.o.ListModels = func(_ context.Context, ep llm.Endpoint) ([]string, error) {
+		used = ep
+		if ep.URL == "http://down" {
+			return nil, errors.New("reach http://down: refused")
+		}
+		return []string{"a", "b"}, nil
+	}
+	if got := r.page.TestCustom("http://host:1/v1", ""); got.Error != "" || len(got.Models) != 2 || used.Key != "saved" || used.URL != "http://host:1" {
+		t.Fatalf("got %+v, used %+v", got, used)
+	}
+	if r.page.TestCustom("http://host:1/v1", " typed "); used.Key != "typed" {
+		t.Fatalf("used %+v", used)
+	}
+	if got := r.page.TestCustom("http://down", ""); got.Error == "" {
+		t.Fatalf("got %+v", got)
+	}
+	if got := r.page.TestCustom("not an address", ""); got.Error == "" {
+		t.Fatalf("got %+v", got)
 	}
 }

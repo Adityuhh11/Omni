@@ -41,6 +41,8 @@ type Status struct {
 type Endpoint struct {
 	URL, Key string
 	Device   string
+	// Model names the model at a server somebody else runs (custom.go); the bundled server has one model and leaves it empty.
+	Model string
 }
 
 // Timer is what After returns: something that can be stopped.

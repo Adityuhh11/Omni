@@ -456,7 +456,8 @@ func TestOmniAIIsOffByDefaultLoadsOnDemandAndKeepsHistory(t *testing.T) {
 func TestChatSettingsRoundTripAndAreValidated(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	cfg := Default()
-	cfg.Chat = Chat{Enabled: true, Hotkey: "Ctrl+Alt+A", Load: "at_start", UnloadAfterMinutes: 0, ContextTokens: 16384, KeepHistory: false, HistoryDays: 0, Thinking: true, OnTop: false}
+	cfg.Chat = Chat{Enabled: true, Hotkey: "Ctrl+Alt+A", Load: "at_start", UnloadAfterMinutes: 0, ContextTokens: 16384, KeepHistory: false, HistoryDays: 0, Thinking: true, OnTop: false,
+		Tools: []string{"files", "script:backup"}, AlwaysRun: []string{"script:backup"}, MCP: true, MCPTools: []string{"notes"}}
 	if err := cfg.Save(path); err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +465,7 @@ func TestChatSettingsRoundTripAndAreValidated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back.Chat != cfg.Chat {
+	if !reflect.DeepEqual(back.Chat, cfg.Chat) {
 		t.Fatalf("round trip = %+v, want %+v", back.Chat, cfg.Chat)
 	}
 
@@ -502,5 +503,28 @@ func TestNoTwoHotkeysMayShareACombination(t *testing.T) {
 	ok.Clipboard.Hotkey, ok.Chat.Hotkey, ok.Notes.Hotkey = "Ctrl+Shift+V", "Ctrl+Alt+A", "Ctrl+Alt+N"
 	if err := ok.Validate(); err != nil {
 		t.Errorf("four different hotkeys were refused: %v", err)
+	}
+}
+
+func TestACustomModelNeedsAnHTTPAddressAndAName(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		on        bool
+		url, mdl  string
+		wantValid bool
+	}{
+		{"off, nothing set", false, "", "", true},
+		{"on, local server", true, "http://localhost:1234/v1", "qwen", true},
+		{"on, cloud", true, "https://api.openai.com/v1", "gpt", true},
+		{"on, no name", true, "http://localhost:1234", "", false},
+		{"on, no address", true, "", "qwen", false},
+		{"on, not http", true, "ftp://x", "qwen", false},
+		{"off but a bad address is still refused", false, "nonsense", "", false},
+	} {
+		cfg := Default()
+		cfg.Chat.Custom, cfg.Chat.CustomURL, cfg.Chat.CustomModel = c.on, c.url, c.mdl
+		if err := cfg.Validate(); (err == nil) != c.wantValid {
+			t.Errorf("%s: Validate = %v", c.name, err)
+		}
 	}
 }
