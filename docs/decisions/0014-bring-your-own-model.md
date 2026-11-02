@@ -32,6 +32,9 @@ or Ollama on this computer, or a cloud service with an API key. Three settings i
 - A provider list (OpenAI, Anthropic, Gemini with their own request shapes): three APIs to keep in step. The OpenAI shape is what
   LM Studio, Ollama, OpenRouter, Groq and OpenAI all take; a provider that does not can be put behind such an address.
 - Tools only for local addresses: the person chose the tools and the model; the page says what goes where. Revisit if it surprises.
+- A catalog of local models sized to the graphics memory, or downloads from Hugging Face: each model brings its own template, thinking switch
+  and tool-call behavior (0008), so Omni would own the flags, the memory fit and the support for every one. LM Studio and Ollama already
+  show what a card can run, and this decision connects to them. Dropped by the owner on 2026-11-03 before any model was measured.
 - Counting tokens exactly with a tokenizer library: a dependency for a number the context fit only needs roughly (the fit keeps room).
 
 ## Consequences
