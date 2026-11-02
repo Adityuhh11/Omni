@@ -13,7 +13,7 @@
   import PlusMenu from "./lib/chat/PlusMenu.svelte";
   import { ringsFor } from "./lib/palettes";
   import { currentTheme, onTheme } from "./lib/theme";
-  import { dot, escapeStep, lastQuestion, meter, sends, thoughtFor, unloadsIn, waiting, type Phase } from "./lib/chat/chat";
+  import { escapeStep, lastQuestion, meter, sends, thoughtFor, unloadsIn, waiting, type Phase } from "./lib/chat/chat";
   import { copyable } from "./lib/chat/copy";
   import { when } from "./lib/format";
   import { render } from "./lib/markdown";
@@ -45,7 +45,6 @@
 
   const messages = $derived(view.messages ?? []);
   const busy = $derived(view.busy || live !== null);
-  const status = $derived(dot(info));
   const off = $derived(info !== null && (!info.enabled || !info.installed));
   const unload = $derived(info && info.state === "ready" ? unloadsIn(info.unloads_at, now) : "");
   const lastAnswer = $derived(messages.length > 0 && messages[messages.length - 1].role === "assistant" ? messages.length - 1 : -1);
@@ -346,7 +345,6 @@
 <Card>
   <main>
     <header>
-      <span class="dot tone-{status.tone}" class:pulse={status.busy} title={status.label} role="img" aria-label={status.label}></span>
       <h1>Omni AI</h1>
       <div class="tools">
         <RoundButton icon="plus" label="New chat" title={`New chat (${combo("Ctrl+N")})`} onclick={newChat} />
@@ -570,26 +568,6 @@
     display: flex;
     gap: 4px;
     margin-left: auto;
-  }
-  .dot {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-3);
-  }
-  .dot.tone-ready {
-    background: var(--chrome);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome) 15%, transparent);
-  }
-  .dot.tone-busy {
-    background: var(--text-2);
-  }
-  .dot.tone-bad {
-    background: var(--danger);
-  }
-  .dot.pulse {
-    animation: pulse 1.1s ease-in-out infinite;
   }
   @keyframes pulse {
     50% {
@@ -1120,7 +1098,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dot.pulse,
     .pip {
       animation: none;
     }

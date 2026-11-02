@@ -1,20 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dot, escapeStep, kilo, lastQuestion, meter, sends, thoughtFor, toolGlyph, toolHint, unloadsIn, waiting } from "./chat.ts";
-
-const info = (state: string, extra: object = {}) => ({ enabled: true, installed: true, state, message: "", device: "gpu", ...extra });
-
-test("the dot says off, loading, ready, failed or not loaded", () => {
-  assert.equal(dot(null).label, "");
-  assert.equal(dot({ ...info("ready"), enabled: false }).label, "Omni AI is off");
-  assert.equal(dot({ ...info("ready"), installed: false }).tone, "off");
-  assert.deepEqual(dot(info("ready")), { tone: "ready", label: "Ready", busy: false });
-  assert.equal(dot(info("ready", { device: "cpu" })).label, "Ready, on the processor");
-  assert.deepEqual(dot(info("loading")), { tone: "busy", label: "Starting the model…", busy: true });
-  assert.deepEqual(dot(info("failed", { message: "no card" })), { tone: "bad", label: "no card", busy: false });
-  assert.equal(dot(info("failed")).label, "The model did not start");
-  assert.equal(dot(info("unloaded")).tone, "off");
-});
+import { escapeStep, kilo, lastQuestion, meter, sends, thoughtFor, toolGlyph, toolHint, unloadsIn, waiting } from "./chat.ts";
 
 test("tokens are written short", () => {
   assert.equal(kilo(0), "0");
