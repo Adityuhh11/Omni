@@ -51,6 +51,8 @@ type Deps struct {
 	Clips   Clips
 	Notes   Notes
 	Scripts Scripts
+	// Browser is browsers.Search; nil leaves the browser tool out.
+	Browser Browser
 	// Launches lists what was opened from the bar after since, newest first, by name.
 	Launches func(since time.Time) []Launch
 	// RunScript runs a script (scripts.Run); tests replace it.
@@ -78,6 +80,9 @@ func (d Deps) Tools() []chat.Local {
 	}
 	if d.Files != nil || d.Launches != nil || d.Clips != nil {
 		out = append(out, d.activityTool())
+	}
+	if d.Browser != nil {
+		out = append(out, d.browserTool())
 	}
 	if d.Scripts != nil {
 		out = append(out, d.scriptTools()...)

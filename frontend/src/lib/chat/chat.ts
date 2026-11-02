@@ -49,9 +49,9 @@ export function sends(event: { key: string; shiftKey: boolean; isComposing: bool
 export type Phase = "loading" | "reading" | "web" | "tool" | "thinking" | "answering" | "";
 
 /** The glyph of a group of tools in the + menu. */
-export function toolGlyph(group: string): "file" | "clip" | "note" | "history" | "code" | "spark" {
+export function toolGlyph(group: string): "file" | "clip" | "note" | "history" | "web" | "code" | "spark" {
   if (group.startsWith("script:")) return "code";
-  return ({ files: "file", clipboard: "clip", notes: "note", activity: "history" } as const)[group] ?? "spark";
+  return ({ files: "file", clipboard: "clip", notes: "note", activity: "history", browser: "web" } as const)[group] ?? "spark";
 }
 
 /** What a group of tools does, in the + menu and in Settings. */
@@ -64,6 +64,8 @@ export function toolHint(tool: { group: string; writes: boolean; always: boolean
       return "Reads what you copied.";
     case "notes":
       return `Reads your notes and adds new ones. ${tool.always ? "Adds without asking." : "Asks before adding."}`;
+    case "browser":
+      return "Searches the pages you visited or bookmarked in your browsers.";
     case "activity":
       return "Sees the files you changed, the apps you opened and what you copied.";
   }

@@ -30,6 +30,14 @@ var appTools = map[string]chat.Tool{
 			"when and from which app. Returns up to 10 copies that contain every word of the query, newest first; an empty query "+
 			"returns the newest. It can hold anything they copied, including private text, so use only what the question needs.",
 		map[string]string{"query": "Words the copy must contain (all of them), or empty for the newest copies."}),
+	"search_browser": chat.ObjectTool("search_browser",
+		"Search the web pages the person visited or bookmarked in the browsers on this computer (Zen, Firefox, Chrome, Edge and "+
+			"Brave), from their history and bookmarks. Returns up to 10 pages, newest first, each with browser, title, address "+
+			"(without the query part) and when it was last visited, and whether it is bookmarked. It matches words in the title "+
+			"or address, not the page's text, so use a few distinctive words; an empty query returns the newest pages. Private "+
+			"windows are not recorded. Use it for “which page was that”, “what did I read about X last week”; this is the "+
+			"person's browsing, so use only what the question needs.",
+		map[string]string{"query": "Words the title or address must contain (all of them), or empty for the newest pages.", "days": "Only visits in the last N days (a bookmark counts whenever it was visited). Empty for any time."}),
 	"recent_activity": chat.ObjectTool("recent_activity",
 		"What the person did on their computer lately, from the last 1 to 14 days, newest first: files that changed in the folders "+
 			"Omni indexes, apps they opened with Omni, and what they copied. Use it for questions such as “what was I working on "+

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"omni/internal/browsers"
 	"omni/internal/chat"
 	"omni/internal/notes"
 )
@@ -30,7 +31,7 @@ func TestEveryToolThatReadsHasAFullDescriptionForOtherAppsWithTheSameArguments(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := Deps{Files: fakeFiles{}, Clips: fakeClips{}, Notes: store}
+	d := Deps{Files: fakeFiles{}, Clips: fakeClips{}, Notes: store, Browser: func(string, int, int) ([]browsers.Page, error) { return nil, nil }}
 	for _, l := range d.Tools() {
 		if l.Writes {
 			continue
