@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"omni/internal/browsers"
 	"omni/internal/chat"
 	"omni/internal/clipboard"
 	"omni/internal/notes"
@@ -177,5 +178,40 @@ func TestOnlyScriptsWithAToolLineAreToolsAndTheyAlwaysCountAsChanging(t *testing
 func TestCutNeverSplitsACharacter(t *testing.T) {
 	if got := cut("héllo", 2); got != "h…" {
 		t.Fatalf("%q", got)
+	}
+}
+
+func TestSearchBrowserListsPagesWithoutTheirQueryAndSaysWhenNothingMatches(t *testing.T) {
+	var gotWords string
+	var gotDays int
+	d := Deps{Browser: func(words string, days, limit int) ([]browsers.Page, error) {
+		gotWords, gotDays = words, days
+		if words == "none" {
+			return nil, nil
+		}
+		return []browsers.Page{{Title: "Effective Go", URL: "https://go.dev/doc/effective_go?token=secret", Browser: "Zen",
+			At: time.Date(2026, 11, 2, 10, 5, 0, 0, time.Local), Bookmarked: true}, {Title: "Kept", URL: "https://k.test/", Browser: "Chrome", Bookmarked: true}}, nil
+	}}
+	var tool chat.Local
+	for _, l := range d.Tools() {
+		if l.Def.Function.Name == "search_browser" {
+			tool = l
+		}
+	}
+	if tool.Writes || tool.Group != "browser" {
+		t.Fatalf("tool = %+v", tool)
+	}
+	out, _, err := tool.Run(context.Background(), map[string]string{"query": "go", "days": `"7"`})
+	if err != nil || gotWords != "go" || gotDays != 7 {
+		t.Fatalf("err %v, words %q, days %d", err, gotWords, gotDays)
+	}
+	if strings.Contains(out, "secret") || !strings.Contains(out, "Zen: Effective Go — https://go.dev/doc/effective_go (bookmarked)") || !strings.Contains(out, "- Chrome: Kept") {
+		t.Fatalf("out = %q", out)
+	}
+	if _, _, err := tool.Run(context.Background(), map[string]string{"query": "x", "days": "99999"}); err != nil || gotDays != browserDays {
+		t.Fatalf("days = %d, err %v", gotDays, err)
+	}
+	if out, _, _ := tool.Run(context.Background(), map[string]string{"query": "none"}); !strings.Contains(out, "No visited or bookmarked page") {
+		t.Fatalf("out = %q", out)
 	}
 }

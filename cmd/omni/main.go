@@ -24,6 +24,7 @@ import (
 	"omni/internal/aitools"
 	"omni/internal/apps"
 	"omni/internal/autostart"
+	"omni/internal/browsers"
 	"omni/internal/chat"
 	"omni/internal/clipboard"
 	"omni/internal/config"
@@ -372,7 +373,7 @@ func run(afterUpdate bool) error {
 		log.Printf("scripts are off: %v", err)
 	}
 	localTools := aitools.Deps{
-		Files: fileSearch, Clips: clips,
+		Files: fileSearch, Clips: clips, Browser: browsers.Search,
 		Launches: func(since time.Time) []aitools.Launch {
 			var out []aitools.Launch
 			for _, u := range history.Since(since) {

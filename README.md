@@ -147,8 +147,8 @@ opened. The program touches the network in exactly these cases, all started or s
 | You press **Update to X** | `github.com` | a download of that release, checked against its published SHA-256 |
 
 The engine and the Omni AI model server listen on `127.0.0.1` only, behind a random per-run token (the engine also rejects foreign `Host` headers).
-Clipboard history is off by default and stored only on your machine. Omni AI's tools (your files, notes, clipboard, activity
-and your scripts, [`docs/SCRIPTS.md`](docs/SCRIPTS.md)) run on this computer and are off until you switch them on; with web search
+Clipboard history is off by default and stored only on your machine. Omni AI's tools (your files, notes, clipboard, activity,
+browser history and bookmarks (read from a copy of each browser's own files, which are never changed) and your scripts, [`docs/SCRIPTS.md`](docs/SCRIPTS.md)) run on this computer and are off until you switch them on; with web search
 also on, the model could put what a tool found into the words it searches for. See [`docs/decisions/0005-update-check.md`](docs/decisions/0005-update-check.md).
 
 ## Settings and where things are

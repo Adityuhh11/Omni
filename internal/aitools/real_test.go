@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"omni/internal/browsers"
 	"omni/internal/chat"
 	"omni/internal/config"
 	"omni/internal/llm"
@@ -45,7 +46,9 @@ func TestRealModelChoosesLocalTools(t *testing.T) {
 	}
 	lease := search.Results{State: search.StateResults, Confident: true, Rows: []search.Row{{Name: "lease-2026.pdf", Path: `C:\Docs\lease-2026.pdf`,
 		Matches: []search.Match{{Location: "page 4", Text: "12. Pets. The tenant may keep one cat or one dog under 15 kg with the landlord's written consent and a pet deposit of 300 euros."}}}}}
-	deps := Deps{Files: fakeFiles{res: lease}, Notes: store, Scripts: folder}
+	pages := []browsers.Page{{Title: "Rust by Example", URL: "https://doc.rust-lang.org/rust-by-example/", Browser: "Zen", At: time.Now().Add(-26 * time.Hour)}}
+	deps := Deps{Files: fakeFiles{res: lease}, Notes: store, Scripts: folder,
+		Browser: func(string, int, int) ([]browsers.Page, error) { return pages, nil }}
 	locals := deps.Tools()
 
 	cfg := config.Default().Chat
@@ -79,9 +82,10 @@ func TestRealModelChoosesLocalTools(t *testing.T) {
 		{"files", "What does my lease say about having a pet?", "lease-2026.pdf", "300"},
 		{"notes", "What is on my groceries note?", "", "sourdough"},
 		{"script:wifi.ps1", "Which Wi-Fi network am I on right now?", "", "HomeNet"},
+		{"browser", "Which Rust tutorial page did I look at yesterday?", "", "Rust by Example"},
 		{"", "What is 12 times 7?", "", "84"},
 	}
-	all := []string{"files", "notes", "script:wifi.ps1"}
+	all := []string{"files", "notes", "script:wifi.ps1", "browser"}
 	right := map[string]int{}
 	for _, setup := range []string{"own", "all"} {
 		for _, c := range cases {
