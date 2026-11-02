@@ -6,6 +6,7 @@ import (
 
 	"omni/internal/chat"
 	"omni/internal/config"
+	"omni/internal/mcpconnect"
 	"omni/internal/settings"
 )
 
@@ -19,6 +20,10 @@ type MCPOptions struct {
 	Tools func() []chat.Local
 	// Self is this program, which an AI app starts as `<Self> mcp`.
 	Self string
+	// Apps, Connect and Disconnect are mcpconnect's; the page's tests give it folders of their own.
+	Apps       func(self string) []mcpconnect.App
+	Connect    func(id, self string) error
+	Disconnect func(id string) error
 }
 
 // MCP is bound to the AI apps page of the settings window. Methods that change something return the reason they were refused,
@@ -33,7 +38,11 @@ type MCPView struct {
 	// Enabled is the server's switch; Config is what to add to the other app's MCP settings.
 	Enabled bool
 	Config  string
-	Groups  []MCPGroup
+	// Self is the path an AI app starts, for the one command line the page shows.
+	Self string
+	// Apps are the AI apps found on this computer that Omni can be added to with a button.
+	Apps   []mcpconnect.App
+	Groups []MCPGroup
 }
 
 // MCPGroup is a group of tools with the switch that offers it to other apps; only its tools that read are listed.
@@ -54,7 +63,7 @@ type MCPTool struct {
 func (p *MCP) View() MCPView {
 	cfg := p.o.Store.Get().Chat
 	snippet, _ := json.MarshalIndent(map[string]any{"mcpServers": map[string]any{"omni": map[string]any{"command": p.o.Self, "args": []string{"mcp"}}}}, "", "  ")
-	v := MCPView{Enabled: cfg.MCP, Config: string(snippet)}
+	v := MCPView{Enabled: cfg.MCP, Config: string(snippet), Self: p.o.Self, Apps: p.o.Apps(p.o.Self)}
 	for _, l := range p.o.Tools() {
 		if l.Writes {
 			continue
@@ -74,6 +83,12 @@ func (p *MCP) View() MCPView {
 func (p *MCP) SetEnabled(on bool) string {
 	return reason(p.o.Store.Update(func(c *config.Config) { c.Chat.MCP = on }))
 }
+
+// Connect adds Omni to the settings of the AI app with this id, on the person's press of its button.
+func (p *MCP) Connect(id string) string { return reason(p.o.Connect(id, p.o.Self)) }
+
+// Disconnect removes Omni from that app's settings.
+func (p *MCP) Disconnect(id string) string { return reason(p.o.Disconnect(id)) }
 
 // SetTool gives other AI apps a group of tools, or takes it away.
 func (p *MCP) SetTool(group string, on bool) string {
