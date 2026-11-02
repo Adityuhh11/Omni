@@ -70,11 +70,34 @@
   {#if page.Enabled}
     <section class="block">
       <h3>Connect an app</h3>
+      {#each page.Apps ?? [] as app (app.ID)}
+        <div class="app">
+          <div class="app-text">
+            <span class="app-name">{app.Name}</span>
+            <span class="help">
+              {#if app.State === "on"}Connected.
+              {:else if app.State === "other"}Set up for an Omni at another place.
+              {:else if app.State === "problem"}{app.Problem}
+              {:else}Not connected.{/if}
+            </span>
+          </div>
+          {#if app.State === "on"}
+            <button type="button" class="btn" onclick={() => run(() => MCP.Disconnect(app.ID))}>Disconnect</button>
+          {:else if app.State !== "problem"}
+            <button type="button" class="btn" onclick={() => run(() => MCP.Connect(app.ID))}>{app.State === "other" ? "Update" : "Connect"}</button>
+          {/if}
+        </div>
+      {/each}
+      {#if (page.Apps ?? []).length}
+        <p class="help">Adds Omni to that app's MCP settings and keeps what is already there; the first time, the old file is kept beside it as <span class="mono">.omni-backup</span>. Restart the app after.</p>
+      {:else}
+        <p class="help">No supported app found here (Claude Desktop, Cursor, VS Code, Windsurf). Add this by hand instead.</p>
+      {/if}
       <div class="field">
-        <span class="label">Add this to the app's MCP settings</span>
+        <span class="label">Any other app: add this to its MCP settings</span>
         <pre class="mono config">{page.Config}</pre>
         <div><button type="button" class="btn" onclick={copyConfig}>{copied ? "Copied" : "Copy"}</button></div>
-        <p class="help">Then restart the app. In Claude Desktop this goes in Settings, Developer, Edit Config.</p>
+        <p class="help">Claude Code: <span class="mono">claude mcp add omni -- "{page.Self}" mcp</span></p>
       </div>
     </section>
   {/if}
@@ -114,6 +137,21 @@
   }
   .tool p {
     margin: 2px 0 6px;
+  }
+  .app {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .app-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .app-name {
+    font: 560 13px/1.3 var(--sans);
   }
   .config {
     margin: 0;

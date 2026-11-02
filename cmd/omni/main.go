@@ -33,6 +33,7 @@ import (
 	"omni/internal/indexing"
 	"omni/internal/llm"
 	"omni/internal/mcp"
+	"omni/internal/mcpconnect"
 	"omni/internal/notes"
 	"omni/internal/palette"
 	"omni/internal/panel"
@@ -507,7 +508,7 @@ func run(afterUpdate bool) error {
 			SetAlwaysRun: chatSvc.SetAlwaysRun,
 			ScriptsDir:   filepath.Join(filepath.Dir(path), "scripts"),
 		})),
-		application.NewService(settingsui.NewMCP(settingsui.MCPOptions{Store: store, Tools: localTools.Tools, Self: self})),
+		application.NewService(settingsui.NewMCP(settingsui.MCPOptions{Store: store, Tools: localTools.Tools, Self: self, Apps: mcpconnect.Apps, Connect: mcpconnect.Connect, Disconnect: mcpconnect.Disconnect})),
 		application.NewService(settingsui.New(settingsui.Options{
 			Store:    store,
 			Setup:    setup,

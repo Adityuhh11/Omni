@@ -1,25 +1,7 @@
-// The small decisions of the chat window that need no page: what the status dot says, how tokens and times are written, and
+// The small decisions of the chat window that need no page: how tokens and times are written, and
 // which message a key recalls. Kept apart so they are tested with node.
 
-/** The model's state as the header's dot shows it. `tone` picks the colour; `busy` makes the dot pulse. */
-export type Dot = { tone: "off" | "ready" | "busy" | "bad"; label: string; busy: boolean };
-
 export type ModelInfo = { enabled: boolean; installed: boolean; state: string; message: string; device: string };
-
-export function dot(info: ModelInfo | null): Dot {
-  if (!info) return { tone: "off", label: "", busy: false };
-  if (!info.enabled || !info.installed) return { tone: "off", label: "Omni AI is off", busy: false };
-  switch (info.state) {
-    case "ready":
-      return { tone: "ready", label: info.device === "cpu" ? "Ready, on the processor" : "Ready", busy: false };
-    case "loading":
-      return { tone: "busy", label: "Starting the model…", busy: true };
-    case "failed":
-      return { tone: "bad", label: info.message || "The model did not start", busy: false };
-    default:
-      return { tone: "off", label: "Not loaded; it starts when you ask", busy: false };
-  }
-}
 
 /** Tokens as a short number: 640, 3.1k, 8k. */
 export function kilo(n: number): string {

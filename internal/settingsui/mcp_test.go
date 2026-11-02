@@ -2,13 +2,17 @@ package settingsui
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"slices"
 	"testing"
 
 	"omni/internal/chat"
+	"omni/internal/mcpconnect"
 	"omni/internal/settings"
 )
+
+var connected string
 
 func mcpPage(t *testing.T) (*MCP, *settings.Store) {
 	t.Helper()
@@ -24,7 +28,13 @@ func mcpPage(t *testing.T) (*MCP, *settings.Store) {
 			{Group: "script:x.ps1", GroupTitle: "X", Def: chat.ObjectTool("x", "Runs X.", nil), Writes: true, Run: run},
 		}
 	}
-	return NewMCP(MCPOptions{Store: store, Tools: tools, Self: "omni.exe"}), store
+	o := MCPOptions{
+		Store: store, Tools: tools, Self: "omni.exe",
+		Apps:       func(string) []mcpconnect.App { return []mcpconnect.App{{ID: "cursor", Name: "Cursor", State: "off"}} },
+		Connect:    func(id, self string) error { connected = id + " " + self; return nil },
+		Disconnect: func(id string) error { return errors.New("settings: cannot write") },
+	}
+	return NewMCP(o), store
 }
 
 func TestTheAIAppsPageListsOnlyWhatReadsWithTheFullDescriptionAndNothingIsOnAtFirst(t *testing.T) {
@@ -62,5 +72,18 @@ func TestTheSwitchesForOtherAppsAreApartFromOmniAIs(t *testing.T) {
 	}
 	if r := page.SetTool("notes", false); r != "" || len(store.Get().Chat.MCPTools) != 0 {
 		t.Fatalf("off: %q %+v", r, store.Get().Chat.MCPTools)
+	}
+}
+
+func TestTheAIAppsPageListsTheAppsAndPassesItsOwnPathToConnect(t *testing.T) {
+	page, _ := mcpPage(t)
+	if v := page.View(); len(v.Apps) != 1 || v.Apps[0].ID != "cursor" {
+		t.Fatalf("apps = %+v", v.Apps)
+	}
+	if r := page.Connect("cursor"); r != "" || connected != "cursor omni.exe" {
+		t.Fatalf("connect = %q, %q", r, connected)
+	}
+	if r := page.Disconnect("cursor"); r != "cannot write" {
+		t.Fatalf("disconnect = %q", r)
 	}
 }
