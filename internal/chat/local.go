@@ -16,6 +16,9 @@ type Local struct {
 	// GroupTitle names the group in the + menu and in Settings.
 	GroupTitle string
 	Def        Tool
+	// Apps is the same tool as other AI apps see it over MCP (docs/decisions/0012-mcp-own-switches.md): the same name and
+	// arguments, described in full for a model that can use it. Unset, Def is used.
+	Apps Tool
 	// Writes marks a tool that changes something (a new note, any script): the person is asked before each run unless its
 	// group is in [chat] always_run.
 	Writes bool
@@ -25,6 +28,14 @@ type Local struct {
 	Busy string
 	// Run does the work. The text goes to the model; sources are shown under the answer.
 	Run func(ctx context.Context, args map[string]string) (text string, sources []Source, err error)
+}
+
+// ForApps is the tool as another AI app is shown it.
+func (l Local) ForApps() Tool {
+	if l.Apps.Function.Name != "" {
+		return l.Apps
+	}
+	return l.Def
 }
 
 // ToolGroup is a group of local tools as the + menu and Settings show it.

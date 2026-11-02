@@ -392,7 +392,7 @@ func run(afterUpdate bool) error {
 	mcpServer := &mcp.Server{Version: version, File: mcp.DefaultFile(dataDir), Tools: func() []chat.Local {
 		var on []chat.Local
 		for _, t := range localTools.Tools() {
-			if slices.Contains(store.Get().Chat.Tools, t.Group) {
+			if slices.Contains(store.Get().Chat.MCPTools, t.Group) {
 				on = append(on, t)
 			}
 		}
@@ -506,8 +506,8 @@ func run(afterUpdate bool) error {
 			SetTool:      chatSvc.SetTool,
 			SetAlwaysRun: chatSvc.SetAlwaysRun,
 			ScriptsDir:   filepath.Join(filepath.Dir(path), "scripts"),
-			Self:         self,
 		})),
+		application.NewService(settingsui.NewMCP(settingsui.MCPOptions{Store: store, Tools: localTools.Tools, Self: self})),
 		application.NewService(settingsui.New(settingsui.Options{
 			Store:    store,
 			Setup:    setup,

@@ -143,9 +143,12 @@ type Chat struct {
 	Tools []string `toml:"tools"`
 	// AlwaysRun are the groups whose tools that change something (a new note, a script) run without asking first.
 	AlwaysRun []string `toml:"always_run"`
-	// MCP lets other AI apps on this computer (Claude Desktop, Cursor, VS Code) use the tools switched on in Tools that only
-	// read, through `omni mcp` (internal/mcp). What they read goes wherever that app sends it.
+	// MCP lets other AI apps on this computer (Claude Desktop, Cursor, VS Code) use the tools in MCPTools that only read,
+	// through `omni mcp` (internal/mcp). What they read goes wherever that app sends it.
 	MCP bool `toml:"mcp"`
+	// MCPTools are the groups of tools those apps may use, by the names Tools uses; none at first, and apart from Tools: what
+	// Omni AI reads stays here, what another app reads may not (docs/decisions/0012-mcp-own-switches.md).
+	MCPTools []string `toml:"mcp_tools"`
 	// OnTop keeps the chat window above other windows.
 	OnTop bool `toml:"on_top"`
 }

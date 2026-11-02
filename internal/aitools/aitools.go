@@ -82,7 +82,7 @@ func (d Deps) Tools() []chat.Local {
 	if d.Scripts != nil {
 		out = append(out, d.scriptTools()...)
 	}
-	return out
+	return withAppDescriptions(out)
 }
 
 // cut shortens text to at most n bytes, on a whole character, marking that it was cut.

@@ -8,6 +8,7 @@
   import Icon from "./lib/Icon.svelte";
   import RoundButton from "./lib/RoundButton.svelte";
   import About from "./lib/settings/About.svelte";
+  import AIApps from "./lib/settings/AIApps.svelte";
   import Clipboard from "./lib/settings/Clipboard.svelte";
   import FileSearch from "./lib/settings/FileSearch.svelte";
   import General from "./lib/settings/General.svelte";
@@ -23,6 +24,7 @@
     { id: "search", label: "File search", icon: "search" },
     { id: "clipboard", label: "Clipboard", icon: "clip" },
     { id: "omni-ai", label: "Omni AI", icon: "spark" },
+    { id: "ai-apps", label: "AI apps", icon: "link" },
     { id: "timer", label: "Timer", icon: "timer" },
     { id: "about", label: "About", icon: "info" },
   ] as const;
@@ -76,6 +78,8 @@
         <Clipboard />
       {:else if section === "omni-ai"}
         <OmniAI />
+      {:else if section === "ai-apps"}
+        <AIApps />
       {:else if section === "timer"}
         <TimerSettings {view} />
       {:else}

@@ -15,6 +15,7 @@ import (
 func tools() []chat.Local {
 	return []chat.Local{
 		{Def: chat.ObjectTool("search_notes", "Find notes.", map[string]string{"query": "words"}),
+			Apps: chat.ObjectTool("search_notes", "Find notes, in full.", map[string]string{"query": "the words, in full"}),
 			Run: func(_ context.Context, args map[string]string) (string, []chat.Source, error) {
 				return "found " + args["query"], []chat.Source{{Title: "n", Path: `C:\notes\n.md`}}, nil
 			}},
@@ -72,9 +73,17 @@ func TestAnAppCanListAndCallTheToolsThatOnlyRead(t *testing.T) {
 	if v := got[0]["result"].(map[string]any)["protocolVersion"]; v != "2025-03-26" {
 		t.Fatalf("protocol %v", v)
 	}
+	hello := got[0]["result"].(map[string]any)
+	if hello["serverInfo"].(map[string]any)["title"] != "Omni" || !strings.Contains(hello["instructions"].(string), "launcher") {
+		t.Fatalf("initialize %v", hello)
+	}
 	list := got[1]["result"].(map[string]any)["tools"].([]any)
 	if len(list) != 1 || list[0].(map[string]any)["name"] != "search_notes" {
 		t.Fatalf("tools %v", list)
+	}
+	first := list[0].(map[string]any)
+	if first["description"] != "Find notes, in full." || first["annotations"].(map[string]any)["readOnlyHint"] != true {
+		t.Fatalf("the app should see the full description and that the tool only reads: %v", first)
 	}
 	text := got[2]["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 	if !strings.Contains(text, "found milk") || !strings.Contains(text, `C:\notes\n.md`) {

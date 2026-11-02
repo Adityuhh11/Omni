@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Browser, Clipboard } from "@wailsio/runtime";
+  import { Browser } from "@wailsio/runtime";
   import { OmniAI } from "../../../bindings/omni/internal/settingsui";
   import type { OmniAIView } from "../../../bindings/omni/internal/settingsui";
   import { toolHint, unloadsIn } from "../chat/chat";
@@ -61,14 +61,6 @@
   async function history(change: { keep?: boolean; days?: number }) {
     if (!page) return;
     await run(() => OmniAI.SetHistory(change.keep ?? page!.KeepHistory, change.days ?? page!.HistoryDays));
-  }
-
-  let copiedConfig = $state(false);
-  async function copyConfig() {
-    if (!page) return;
-    await Clipboard.SetText(page.MCPConfig);
-    copiedConfig = true;
-    setTimeout(() => (copiedConfig = false), 1500);
   }
 
   async function remove() {
@@ -188,24 +180,6 @@
       </span>
       <button type="button" class="btn quiet" onclick={() => run(() => OmniAI.OpenScriptsFolder())}>Show the folder</button>
     </div>
-  </section>
-
-  <section class="block">
-    <h3>Use in other AI apps</h3>
-    <div class="field">
-      <label class="check"><input type="checkbox" checked={page.MCP} onchange={(e) => run(() => OmniAI.SetMCP(e.currentTarget.checked))} /> Let AI apps on this computer use these tools</label>
-      <p class="help">
-        Claude Desktop, Cursor, VS Code and other apps that speak MCP can then search your files, notes, clipboard and activity, with the tools switched on above
-        that only read. What they read goes wherever that app sends it, which may be a server on the internet. Omni must be running.
-      </p>
-    </div>
-    {#if page.MCP}
-      <div class="field">
-        <span class="label">Add this to the app's MCP settings</span>
-        <pre class="mono config">{page.MCPConfig}</pre>
-        <div><button type="button" class="btn" onclick={copyConfig}>{copiedConfig ? "Copied" : "Copy"}</button></div>
-      </div>
-    {/if}
   </section>
 
   <section class="block">
@@ -332,16 +306,5 @@
   }
   .check.sub {
     margin-left: 26px;
-  }
-  .config {
-    margin: 0;
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--tile);
-    font-size: 12px;
-    white-space: pre-wrap;
-    word-break: break-all;
-    user-select: text;
   }
 </style>
