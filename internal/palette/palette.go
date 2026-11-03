@@ -138,6 +138,7 @@ type Service struct {
 	openSettings func(section string)
 	dismiss      func()
 	now          func() time.Time
+	armed        armed
 }
 
 // New returns a service. dismiss closes the bar after something was started, without giving the

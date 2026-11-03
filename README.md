@@ -44,7 +44,7 @@
 | **Notes** | `note:` lists your notes; `note: buy milk` makes one. They are plain markdown files. |
 | **Timer and pomodoro** | `timer 25`, `timer 1h30 tea`, `pomodoro`: a small timer sits at the edge of the screen. |
 | **Calculator and conversions** | `12*7+3`, `15% of 80`, `5 km in miles`, `72 f in c`. Enter copies the answer. |
-| **System** | `lock`, `sleep`, `task manager`, `recycle bin`, `windows settings`. Shut down and restart are left out on purpose. |
+| **System** | `lock`, `sleep`, `hibernate`, `turn off the display`, `sign out`, `restart`, `shut down`, `task manager`, `recycle bin`, `windows settings`. The three that end the session take a second Enter. |
 | **Tags and pins** | `Ctrl+T` tags an app or file, `#work` lists everything tagged. `Ctrl+P` pins up to eight rows that show the moment the bar opens. |
 
 **Keys** (on a Mac they are drawn as `⌃ ⌥ ⇧ ⌘`): `Tab` switches between All / Apps / Files / Web, `Ctrl+K` shows what you can do with the selected row,

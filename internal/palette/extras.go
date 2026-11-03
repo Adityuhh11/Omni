@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	"omni/internal/calc"
@@ -49,7 +51,33 @@ const systemMinLength = 3
 
 // systemItem is the row of a system command; which commands there are is the system's to say (internal/system).
 func systemItem(c system.Command) Item {
-	return Item{ID: c.ID, Kind: "system", Title: c.Title, Subtitle: "System"}
+	item := Item{ID: c.ID, Kind: "system", Title: c.Title, Subtitle: "System"}
+	if c.Confirm {
+		item.Subtitle = "System · Enter twice"
+	}
+	return item
+}
+
+// confirmWindow is how long the first Enter on a row that ends the session waits for the second.
+const confirmWindow = 5 * time.Second
+
+// armed is the row that ends the session whose first Enter was pressed, and when.
+type armed struct {
+	mu sync.Mutex
+	id string
+	at time.Time
+}
+
+// second says whether this Enter on id is the second one in time; if not, it is the first, and the next one will be.
+func (a *armed) second(id string, now time.Time) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.id == id && now.Sub(a.at) < confirmWindow {
+		a.id = ""
+		return true
+	}
+	a.id, a.at = id, now
+	return false
 }
 
 func systemCommandFor(id string) (system.Command, bool) {
@@ -106,6 +134,10 @@ func (s *Service) doSystem(c system.Command, action string) error {
 	}
 	if s.x.RunSystem == nil {
 		return fmt.Errorf("system actions are not available")
+	}
+	if c.Confirm && !s.armed.second(c.ID, s.now()) {
+		// The bar shows a refused action's reason above the rows, which is where this question belongs.
+		return fmt.Errorf("Press Enter again to %s", strings.ToLower(c.Title))
 	}
 	s.dismiss() // the bar goes first: locking or sleeping with the bar still up would bring it back when the computer wakes
 	if err := s.x.RunSystem(c.ID); err != nil {
