@@ -19,3 +19,5 @@ CLAUDE.local.md
 .superpowers/
 PRODUCT.md
 docs/specs/
+docs/internal/
+sidecar/eval/20*.md
