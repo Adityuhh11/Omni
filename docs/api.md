@@ -133,7 +133,7 @@ Body: `{"path": "C:\\Users\\me\\Documents", "exclude": ["vendor/skills"]}` (`exc
 ```
 
 `routes` is keyed by kind (`code`, `markdown`, `text`, `pdf`, `image`, `video`); a kind with no file is absent. The
-launcher turns it into a time with the rates in `docs/eval/2026-10-24-estimate.md`.
+launcher turns it into a time.
 
 - `400` the path is not an absolute local folder (as for `POST /sources`).
 - An engine installed before this route existed answers `404`.
@@ -171,8 +171,7 @@ the secret deny list refused to open (`.env`, keys, credential JSON, ...). When 
 How hard indexing works, and whether it is stopped. All answer `200` `{"duty": 0.5, "paused": false}`.
 
 - `PUT /pace` takes `{"duty": 0.2}`, a number from 0.05 to 1.0: the share of the time indexing may keep the GPU busy. After each
-  bulk embedding call the indexer waits `busy * (1/duty - 1)` seconds (the launcher's speeds are 1.0, 0.5 and 0.2; measured in
-  `eval/2026-10-18-pace.md`). `422` for a value outside the range or an unknown field.
+  bulk embedding call the indexer waits `busy * (1/duty - 1)` seconds (the launcher's speeds are 1.0, 0.5 and 0.2). `422` for a value outside the range or an unknown field.
 - `POST /pause` makes the indexer wait before its next batch (within a second or two); `POST /resume` lets it go on. A paused
   job stays `running`. Nothing is lost: a file is recorded only after its vectors are stored.
 - Searching is never paced or paused. The defaults after a start are duty `1.0`, not paused; the launcher sets both once the
@@ -199,8 +198,7 @@ Request:
 
 `query` is up to 4000 characters; empty or blank returns no hits. `k` is 1-100, default 10. Every filter is
 optional, and so is `filters`. `kinds` values: `code`, `markdown`, `text`, `pdf_text`, `pdf_page`, `image`, `video` (found by its name), `video_frame` (locator `{"t": seconds}`), `audio` (an audio file found by its name),
-`audio_window` (30 s of sound, locator `{"t": seconds}`, its start; its `score` is shifted onto the scale of the other kinds, see
-ADR 0007).
+`audio_window` (30 s of sound, locator `{"t": seconds}`, its start; its `score` is shifted onto the scale of the other kinds).
 `modified_after_ns` is integer nanoseconds since the epoch (the store's unit). Unknown fields are rejected.
 
 `200`:
@@ -216,7 +214,7 @@ not part of its path. The ceiling is measured by the engine (60 nonsense probe q
 under) at startup and after every index job, so it follows the index: 0.671 on the 431-chunk sample, 0.717 on a 44,000-chunk
 index. An index under 100 chunks uses 0.65. Show "no match" instead of the list; the hits are still returned. On the sample
 corpus every on-topic query was confident and every off-topic one was not; on a 44,000-chunk index 1 in 35 of each kind was
-wrong (`decisions/0003-confidence-from-a-measured-noise-ceiling.md`). It is a flag, not a guarantee.
+wrong. It is a flag, not a guarantee.
 
 `uri` is relative to the source root with `/` separators. `locator` is JSON text (`{"lines":[a,b]}`, `{"page":n}`,
 ...). `score` is cosine similarity plus small keyword and file-name boosts (about 0.5 to 1.0 for real matches): use it to
