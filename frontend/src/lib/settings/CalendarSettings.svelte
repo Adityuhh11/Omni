@@ -3,6 +3,7 @@
   import { Calendar } from "../../../bindings/omni/internal/settingsui";
   import type { CalendarFeedView } from "../../../bindings/omni/internal/settingsui";
   import { colorOf } from "../calendar";
+  import { isMac } from "../platform";
 
   let feeds = $state<CalendarFeedView[]>([]);
   let name = $state("");
@@ -117,6 +118,9 @@
 </form>
 {#if error}<p class="error">{error}</p>{/if}
 <p class="group-note">Read only: Omni shows your calendars and changes nothing. Anyone with an address can read that calendar, so it never goes in a file.</p>
+{#if isMac}
+  <p class="group-note">Calendars in the Mac's Calendar app are not read by themselves yet: add each one here by its address.</p>
+{/if}
 
 <style>
   .who {
