@@ -80,7 +80,7 @@
 </div>
 <p class="group-note">
   Type <span class="mono">focus</span> or <span class="mono">focus 50</span> in the bar; a pomodoro's focus periods block too.
-  {#if isMac}The first time, macOS asks whether Omni may read each browser's address.{/if}
+  {#if isMac}The first time, macOS asks whether Omni may read each browser's address. Firefox and Zen do not say which page they show, so for them only the apps list applies.{/if}
 </p>
 
 <h3 class="group-title">Pomodoro</h3>
