@@ -1,6 +1,6 @@
 // Package websearch is what Omni AI uses to look things up: Search finds pages on DuckDuckGo and Read fetches one page and keeps
 // its readable text. It knows nothing of the model. Both only read; neither can reach this computer or the local network (guard.go).
-// Why DuckDuckGo's HTML page and not an API: docs/decisions/0009-web-search-tool.md.
+// Why DuckDuckGo's HTML page and not an API: an API needs the person to make an account and a key first.
 package websearch
 
 import (

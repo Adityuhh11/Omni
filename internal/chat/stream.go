@@ -23,7 +23,7 @@ type Request struct {
 	// Model is for servers that hold several; the bundled one ignores it.
 	Model string `json:"model,omitempty"`
 	// Stop is set when thinking is off: with it off the model sometimes writes a closing </think> it never opened and then
-	// repeats its answer; stopping there keeps the first, complete answer (docs/eval/2026-10-28-chat-model.md).
+	// repeats its answer; stopping there keeps the first, complete answer.
 	Stop []string `json:"stop,omitempty"`
 	// Template switches thinking per request: {"enable_thinking": false}.
 	Template map[string]bool `json:"chat_template_kwargs,omitempty"`

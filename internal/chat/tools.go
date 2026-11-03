@@ -12,7 +12,7 @@ import (
 	"omni/internal/websearch"
 )
 
-// The model may look things up on the web (docs/decisions/0009-web-search-tool.md) and use local tools (local.go) when the person
+// The model may look things up on the web and use local tools (local.go) when the person
 // switches them on. It asks for a tool in place of text; Omni runs it, gives the result back as a "tool" message and the
 // model goes on.
 

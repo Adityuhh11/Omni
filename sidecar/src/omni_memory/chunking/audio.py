@@ -1,8 +1,7 @@
 """Audio files and the soundtracks of videos: 30 s windows, a new one every 15 s, through PyAV.
 
-The model embeds what it hears (docs/decisions/0007-audio-by-the-audio-encoder.md), so a
-window is simply the samples. Three measured facts shape this file (docs/eval/2026-10-28-audio-
-embedding.md):
+The model embeds what it hears, so a
+window is simply the samples. Three measured facts shape this file:
 
 - A window is at most 30 s: the server's batch holds about 40 s, and a longer window blurs topics.
 - A window starts every 15 s. Speech cut by a 30 s grid scored 0.605 at worst, the level of

@@ -17,8 +17,8 @@ var sampleData = map[string]sidecar.RouteCount{
 	"pdf":      {Files: 2, Bytes: 1281078},
 }
 
-// The times indexing that folder really took, one machine, no pacing (docs/eval/2026-10-20-indexing-choices.md for the
-// graphics card, docs/eval/2026-10-24-estimate.md for the processor). The estimate is a plan: within about a third.
+// The times indexing that folder really took, one machine, no pacing (measured on a graphics card and on a
+// processor). The estimate is a plan: within about a third.
 func TestTheEstimateIsWithinAThirdOfWhatSampleDataTook(t *testing.T) {
 	tests := []struct {
 		name     string

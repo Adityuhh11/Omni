@@ -102,7 +102,7 @@ def test_one_connection_serves_many_calls(fake, tmp_path):
 )
 def test_images_are_resized_to_what_the_models_own_processor_gives(fake, tmp_path, size, want):
     # the wanted sizes are the ones Gemma's own processor produced for these inputs
-    # (docs/eval/2026-10-18-llamacpp-embedder.md)
+    #
     embedder, _ = make(fake, tmp_path)
     embedder.embed_images([Image.new("RGB", size, (30, 90, 160))])
     assert fake.image_sizes == [want]

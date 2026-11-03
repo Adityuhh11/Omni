@@ -11,7 +11,7 @@ import (
 )
 
 // Using a model somebody else runs (LM Studio, Ollama, a cloud service) instead of the bundled one
-// (docs/decisions/0014-bring-your-own-model.md). The address and the model's name are in config.toml; the key is in the system
+//. The address and the model's name are in config.toml; the key is in the system
 // credential store, and the page is only told whether there is one.
 
 // CustomView is that choice as the page shows it.

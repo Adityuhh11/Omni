@@ -141,9 +141,9 @@ def render_report(
 
 def run(argv: Sequence[str], make_embedder: Callable[[bool], Embedder], today: str) -> int:
     parser = argparse.ArgumentParser(prog="python -m omni_memory.eval")
-    parser.add_argument("--data", default="../Sample Data")
+    parser.add_argument("--data", default="eval/testdata")
     parser.add_argument("--golden", default="eval/golden.yaml")
-    parser.add_argument("--report-dir", default="../docs/eval")
+    parser.add_argument("--report-dir", default="eval")
     parser.add_argument("--label", default="baseline")
     parser.add_argument("--cpu", action="store_true", help="embed on the CPU in float32")
     parser.add_argument("--write-baseline", action="store_true")

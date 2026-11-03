@@ -2,7 +2,7 @@ package aitools
 
 import "omni/internal/chat"
 
-// appTools are the tools as other AI apps see them over MCP (docs/decisions/0012-mcp-own-switches.md). The model Omni AI runs
+// appTools are the tools as other AI apps see them over MCP. The model Omni AI runs
 // is small and gets short descriptions; Claude and its kind can use a full account of what a tool covers and how to ask it.
 // Each has the name and the arguments of its short twin.
 var appTools = map[string]chat.Tool{

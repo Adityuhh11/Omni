@@ -39,7 +39,7 @@ type file struct {
 }
 
 // Store is the history, in memory and on disk. It is safe for concurrent use. The whole file is rewritten on
-// every change, which takes 1.5 to 12 ms for histories from half a megabyte to 14 (docs/eval and the spec).
+// every change, which takes 1.5 to 12 ms for histories from half a megabyte to 14.
 type Store struct {
 	path string
 

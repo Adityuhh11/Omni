@@ -4,7 +4,7 @@ export type Choices = Record<Kind, string>;
 
 export const KIND_LABEL: Record<Kind, string> = { PDFPages: "PDF pages", Photos: "Photos", Videos: "Videos", Audio: "Audio and sound" };
 
-// Cheapest to dearest to index, as the engine does it (docs/eval/2026-10-20-indexing-choices.md).
+// Cheapest to dearest to index, as the engine does it.
 const COST: Record<Kind, string[]> = { PDFPages: ["text", "auto", "all"], Photos: ["name", "content"], Videos: ["name", "content"], Audio: ["name", "content"] };
 
 export type Change = { kind: Kind; from: string; to: string; costlier: boolean };
@@ -25,7 +25,7 @@ export function changes(saved: Choices, draft: Choices): Change[] {
 const rate = (device: string) => (device === "cpu" ? "about 80 minutes per 1,000 pictures on the processor" : "about 3 minutes per 1,000 pictures on the graphics card");
 
 // A window of sound takes 0.28 s on a graphics card and 3.8 s on the processor, four to the minute of sound: about 1 minute and
-// 15 minutes per hour (docs/eval/2026-10-28-audio-embedding.md; six times slower when another large model holds the card).
+// 15 minutes per hour (six times slower when another large model holds the card).
 const soundRate = (device: string) => (device === "cpu" ? "about 15 minutes per hour of sound on the processor" : "about 1 minute per hour of sound on the graphics card");
 
 /** One sentence per change, saying what saving will do. */

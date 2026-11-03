@@ -1,5 +1,5 @@
 // Package browsers reads the history and bookmarks of the web browsers on this computer, read-only, so Omni AI can answer "what
-// was that page I read about X" (docs/decisions/0013-browser-history.md). Firefox and Zen keep them in places.sqlite; Chrome,
+// was that page I read about X". Firefox and Zen keep them in places.sqlite; Chrome,
 // Edge and Brave in a History database and a Bookmarks file. A running browser locks its database, so a copy is read.
 package browsers
 

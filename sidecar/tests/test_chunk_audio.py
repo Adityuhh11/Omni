@@ -65,7 +65,7 @@ def test_the_gate_drops_digital_silence_and_hiss_but_keeps_room_tone_and_quiet_r
     window, silent
 ):
     # The model ignores loudness and noise of any level scores like an answer, so the line only
-    # removes silence and hiss (docs/eval/2026-10-28-audio-embedding.md, section 4).
+    # removes silence and hiss.
     assert is_silent(window) is silent
 
 

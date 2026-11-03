@@ -1,6 +1,6 @@
 // Package estimate says how long indexing will take on this computer, before it starts, from a survey of what the
 // folders hold (counted by kind, without opening a file) and the choices made. It is a plan, not a promise: it is
-// right to within a third on the folders it was checked against (docs/eval/2026-10-24-estimate.md), and the time
+// right to within a third on the folders it was checked against, and the time
 // left that indexing reports once it runs corrects it.
 package estimate
 
@@ -11,7 +11,7 @@ import (
 	"omni/internal/sidecar"
 )
 
-// Rates measured on the development laptop (docs/eval/2026-10-20-indexing-choices.md): text is embedded in chunks,
+// Rates measured on the development laptop: text is embedded in chunks,
 // a picture, a PDF page or a video frame is one vision pass, and the processor is the fallback when no graphics card
 // can run the model.
 const (
@@ -25,7 +25,7 @@ const (
 )
 
 // A 30 s window of sound, one every 15 s: decoding and embedding. Measured with the graphics card to itself
-// (docs/eval/2026-10-28-audio-embedding.md: 30 minutes of video, 119 windows, 33 s, one request at a time) and on the
+// (30 minutes of video, 119 windows, 33 s, one request at a time) and on the
 // processor (3.75 s). Another large model holding the card made it six times slower.
 const (
 	secondsPerWindow     = 0.28
@@ -33,7 +33,7 @@ const (
 	secondsBetweenWindow = 15.0
 )
 
-// Chunks and pictures per unit, from the index of 3,795 files the owner uses (docs/eval/2026-10-24-estimate.md). Text
+// Chunks and pictures per unit, from the index of 3,795 files the owner uses. Text
 // is chunked by size, so it scales with bytes; a PDF's pages scale with its size too, which holds in total even though
 // single PDFs vary from one page to hundreds.
 const (
@@ -46,7 +46,7 @@ const (
 	bytesPerMB            = 1 << 20
 )
 
-// paceFactors is how many times as long indexing takes at each speed (docs/eval/2026-10-18-pace.md).
+// paceFactors is how many times as long indexing takes at each speed.
 var paceFactors = map[string]float64{"fast": 1, "balanced": 1.9, "gentle": 5.9}
 
 // Work is what indexing a folder amounts to under some choices.
