@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,7 +126,13 @@ func (c *Calendar) fetch(ctx context.Context, id string) ([]byte, error) {
 	}
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return nil, errors.New(scrub(err.Error(), address)) // the address is a secret: it never goes into the log
+		// The address is a secret and never goes into the log. A *url.Error names the address it failed at, which after a redirect
+		// is not the one asked for, so only what went wrong is kept.
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return nil, fmt.Errorf("fetch the calendar: %s", scrub(err.Error(), address))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {

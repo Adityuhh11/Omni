@@ -32,7 +32,7 @@ func (s *Service) Refresh() { s.c.Sync(context.Background()) }
 
 // Join opens an event's meeting address. Only an address that is a meeting link is opened: the page passes what an event says.
 func (s *Service) Join(address string) string {
-	if joinLink(address) != address {
+	if !IsMeetingLink(address) {
 		return "that is not a meeting link"
 	}
 	if err := s.open(address); err != nil {

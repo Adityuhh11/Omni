@@ -35,9 +35,11 @@ func (s *Service) calendarItems(text string) []Item {
 	if !calendarWords[word] && !joinWords[word] {
 		return nil
 	}
+	// All-day events are listed while they cover today (a holiday, the middle of a trip), not tomorrow's.
 	var events []calendar.Event
+	tomorrow := midnightAfter(now)
 	for _, e := range s.x.Calendar.Between(now, now.Add(calendarAhead)) {
-		if !e.AllDay || sameDay(e.Start, now) {
+		if !e.AllDay || e.Start.Before(tomorrow) {
 			events = append(events, e)
 		}
 	}
@@ -59,7 +61,8 @@ func (s *Service) calendarItems(text string) []Item {
 }
 
 // eventItem is an event as a row: Enter joins its meeting, or opens the calendar. Every row has its own id, because the page keys
-// its list by id and two rows with one id break it: "cal:show:<event>", or "cal:join:<event> <link>" (neither holds a space).
+// its list by id and two rows with one id break it: "cal:show:<event>", or "cal:join:<event> <link>". The event's id may hold
+// spaces (the organizer chose its uid); a meeting link never does, so the link is what follows the last space.
 func eventItem(e calendar.Event, now time.Time) Item {
 	id := "cal:show:" + e.ID
 	if e.Join != "" {
@@ -69,7 +72,7 @@ func eventItem(e calendar.Event, now time.Time) Item {
 	if !e.AllDay {
 		when = e.Start.Local().Format("15:04") + "–" + e.End.Local().Format("15:04")
 	}
-	if !sameDay(e.Start, now) {
+	if !e.Start.Before(midnightAfter(now)) {
 		when = "Tomorrow " + when
 	}
 	parts := []string{when, e.Calendar}
@@ -97,9 +100,10 @@ func untilStart(e calendar.Event, now time.Time) string {
 	return ""
 }
 
-func sameDay(a, b time.Time) bool {
-	a, b = a.Local(), b.Local()
-	return a.Year() == b.Year() && a.YearDay() == b.YearDay()
+// midnightAfter is the start of the day after t, here.
+func midnightAfter(t time.Time) time.Time {
+	t = t.Local()
+	return time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, time.Local)
 }
 
 // doCalendar joins a meeting or opens the calendar, and closes the bar.
@@ -108,7 +112,10 @@ func (s *Service) doCalendar(rest, action string) error {
 		return fmt.Errorf("a calendar row can only be opened, not %q", action)
 	}
 	if join, ok := strings.CutPrefix(rest, "join:"); ok {
-		_, address, _ := strings.Cut(join, " ")
+		address := join[strings.LastIndex(join, " ")+1:]
+		if !calendar.IsMeetingLink(address) { // the id came from the page: only a meeting link is opened
+			return fmt.Errorf("%q is not a meeting link", address)
+		}
 		if s.x.Join == nil {
 			return fmt.Errorf("joining is not available")
 		}
