@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 AUDIO_RATE = 16_000  # samples a second of every clip handed to `embed_audio`
 # The longest clip the model is run on: the server's physical batch holds about 40 s of audio at
-# 25 tokens a second (docs/eval/2026-10-28-audio-embedding.md), and longer windows blur topics.
+# 25 tokens a second, and longer windows blur topics.
 MAX_AUDIO_SECONDS = 30
 
 

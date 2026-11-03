@@ -1,5 +1,5 @@
 // Package aitools turns what Omni already keeps (the file index, the clipboard history, the notes, what was opened from the
-// bar) and the person's scripts into tools Omni AI may use (docs/decisions/0011-local-tools.md). Every group is off until the
+// bar) and the person's scripts into tools Omni AI may use. Every group is off until the
 // person switches it on; the chat package offers and runs them.
 package aitools
 

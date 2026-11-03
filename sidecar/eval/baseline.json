@@ -1,0 +1,11 @@
+{
+  "embedder": "google/embeddinggemma-2",
+  "device": "vulkan",
+  "n": 29,
+  "top1": 1.0,
+  "recall3": 1.0,
+  "recall10": 1.0,
+  "mrr": 1.0,
+  "false_alarms": 0.0,
+  "missed_nones": 0.0
+}

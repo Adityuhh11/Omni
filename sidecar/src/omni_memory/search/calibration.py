@@ -5,7 +5,7 @@ better the best of them happens to resemble even nonsense. A fixed threshold tun
 sample folder passed 71% of nonsense queries on a 44,000-chunk index. So the index measures its own
 noise ceiling: it runs a fixed set of nonsense probe queries, and a real query is confident when its
 best cosine is above where nine in ten probes ended. Measured against a fixed cosine and against
-per-query z-scores in docs/eval/2026-10-16-confidence-gate-experiments.md.
+per-query z-scores.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ MIN_PROBES = 10  # fewer answers than this (a near-empty index) is too little to
 MIN_CHUNKS = 100
 
 # Audio windows have a noise scale of their own: against nonsense queries their best cosine ends
-# near 0.65 where text and pictures end near 0.72, and a right answer is 0.65 to 0.79 (docs/eval/
-# 2026-10-28-audio-embedding.md, section 7). They are calibrated apart and then shifted onto the
-# others' scale (`Searcher`). The ceiling grows slowly with the number of windows: 0.601 at 5,
-# 0.636 at 80, 0.647 at 156, so a few voice notes can be measured too, from 10 windows on.
+# near 0.65 where text and pictures end near 0.72, and a right answer is 0.65 to 0.79.
+# They are calibrated apart and then shifted onto the others' scale (`Searcher`). The ceiling grows
+# slowly with the number of windows: 0.601 at 5, 0.636 at 80, 0.647 at 156, so a few voice notes can
+# be measured too, from 10 windows on.
 AUDIO_KINDS = frozenset({ChunkKind.AUDIO_WINDOW})
 MIN_AUDIO_WINDOWS = 10
 DEFAULT_AUDIO_CEILING = 0.60  # fewer windows than that: the measured ceiling of 5

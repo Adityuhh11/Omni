@@ -1,7 +1,7 @@
 package enginesetup
 
 // Artifact is one file the installer downloads, pinned by size and SHA-256 so what is installed is what
-// was measured (docs/eval/2026-10-18-clean-install.md): a changed or truncated file is refused.
+// was measured: a changed or truncated file is refused.
 type Artifact struct {
 	Name   string
 	URL    string

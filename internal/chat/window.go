@@ -13,7 +13,7 @@ import (
 const messageOverhead = 6
 
 // Replies need room in the context as well: the model's answer is generated into it. With thinking on the reasoning comes first,
-// and a thinking answer was measured at 51 to 2,011 tokens (docs/eval/2026-10-28-chat-model.md).
+// and a thinking answer was measured at 51 to 2,011 tokens.
 const (
 	replyReserve         = 2048
 	replyReserveThinking = 4096

@@ -183,7 +183,7 @@ class LlamaServer:
             self.api_key,
             "--no-webui",
             # The model's own processor budgets 280 image tokens, which needs a physical batch above
-            # 512 (the server caps image tokens by it): docs/eval/2026-10-18-llamacpp-embedder.md.
+            # 512 (the server caps image tokens by it).
             "-c",
             "8192",
             "-ub",

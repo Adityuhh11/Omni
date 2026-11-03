@@ -11,7 +11,7 @@ import (
 )
 
 // The AI apps page: whether other AI apps on this computer may reach Omni over MCP (internal/mcp), and which groups of tools
-// they get. Its switches are apart from Omni AI's (docs/decisions/0012-mcp-own-switches.md).
+// they get. Its switches are apart from Omni AI's.
 
 // MCPOptions are the parts of the program the page needs; main supplies them.
 type MCPOptions struct {

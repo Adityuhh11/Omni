@@ -1,5 +1,5 @@
 """Audio through the real llama-server and models (`pytest -m model`, with OMNI_LLAMA_SERVER and
-OMNI_MODEL_DIR set). Quality on speech is measured in docs/eval/2026-10-28-audio-embedding.md; these
+OMNI_MODEL_DIR set). Quality on speech is measured separately; these
 check the plumbing that report relied on."""
 
 import numpy as np

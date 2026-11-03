@@ -1,6 +1,6 @@
 # Fails when the launcher would draw soft at a display scale above 100%: it starts the exe in an empty profile of its own
 # (beside the launcher in use) and asks Windows whether the process is per-monitor DPI aware. A process that is not is
-# stretched as a picture by Windows, which blurs every window of it (docs/decisions/0006-dpi-awareness.md).
+# stretched as a picture by Windows, which blurs every window of it.
 #   .\scripts\check-dpi.ps1 [-Exe bin\omni.exe]
 param([string]$Exe = 'bin\omni.exe')
 $ErrorActionPreference = 'Stop'

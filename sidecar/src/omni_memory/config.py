@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 MODEL_ID = "google/embeddinggemma-2"
-EMBEDDING_DIM = 768  # the model's native size: 256 and 512 measured worse (ADR 0002)
+EMBEDDING_DIM = 768  # the model's native size: 256 and 512 measured worse
 
 
 def _data_dir(env: Mapping[str, str], mac: bool) -> Path | None:
@@ -27,7 +27,7 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    """Everything tunable about the engine. Defaults are the values measured in ADR 0001."""
+    """Everything tunable about the engine. Defaults are the values measured."""
 
     index_dir: Path
     llama_server: Path | None = None  # the llama.cpp server program, from OMNI_LLAMA_SERVER

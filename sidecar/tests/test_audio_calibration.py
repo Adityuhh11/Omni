@@ -1,5 +1,5 @@
 """Audio windows sit lower against text than the other kinds do, so they are calibrated apart and
-shifted onto the shared scale (docs/eval/2026-10-28-audio-embedding.md, section 7)."""
+shifted onto the shared scale."""
 
 import numpy as np
 import pytest

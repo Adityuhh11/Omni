@@ -148,13 +148,13 @@ type Chat struct {
 	// through `omni mcp` (internal/mcp). What they read goes wherever that app sends it.
 	MCP bool `toml:"mcp"`
 	// MCPTools are the groups of tools those apps may use, by the names Tools uses; none at first, and apart from Tools: what
-	// Omni AI reads stays here, what another app reads may not (docs/decisions/0012-mcp-own-switches.md).
+	// Omni AI reads stays here, what another app reads may not.
 	MCPTools []string `toml:"mcp_tools"`
 	// OnTop keeps the chat window above other windows.
 	OnTop bool `toml:"on_top"`
 	// Custom asks the model at CustomURL (an OpenAI-style server: LM Studio or Ollama on this computer, or a cloud service) instead
 	// of the bundled one. Off until the person chooses it; the key, if the server wants one, is in the credential store
-	// (docs/decisions/0014-bring-your-own-model.md). What the model is asked, and what the tools give it, goes to that server.
+	//. What the model is asked, and what the tools give it, goes to that server.
 	Custom      bool   `toml:"custom"`
 	CustomURL   string `toml:"custom_url,omitempty"`
 	CustomModel string `toml:"custom_model,omitempty"`

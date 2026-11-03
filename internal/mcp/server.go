@@ -1,5 +1,5 @@
 // Package mcp lets other AI apps on this computer (Claude Desktop, Cursor, VS Code) use Omni's tools that only read, through
-// the Model Context Protocol (docs/decisions/0011-local-tools.md). The running Omni serves JSON-RPC on a loopback address with
+// the Model Context Protocol. The running Omni serves JSON-RPC on a loopback address with
 // a token made for the run, both written to a file only this user can read; `omni mcp`, which the AI app starts, relays its
 // standard input and output to that address (relay.go).
 package mcp

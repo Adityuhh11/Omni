@@ -34,7 +34,7 @@ process, not about the quality of your work.
 The exception is the small and obvious: a typo, a broken link, a one-line fix a reviewer can check at a glance. Send those straight away.
 
 For a larger idea, say in the issue what problem you have, what you would change, and what you considered and left out. A few paragraphs are
-enough. If it settles a real design question, the answer is written down afterwards as a short decision record in [`docs/decisions/`](docs/decisions/).
+enough. If it settles a real design question, the answer stays in the issue for the next person to find.
 
 ## Set up
 
@@ -76,8 +76,8 @@ set). You do not need a model to work on most of the code.
 - **Update the docs that describe the code in the same commit.** [`docs/README.md`](docs/README.md) says which ones.
 - **Look at any new window at 125% display scale** on Windows. The program must stay sharp at every scale.
 - **If it changes speed, memory or search quality, measure it**, before and after, on the same computer, and put both numbers in the pull request.
-  `cmd/panelbench` measures the hotkey path. The search-quality eval (`uv run python -m omni_memory.eval`) runs against the maintainer's private sample
-  folder, which you do not have: run it on a folder of your own (`--data`) or describe what you changed, and the maintainer runs the full eval before merging.
+  `cmd/panelbench` measures the hotkey path. The search-quality eval (`uv run python -m omni_memory.eval`) runs against a small public corpus in
+  `sidecar/eval/`; [`sidecar/eval/README.md`](sidecar/eval/README.md) says how, and it needs the model (turn on File search in Omni once).
 - **Nothing that sends data elsewhere fits.** No telemetry, no cloud services, no account. File search runs on the person's computer, and the only
   network calls are the ones in the README's [privacy table](README.md#privacy-and-the-network).
 

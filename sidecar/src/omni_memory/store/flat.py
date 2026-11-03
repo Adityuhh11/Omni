@@ -545,8 +545,7 @@ class FlatStore:
 
         A keyword search joins each match to its chunk row, and rows are large (the text), so about
         one page per match. Cold, `binary search` took 98 ms and then 12 ms on every repeat; after
-        this scan (about 200 ms for 44,000 chunks) the first use takes 7 ms. Measured in
-        docs/eval/2026-10-16-query-latency.md.
+        this scan (about 200 ms for 44,000 chunks) the first use takes 7 ms.
         """
         with self._lock:
             self._db.execute("SELECT SUM(LENGTH(locator)) FROM chunks").fetchone()

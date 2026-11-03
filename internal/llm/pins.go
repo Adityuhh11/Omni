@@ -2,7 +2,7 @@ package llm
 
 import "omni/internal/enginesetup"
 
-// The pinned downloads that are the same on every system (Llama is per system: pins_windows.go, pins_darwin.go), measured in docs/eval/2026-10-28-chat-model.md. The model is Liquid AI's quantization-aware 4-bit
+// The pinned downloads that are the same on every system (Llama is per system: pins_windows.go, pins_darwin.go). The model is Liquid AI's quantization-aware 4-bit
 // build of LFM3-1.7B; it needs a llama.cpp build of b11960 or newer.
 var (
 	Model = enginesetup.Artifact{
