@@ -36,43 +36,37 @@
   }
 </script>
 
-<h2>Snippets</h2>
-<p class="lede">
-  Text you paste often. Open the bar, type <span class="mono">snip:</span> and pick one, or type its keyword. Enter pastes it where you were.
-  <span class="mono">{"{date}"}</span>, <span class="mono">{"{time}"}</span> and <span class="mono">{"{clipboard}"}</span> are filled in when it is
-  pasted; <span class="mono">{"{{"}</span> writes a single brace.
-</p>
-
-{#each rows as row, i (i)}
-  <div class="snippet">
-    <div class="top">
-      <input type="text" aria-label="Name" placeholder="Home address" bind:value={row.name} onchange={commit} />
-      <input type="text" class="mono" aria-label="Keyword" placeholder="keyword (optional)" bind:value={row.keyword} onchange={commit} spellcheck="false" />
-      <button type="button" class="btn quiet" aria-label="Remove this snippet" onclick={() => remove(i)}>✕</button>
-    </div>
-    <textarea aria-label="Text" rows="3" placeholder="The text to paste" bind:value={row.text} onchange={commit} spellcheck="false"></textarea>
-  </div>
-{:else}
-  <p class="help">No snippets yet.</p>
-{/each}
-
-<div class="actions">
-  <button type="button" class="btn" onclick={() => rows.push({ name: "", keyword: "", text: "" })}>Add snippet</button>
+<div class="head-row">
+  <h2>Snippets</h2>
+  <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 </div>
-{#if incomplete}<p class="help">A snippet is saved once it has a name and a text.</p>{/if}
+
+<h3 class="group-title">Type <span class="mono">snip:</span> or a keyword in the bar</h3>
+<div class="group">
+  {#each rows as row, i (i)}
+    <div class="item stack">
+      <div class="top">
+        <input type="text" aria-label="Name" placeholder="Home address" bind:value={row.name} onchange={commit} />
+        <input type="text" class="mono" aria-label="Keyword" placeholder="keyword (optional)" bind:value={row.keyword} onchange={commit} spellcheck="false" />
+        <button type="button" class="btn quiet" aria-label="Remove this snippet" onclick={() => remove(i)}>✕</button>
+      </div>
+      <textarea aria-label="Text" rows="3" placeholder="The text to paste" bind:value={row.text} onchange={commit} spellcheck="false"></textarea>
+    </div>
+  {:else}
+    <p class="item sub">No snippets yet.</p>
+  {/each}
+  <div class="item">
+    <button type="button" class="btn" onclick={() => rows.push({ name: "", keyword: "", text: "" })}>Add snippet</button>
+    {#if incomplete}<span class="sub">Saved once it has a name and a text.</span>{/if}
+  </div>
+</div>
+<p class="group-note">
+  <span class="mono">{"{date}"}</span>, <span class="mono">{"{time}"}</span> and <span class="mono">{"{clipboard}"}</span> are filled in when pasted;
+  <span class="mono">{"{{"}</span> writes a brace.
+</p>
 {#if error}<p class="error">{error}</p>{/if}
-<p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 
 <style>
-  .snippet {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 14px;
-    padding: 12px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-  }
   .top {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 180px 34px;
@@ -99,8 +93,5 @@
   }
   textarea::placeholder {
     color: var(--text-3);
-  }
-  .actions {
-    margin-bottom: 10px;
   }
 </style>

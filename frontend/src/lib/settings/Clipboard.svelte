@@ -42,56 +42,59 @@
   }
 </script>
 
-<h2>Clipboard</h2>
-<p class="lede">
-  A history of the text you copy. Open the bar, type <span class="mono">clip:</span> and a few words, and Enter pastes it where you were.
-</p>
+<div class="head-row">
+  <h2>Clipboard</h2>
+  <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
+</div>
 
 {#if page}
-  <div class="field">
-    <label class="check"><input type="checkbox" bind:checked={enabled} onchange={save} /> Remember what I copy</label>
-    <p class="help">
-      Off until you turn it on. It keeps text only, the newest 500 copies from the last 30 days, in a file on this computer (<span class="mono">{page.File}</span>).
-      Nothing leaves it. Copies a program marks as private, such as a password manager's, are never kept. Text copied from a web page or a terminal
-      can still hold a secret this cannot know about: clear the history if it does.
-    </p>
-    {#if isMac}
-      <p class="help">
-        To paste into the app you were in, Omni needs the Accessibility permission: System Settings, Privacy &amp; Security, Accessibility, then switch Omni on.
-        Without it Enter copies the text and you press <kbd>⌘V</kbd> yourself.
-      </p>
-    {/if}
+  <h3 class="group-title">History</h3>
+  <div class="group">
+    <label class="item">
+      <span class="text">
+        <span class="name">Remember what I copy</span>
+        <span class="sub">Text only: the newest 500 copies from 30 days, kept on this computer. Copies marked private are never kept.</span>
+      </span>
+      <input type="checkbox" class="switch" bind:checked={enabled} onchange={save} />
+    </label>
+    <div class="item">
+      <span class="text">
+        <span class="name">{page.Count === 0 ? "Nothing kept" : page.Count === 1 ? "1 copy kept" : page.Count + " copies kept"}</span>
+        <span class="sub mono">{page.File}</span>
+      </span>
+      <span class="end">
+        {#if clearing}
+          <button type="button" class="btn danger" onclick={clear}>Clear history</button>
+          <button type="button" class="btn quiet" onclick={() => (clearing = false)}>Keep</button>
+        {:else}
+          <button type="button" class="btn" disabled={page.Count === 0} onclick={() => (clearing = true)}>Clear…</button>
+        {/if}
+      </span>
+    </div>
   </div>
+  <p class="group-note">In the bar, type <span class="mono">clip:</span> and a few words; Enter pastes it where you were.</p>
 
-  <div class="field">
-    <label class="label" for="ignore">Programs to leave out</label>
-    <textarea id="ignore" rows="4" bind:value={ignore} onchange={save} spellcheck="false" placeholder={isMac ? "One app per line, for example MyVault" : "One program per line, for example MyVault.exe"}></textarea>
-    <p class="help">Always left out: {(page.Defaults ?? []).join(", ")}.</p>
-  </div>
-
-  <div class="field">
-    <span class="label">History</span>
-    <p class="help">{page.Count === 0 ? "Nothing is kept." : page.Count === 1 ? "1 copy is kept." : page.Count + " copies are kept."}</p>
-    <div class="row">
-      {#if clearing}
-        <span class="help">Forget everything copied so far?</span>
-        <button type="button" class="btn danger" onclick={clear}>Clear history</button>
-        <button type="button" class="btn quiet" onclick={() => (clearing = false)}>Keep</button>
-      {:else}
-        <button type="button" class="btn" disabled={page.Count === 0} onclick={() => (clearing = true)}>Clear history…</button>
-      {/if}
+  <h3 class="group-title">Programs to leave out</h3>
+  <div class="group">
+    <div class="item stack">
+      <textarea id="ignore" aria-label="Programs to leave out" rows="4" bind:value={ignore} onchange={save} spellcheck="false" placeholder={isMac ? "One app per line, for example MyVault" : "One program per line, for example MyVault.exe"}></textarea>
+      <span class="sub">Always left out: {(page.Defaults ?? []).join(", ")}</span>
     </div>
   </div>
 
+  {#if isMac}
+    <p class="group-note">
+      Pasting into the app you were in needs the Accessibility permission (System Settings, Privacy &amp; Security, Accessibility). Without it Enter copies, and you press <kbd>⌘V</kbd>.
+    </p>
+  {/if}
+
   {#if error}<p class="error">{error}</p>{/if}
-  <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 {/if}
 
 <style>
   textarea {
     box-sizing: border-box;
     width: 100%;
-    max-width: 420px;
     padding: 9px 12px;
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -107,9 +110,13 @@
   textarea::placeholder {
     color: var(--text-3);
   }
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .sub.mono {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+  }
+  label.item {
+    cursor: pointer;
   }
 </style>

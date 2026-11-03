@@ -73,77 +73,98 @@
 </script>
 
 <h2>About</h2>
-<p class="lede">Omni {view.Version}. A launcher that keeps everything on this computer.</p>
 
-<div class="field">
-  <span class="label">Updates</span>
-  {#if found}
-    <p class="help">Version {found} is available.</p>
-    {#if busy}
-      <p class="help" aria-live="polite">{stageText}</p>
-      {#if progress?.Stage === "downloading" && progress.Total > 0}<progress max={progress.Total} value={progress.Done}></progress>{/if}
-      {#if progress?.Stage === "downloading"}<div><button type="button" class="btn quiet" onclick={() => Settings.CancelUpdate()}>Cancel</button></div>{/if}
-      {#if progress?.Stage === "done" && progress.Error}<p class="error">{progress.Error}</p>{/if}
-    {:else}
-      <div class="row">
-        {#if installable}<button type="button" class="btn primary" onclick={startUpdate}>Update to {found}</button>{/if}
-        <button type="button" class="btn {installable ? 'quiet' : 'primary'}" onclick={async () => (error = await Settings.OpenUpdate())}>Open the release page</button>
-      </div>
-      {#if !installable}
-        <p class="help">
-          {#if isMac}
-            Omni cannot replace itself on a Mac yet. Run the install line from the release page in Terminal again; it keeps your settings and your index.
-          {:else}
-            This release has no download that can be checked, so it cannot be installed from here.
-          {/if}
-        </p>
+<h3 class="group-title">Omni {view.Version}</h3>
+<div class="group">
+  <div class="item">
+    <span class="text">
+      <span class="name">{#if found}Version {found} is available{:else}Updates{/if}</span>
+      {#if busy}
+        <span class="sub" aria-live="polite">{stageText}</span>
+      {:else if found && !installable}
+        <span class="sub">
+          {#if isMac}Run the install line from the release page in Terminal; it keeps your settings and index.{:else}This release has no download that can be checked.{/if}
+        </span>
+      {:else if outcome}
+        <span class="sub">{outcome}</span>
       {/if}
-      {#if progress?.Stage === "failed"}<p class="error">{progress.Error} You can try again, or download it from the release page.</p>{/if}
-    {/if}
-  {:else if outcome}
-    <p class="help">{outcome}</p>
+    </span>
+    <span class="end">
+      {#if found && busy}
+        {#if progress?.Stage === "downloading"}<button type="button" class="btn quiet" onclick={() => Settings.CancelUpdate()}>Cancel</button>{/if}
+      {:else if found}
+        <button type="button" class="btn" class:quiet={installable} onclick={async () => (error = await Settings.OpenUpdate())}>Release page</button>
+        {#if installable}<button type="button" class="btn primary" onclick={startUpdate}>Update</button>{/if}
+      {:else}
+        <button type="button" class="btn" disabled={checking} onclick={check}>{checking ? "Checking…" : "Check now"}</button>
+      {/if}
+    </span>
+  </div>
+  {#if found && progress?.Stage === "downloading" && progress.Total > 0}
+    <div class="item"><progress max={progress.Total} value={progress.Done}></progress></div>
   {/if}
-  <div><button type="button" class="btn" disabled={checking} onclick={check}>{checking ? "Checking..." : "Check for updates"}</button></div>
-  <label class="check"><input type="checkbox" bind:checked={daily} onchange={saveDaily} /> Check once a day</label>
-  <p class="help">Asks api.github.com for the latest version number and sends nothing else. Off unless you turn it on. Nothing is downloaded until you press the update button.</p>
+  {#if found && progress?.Stage === "done" && progress.Error}<p class="item error">{progress.Error}</p>{/if}
+  {#if found && !busy && progress?.Stage === "failed"}<p class="item error">{progress.Error} Try again, or download it from the release page.</p>{/if}
+  <label class="item">
+    <span class="text">
+      <span class="name">Check once a day</span>
+      <span class="sub">Asks api.github.com for the latest version number, nothing else</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={daily} onchange={saveDaily} />
+  </label>
 </div>
 
-<div class="field">
-  <span class="label">Setup guide</span>
-  <p class="help">The short tour of the hotkey and the bar, and the file search set-up, again.</p>
-  <div><button type="button" class="btn" onclick={() => Settings.OpenSetup()}>Open the guide</button></div>
+<h3 class="group-title">Help</h3>
+<div class="group">
+  <div class="item">
+    <span class="name">Setup guide</span>
+    <button type="button" class="btn" onclick={() => Settings.OpenSetup()}>Open</button>
+  </div>
+  <div class="item">
+    <span class="text">
+      <span class="name">Diagnostics</span>
+      <span class="sub">Version, {isMac ? "macOS" : "Windows"}, file search state. No file or folder names.</span>
+    </span>
+    <button type="button" class="btn" onclick={copyDiagnostics}>{copied ? "Copied" : "Copy"}</button>
+  </div>
 </div>
 
-<div class="field">
-  <span class="label">Settings file</span>
-  <p class="help mono">{view.ConfigPath}</p>
-  <div><button type="button" class="btn" onclick={async () => (error = await Settings.OpenFolder("config"))}>Open folder</button></div>
-</div>
-
-<div class="field">
-  <span class="label">Log</span>
-  <p class="help">If something does not work, send the file omni.log from this folder.</p>
-  <p class="help mono">{view.LogDir}</p>
-  <div><button type="button" class="btn" onclick={async () => (error = await Settings.OpenFolder("logs"))}>Open folder</button></div>
-</div>
-
-<div class="field">
-  <span class="label">Diagnostics</span>
-  <p class="help">Version, {isMac ? "macOS" : "Windows"}, and whether file search is running. It names no files and no folders.</p>
-  <div><button type="button" class="btn" onclick={copyDiagnostics}>{copied ? "Copied" : "Copy diagnostics"}</button></div>
+<h3 class="group-title">Files</h3>
+<div class="group">
+  <div class="item">
+    <span class="text">
+      <span class="name">Settings</span>
+      <span class="sub mono">{view.ConfigPath}</span>
+    </span>
+    <button type="button" class="btn" onclick={async () => (error = await Settings.OpenFolder("config"))}>Show</button>
+  </div>
+  <div class="item">
+    <span class="text">
+      <span class="name">Log</span>
+      <span class="sub mono">{view.LogDir}</span>
+    </span>
+    <button type="button" class="btn" onclick={async () => (error = await Settings.OpenFolder("logs"))}>Show</button>
+  </div>
 </div>
 {#if error}<p class="error">{error}</p>{/if}
 
 <style>
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
   progress {
     width: 100%;
-    max-width: 320px;
     height: 6px;
     accent-color: var(--chrome);
+  }
+  .item.error {
+    min-height: 0;
+    font-size: 12px;
+  }
+  .sub.mono {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+  }
+  label.item {
+    cursor: pointer;
   }
 </style>
