@@ -58,11 +58,12 @@ func (s *Service) calendarItems(text string) []Item {
 	return append(items, Item{ID: "cal:open", Kind: "calendar", Title: "Open the calendar", Subtitle: "Calendar"})
 }
 
-// eventItem is an event as a row: Enter joins its meeting, or opens the calendar.
+// eventItem is an event as a row: Enter joins its meeting, or opens the calendar. Every row has its own id, because the page keys
+// its list by id and two rows with one id break it: "cal:show:<event>", or "cal:join:<event> <link>" (neither holds a space).
 func eventItem(e calendar.Event, now time.Time) Item {
-	id := "cal:open"
+	id := "cal:show:" + e.ID
 	if e.Join != "" {
-		id = "cal:join:" + e.Join
+		id = "cal:join:" + e.ID + " " + e.Join
 	}
 	when := "All day"
 	if !e.AllDay {
@@ -106,7 +107,8 @@ func (s *Service) doCalendar(rest, action string) error {
 	if action != "open" {
 		return fmt.Errorf("a calendar row can only be opened, not %q", action)
 	}
-	if address, ok := strings.CutPrefix(rest, "join:"); ok {
+	if join, ok := strings.CutPrefix(rest, "join:"); ok {
+		_, address, _ := strings.Cut(join, " ")
 		if s.x.Join == nil {
 			return fmt.Errorf("joining is not available")
 		}

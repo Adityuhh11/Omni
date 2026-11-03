@@ -37,7 +37,12 @@ func TestCalendarListsWhatIsComingAndJoinOpensTheNextMeeting(t *testing.T) {
 	With(s, Extras{Calendar: cal, OpenCalendar: func() { opened++ }, Join: func(a string) error { joined = append(joined, a); return nil }})
 
 	var rows []string
+	seen := map[string]bool{}
 	for _, item := range s.Query("cal", ModeAll).Items {
+		if seen[item.ID] {
+			t.Errorf("two rows have the id %q: the page keys its list by id", item.ID)
+		}
+		seen[item.ID] = true
 		if item.Kind == "calendar" {
 			rows = append(rows, item.Title+" | "+item.Subtitle)
 		}
@@ -62,6 +67,9 @@ func TestCalendarListsWhatIsComingAndJoinOpensTheNextMeeting(t *testing.T) {
 	}
 	if err := s.Do("cal:open", "open", "cal"); err != nil || opened != 1 {
 		t.Errorf("opened %d, err %v", opened, err)
+	}
+	if err := s.Do("cal:show:b", "open", "cal"); err != nil || opened != 2 {
+		t.Errorf("an event without a link did not open the calendar: opened %d, err %v", opened, err)
 	}
 	for _, item := range s.Query("calendars", ModeAll).Items {
 		if strings.HasPrefix(item.ID, "cal:") {
