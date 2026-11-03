@@ -12,7 +12,6 @@ Checked (CI runs the first three on every pull request):
 - [ ] The docs that describe this are updated in the same commit
 - [ ] Every commit is signed off (`git commit -s`, the [DCO](../CONTRIBUTING.md#sign-your-commits))
 
-If search results or speed change: the numbers before and after, on the same computer (`cmd/panelbench` for the hotkey path; the search eval needs the
-maintainer's sample folder, so describe the change and the maintainer runs it).
+If search results or speed change: the numbers before and after, on the same computer (`cmd/panelbench` for the hotkey path; the search eval is in `sidecar/eval/README.md`).
 
 AI tools: none / an assistant wrote a significant part (say which parts, and that you have read and run it).

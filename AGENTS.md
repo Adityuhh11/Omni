@@ -1,19 +1,20 @@
 # AGENTS.md
 
-Rules for any coding agent working in this repository (Claude Code imports this file from `CLAUDE.md`). They are the same rules a human
-contributor follows; [`CONTRIBUTING.md`](CONTRIBUTING.md) has the process around them (issue first, setup, pull requests).
+Instructions for coding agents working in this repository (Claude Code reads this through `CLAUDE.md`). They are the rules a human
+contributor follows too; [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the process around them (issue first, setup, pull requests).
 
 Omni is a local-first launcher for Windows 11 and macOS 13+ (Apple Silicon): a Go core, Wails v3 with a Svelte + TypeScript page for the
 UI, and a Python sidecar (the "memory engine") that runs local models for file search.
 
 ## Orient first
 
-`docs/README.md` is the index. Read `docs/STATUS.md` (what is built, what is next) and `docs/ARCHITECTURE.md` (how it fits together,
-the invariants, which code is for which system) before changing anything non-trivial. `DESIGN.md` comes first for work in `frontend/`.
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before a non-trivial change: modules, data flow, invariants, and which file is for which
+system. [`DESIGN.md`](DESIGN.md) comes first for work in `frontend/`. The engine's HTTP contract is [`docs/api.md`](docs/api.md);
+[`docs/README.md`](docs/README.md) indexes the rest.
 
 ## Checks
 
-Run what you touched before you say it is done; CI runs all of it.
+Run what you touched before you say it is done; CI runs all of it on Windows and macOS.
 
 ```sh
 gofmt -l .                       # prints nothing when clean
@@ -23,16 +24,7 @@ cd sidecar && uv sync && uv run ruff check && uv run pyright && uv run pytest   
 ```
 
 Build: `.\scripts\build.ps1` (Windows) or `./scripts/build-mac.sh` (Mac). Tests that need a model or a large index skip themselves.
-
-## How we work
-
-- **Measure, don't guess.** A choice that affects speed, memory or search quality gets a benchmark before and after, on the same machine
-  (`cmd/panelbench` for the hotkey path; the retrieval eval in `sidecar`), and the numbers go in the pull request or a record in `docs/eval/`.
-- **Design before code for a feature.** Think it through in writing first: the issue is the place (`docs/specs/` is git-ignored, for a private
-  scratch spec); a design choice worth keeping gets a record in `docs/decisions/`. Small fixes skip this. Fix a bug test-first.
-- **No slop.** Every file, function and dependency earns its place: no speculative abstractions, no "for later" scaffolding, no unused
-  configuration. A new dependency needs a reason, and goes into `THIRD_PARTY_NOTICES.md`.
-- **Stay in scope.** Do what the issue asks. No drive-by rewrites, renames or "improvements" across files nobody mentioned.
+Retrieval quality: `uv run python -m omni_memory.eval` in `sidecar/` (needs `OMNI_LLAMA_SERVER` and `OMNI_MODEL_DIR`; see `sidecar/eval/README.md`).
 
 ## Code rules
 
@@ -45,31 +37,32 @@ Build: `.\scripts\build.ps1` (Windows) or `./scripts/build-mac.sh` (Mac). Tests 
 - **Go:** standard library first; `gofmt` and `go vet` clean. **Python:** `uv` for the environment and dependencies; `ruff` and `pyright` clean.
   **Frontend:** Svelte + TypeScript.
 - **Tests:** Go `testing` package, table tests for logic; `pytest` for the engine; the page has its own. Trivial glue needs no test.
+  Fix a bug test-first.
 
 ## Constraints
 
 - Windows 11 and macOS 13+ on Apple Silicon. Linux is not a target (the engine and page tests run there; the launcher does not build).
-- The model budget is 6 GB of graphics memory on a laptop GPU: the models must fit together. Only models use the GPU; index storage and search
-  run on the CPU.
+- Models share 6 GB of graphics memory on a laptop GPU and must fit together. Only models use the GPU; index storage and search run on the CPU.
 - The hotkey → panel path never waits on a model. The launcher opens in under 100 ms.
-- Sharp at every display scale: the Windows process is per-monitor DPI aware (declared in `build/windows/omni.manifest`) and
-  `scripts/build.ps1` fails a build that is not (`docs/decisions/0006-dpi-awareness.md`). Look at any new window at 125%.
-- Privacy: nothing leaves the machine except explicit calls to a configured LLM provider and requests the user starts or switches on (the
-  file-search and Omni AI downloads, the opt-in update check and the update the user presses to install, `docs/decisions/0005-update-check.md`).
-  No telemetry. The README's privacy table is the full list; do not add to it casually.
-- Settings live in `config.toml` in the per-user app folder (`%APPDATA%\Omni` on Windows). API keys go in the system credential store (Windows
-  Credential Manager, macOS Keychain), never in files or git.
+- Sharp at every display scale: the Windows process is per-monitor DPI aware (`build/windows/omni.manifest`) and `scripts/build.ps1` fails a
+  build that is not. Look at any new window at 125%.
+- Privacy: nothing leaves the machine except explicit calls to a configured LLM provider and requests the user starts or switches on. No
+  telemetry. The README's privacy table is the full list; do not add to it casually.
+- Settings live in `config.toml` in the per-user app folder. API keys go in the system credential store (Windows Credential Manager, macOS
+  Keychain), never in files or git.
 
-## Docs
+## Working rules
 
-Update the docs that describe the code in the same commit as the code (`docs/README.md` says which). Decision records are short: what we chose,
-the alternatives, why. Reports of measurements go in `docs/eval/`. `Sample Data/` is git-ignored and never committed.
+- **Stay in scope.** Do what the issue asks. No drive-by rewrites, renames or "improvements" across files nobody mentioned.
+- **No slop.** Every file, function and dependency earns its place: no speculative abstractions, no "for later" scaffolding, no unused
+  configuration. A new dependency needs a reason and goes into `THIRD_PARTY_NOTICES.md`.
+- **Measure, don't guess.** A change that affects speed, memory or search quality gets numbers before and after, on the same machine
+  (`cmd/panelbench` for the hotkey path; the retrieval eval in `sidecar`). Put them in the pull request.
+- **Docs follow code.** Update the doc that describes the code in the same commit.
 
 ## Branches and commits
 
-- `main` holds the stable product and changes only by a pull request that the maintainer merges. Work on a branch cut from `dev`, and open the
-  pull request into `dev`. Never push to `main`.
+- Work on a branch cut from `dev` and open the pull request into `dev`. `main` changes only by a pull request the maintainer merges; never push to it.
 - Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), small and focused.
 - Commits are signed off with the [DCO](CONTRIBUTING.md#sign-your-commits) by the human who submits them (`git commit -s`). An agent does not
-  sign off for them and adds no `Co-Authored-By` or "Generated with" trailers to commits or pull request descriptions; the pull request template
-  asks the human to say when an assistant wrote a significant part.
+  sign off for them and adds no `Co-Authored-By` or "Generated with" trailers to commits or pull request descriptions.

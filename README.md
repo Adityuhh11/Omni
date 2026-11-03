@@ -1,98 +1,97 @@
-# Omni
+<h1 align="center">Omni</h1>
 
-[![CI](https://github.com/Adityuhh11/Omni/actions/workflows/ci.yml/badge.svg)](https://github.com/Adityuhh11/Omni/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/Adityuhh11/Omni?display_name=tag)](https://github.com/Adityuhh11/Omni/releases/latest)
+<p align="center">
+  A fast, private launcher for Windows and Mac.<br>
+  Press a hotkey, type, and open an app, search the web, paste a snippet, or find a file by what it <em>says</em>, not just what it is called.<br>
+  Everything runs on your computer.
+</p>
 
-A fast, private launcher for Windows and Mac. Press a hotkey, type, and open an app, search the web, paste a snippet, or find a
-file by what it *says*, not just what it is called. Everything runs on your computer.
+<p align="center">
+  <a href="https://github.com/Adityuhh11/Omni/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Adityuhh11/Omni/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://github.com/Adityuhh11/Omni/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Adityuhh11/Omni?display_name=tag"></a>
+</p>
 
-[What it does](#what-it-does) · [Install](#install) · [Privacy](#privacy-and-the-network) · [Build from source](#build-from-source) · [Contributing](#contributing) · [License](#license)
+<p align="center">
+  <a href="#what-it-does">What it does</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#file-search">File search</a> ·
+  <a href="#privacy-and-the-network">Privacy</a> ·
+  <a href="#build-from-source">Build</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
 
-> **Status: 1.x, early.** Windows 11 and macOS 13 or later on Apple Silicon. It is used daily by its author and a few friends. The Mac build is
-> the newer of the two and has had less use. Expect rough edges; please [open an issue](https://github.com/Adityuhh11/Omni/issues/new/choose)
-> when you meet one. Linux is planned, not started.
+> **Status: 1.x, early.** Windows 11 and macOS 13+ on Apple Silicon. Used daily by its author and a few friends; the Mac build is newer and has had
+> less use. Expect rough edges, and please [open an issue](https://github.com/Adityuhh11/Omni/issues/new/choose) when you meet one.
+> Linux is planned, not started. See the [roadmap](docs/ROADMAP.md).
 
-- **Instant.** The bar is painted about 33 ms after the hotkey (median, measured), and never waits on a model.
-- **Light.** Idle, the launcher uses no CPU and about 270 MB of memory including its web view. File search is optional;
-  when on it adds a small model (about 1 GB of graphics memory) and a Python process (about 450 MB with a 46,000-chunk index).
-- **Private.** No telemetry, no account. File search runs a local model; your files and your index never leave the machine.
-  The few things that touch the network are listed [below](#privacy-and-the-network).
+|  |  |
+|---|---|
+| **Instant** | The bar is painted about 33 ms after the hotkey (median) and never waits on a model. |
+| **Light** | Idle, no CPU and about 270 MB including its web view. File search is optional and adds a small model and a Python process. |
+| **Private** | No telemetry, no account. Your files and your index never leave the machine. The few network calls are [listed below](#privacy-and-the-network). |
 
 ## What it does
 
 | | |
 |---|---|
-| **Apps** | Type a few letters (`vsc`, `chr`), the first letters of each word, or part of a name. Frequently used apps rise. An app that is already open is brought to the front instead of starting twice. |
-| **Files, by meaning** *(optional)* | Describe what you want: "the diagram with the three boxes", "how I hash passwords", "t distribution table". Finds code, PDF pages, notes, photos (by what they show) videos (by name, or by eight frames from inside them) and, if you choose, sound: audio files and the soundtrack of videos, found by describing what is said or played ("the part where they talk about sleep", "rain on a roof"), with the moment shown. Results show where in the file the match is. |
-| **Web and quicklinks** | `?` or `web:` searches in the browser you choose. `gh rust lifetimes` opens that search on GitHub; add your own quicklinks. |
+| **Apps** | Type a few letters (`vsc`, `chr`), the first letters of each word, or part of a name. Frequently used apps rise; an app that is already open is brought to the front. |
+| **Files, by meaning** *(optional)* | Describe what you want: "the diagram with the three boxes", "how I hash passwords", "t distribution table". Finds code, PDF pages, notes, photos (by what they show), videos and, if you choose, sound (audio files and the soundtrack of videos, by what is said or played). Results show where in the file the match is. |
+| **Web and quicklinks** | `?` or `web:` searches in the browser you choose. `gh rust lifetimes` searches GitHub; add your own quicklinks. |
 | **Clipboard history** *(off until you switch it on)* | `clip:` lists what you copied, newest first. Enter pastes it into the program you came from. Skips copies marked private, password managers and programs you list. |
 | **Snippets** | Text you paste often, with `{date}`, `{time}` and `{clipboard}` filled in. `snip:` or a keyword. |
-| **Omni AI** *(optional)* | `ask:` (or `ai:`, `chat:`) opens a small chat window that stays above other windows and answers with a language model that runs on this computer: Liquid AI's LFM3-1.7B, 1 GB, downloaded once from Settings > Omni AI. Conversations are kept as plain files you can clear in one click; the model is loaded when you ask and unloaded when idle (you choose when). An optional hotkey opens it; a Think button lets it reason first. It is a small model: it is for quick questions, rewrites and explanations. |
-| **Notes** | `note:` lists your notes; `note: buy milk` makes one. They are markdown files in `%APPDATA%\Omni\notes`, opened in a small window that stays above other windows (and can be resized, searched and deleted). |
-| **Timer and pomodoro** | `timer 25`, `timer 90s`, `timer 1h30 tea` or `pomodoro`: a small timer sits at the edge of the screen and keeps going when you close it. Lengths are in Settings > Timer. |
-| **Calculator and conversions** | `12*7+3`, `15% of 80`, `5 km in miles`, `72 f in c`: the answer is the first row; Enter copies it. |
+| **Omni AI** *(optional)* | `ask:` opens a small chat window. It answers with a language model on this computer (Liquid AI's LFM3-1.7B, 1 GB, downloaded once), or with a model you already run (LM Studio, Ollama) or a service with your own API key. It can use tools you switch on: your files, notes, clipboard history, browser history, your scripts, and web search. Other AI apps (Claude Desktop, Cursor, VS Code) can use those tools too. |
+| **Notes** | `note:` lists your notes; `note: buy milk` makes one. They are plain markdown files. |
+| **Timer and pomodoro** | `timer 25`, `timer 1h30 tea`, `pomodoro`: a small timer sits at the edge of the screen. |
+| **Calculator and conversions** | `12*7+3`, `15% of 80`, `5 km in miles`, `72 f in c`. Enter copies the answer. |
 | **System** | `lock`, `sleep`, `task manager`, `recycle bin`, `windows settings`. Shut down and restart are left out on purpose. |
 | **Tags and pins** | `Ctrl+T` tags an app or file, `#work` lists everything tagged. `Ctrl+P` pins up to eight rows that show the moment the bar opens. |
 
-Keys (on a Mac they are drawn as `⌃ ⌥ ⇧ ⌘`, and Explorer is Finder): `Tab` switches between All / Apps / Files / Web, `Ctrl+K` shows what you can do with the selected row,
-`Ctrl+Enter` reveals a file in Explorer, `Alt+Enter` searches the web from any row, `Ctrl+,` opens Settings (so does typing `settings`, or `settings file` for one page), `Esc` closes.
+**Keys** (on a Mac they are drawn as `⌃ ⌥ ⇧ ⌘`): `Tab` switches between All / Apps / Files / Web, `Ctrl+K` shows what you can do with the selected row,
+`Ctrl+Enter` reveals a file in Explorer or Finder, `Alt+Enter` searches the web from any row, `Ctrl+,` opens Settings, `Esc` closes.
 In file search, `code:` `img:` `pdf:` `doc:` `vid:` before a query limit it to one kind of file.
 
 ## Install
 
-**Requirements:** Windows 11 (64-bit). WebView2 is part of Windows 11. For fast file search, a graphics card with a
-current driver (NVIDIA, AMD or Intel Arc, through Vulkan); without one it still works, only slower
-([numbers](docs/PERFORMANCE.md#a-computer-without-a-graphics-card)). About 1.1 GB of disk and a one-time download of about 1 GB
-if you turn file search on; the launcher alone is a 13 MB file.
+### Windows 11
 
-1. Download `omni-<version>-windows-x64-setup.exe` from the [latest release](https://github.com/Adityuhh11/Omni/releases/latest) and run it.
-   It installs for you alone (no administrator rights) into `%LOCALAPPDATA%\Programs\Omni`, or the folder you choose, and adds a Start menu
-   entry. Prefer no installer? `omni-<version>-windows-x64.zip` holds the same `omni.exe`: unzip it anywhere you can write to.
-2. Windows may say **"Windows protected your PC"**, because the program is not code-signed yet (see [signing](docs/DISTRIBUTION.md)):
-   click **More info**, then **Run anyway**. You can check the download against the SHA-256 shown next to it on the release page, or
-   with `gh attestation verify <file> --repo Adityuhh11/Omni`, which proves it was built from this repository by its release workflow.
-3. There is no window of its own: Omni lives in the notification area (the arrow by the clock). The first start opens a short setup guide:
-   what Omni is, your hotkey and the keys, and the optional file search with its folders and options (the tray menu shows it again).
-4. Press **Alt+Shift+Space**. Change the hotkey in Settings > General; it tells you if another program already owns it.
-   "Start when I sign in" is there too.
+1. Download `omni-<version>-windows-x64-setup.exe` from the [latest release](https://github.com/Adityuhh11/Omni/releases/latest) and run it. It installs
+   for you alone (no administrator rights) and adds a Start menu entry. Prefer no installer? The `.zip` holds the same `omni.exe`.
+2. Windows may say **"Windows protected your PC"** because the program is not code-signed yet (signing is on the [roadmap](docs/ROADMAP.md)). Click
+   **More info**, then **Run anyway**. You can check the download against the SHA-256 on the release page, or prove it was built from this repository with
+   `gh attestation verify <file> --repo Adityuhh11/Omni`.
+3. Omni lives in the notification area (the arrow by the clock). The first start opens a short setup guide.
+4. Press **Alt+Shift+Space**. Change the hotkey in Settings > General.
 
-**On a Mac** (Apple Silicon, macOS 13 or later), paste this into Terminal; it downloads `Omni.app`, checks it against the checksum GitHub published, and opens it:
+Update from Settings > About (it checks the release's SHA-256 first). Uninstall from Settings > Apps; it asks whether to delete what Omni saved too.
+Your own files are never touched.
+
+### macOS 13+ (Apple Silicon)
 
 ```sh
 curl -fsSL https://github.com/Adityuhh11/Omni/releases/latest/download/install.sh | sh
 ```
 
-Omni is not signed by Apple, so a zip downloaded in a browser needs one extra step on first launch. [docs/INSTALL-MAC.md](docs/INSTALL-MAC.md) has that, the permissions
-macOS asks for, and how to update and remove it. Press **⌥⇧Space** for the bar.
+It downloads `Omni.app`, checks it against the checksum GitHub published, and opens it. Press **⌥⇧Space** for the bar. Omni is not signed by Apple, so a
+zip downloaded in a browser needs one extra step; [docs/INSTALL-MAC.md](docs/INSTALL-MAC.md) has that, the permissions macOS asks for, and how to update and remove it.
 
-To update on Windows, open Settings > About and press **Update** (it checks the release's SHA-256 first), or run the newer installer over it.
-To remove it: Settings > Apps > Installed apps > Omni > Uninstall. It asks whether to delete what Omni saved too (the engine and models,
-the index, the Omni AI model, chats, clipboard history and settings, up to about 2.5 GB); your own files are never touched. For the zip, quit from the tray
-icon and delete the folder and the folders under [Where things are](#settings-and-where-things-are).
-
-### Turning on file search
+## File search
 
 File search is the part that needs real resources, so it is a choice you make in **Settings > File search**.
 
-1. **Download and turn on.** The page says what it will download and from where before you press the button: a search
-   engine (llama.cpp), its Python libraries (pinned, through `uv`) and the embedding model, about 1 GB from `github.com`,
-   `pypi.org`, `files.pythonhosted.org` and `huggingface.co`. Every file is checked against a pinned SHA-256. It took about
-   two minutes on a fast connection. Cancelling keeps what was downloaded.
-2. **Add folders and choose what to index** (PDF pages, photos, videos, audio and sound) and **how hard it works** (Fast, Balanced, Gentle).
-   Nothing is read until you press **Start indexing**, so you choose first. Each folder shows how many files and how much it holds, and each
-   option says how long indexing will take on this computer (within about a quarter; the time left takes over once it runs). The defaults are sensible; on a computer without a
-   graphics card choose *Words only* for PDFs and *names* for photos.
-3. **Later changes are saved, not instant.** Changing a choice on an index that exists shows what it will do and waits for
-   **Save and re-index**. Afterwards only changes are processed: a new file is searchable a few seconds after it appears, and a
-   moved file is not computed again.
+1. **Download and turn on.** The page says what it will download and from where before you press the button: a search engine (llama.cpp), its Python libraries
+   (pinned, through `uv`) and the embedding model, about 1 GB in all. Every file is checked against a pinned SHA-256.
+2. **Choose folders and what to index** (PDF pages, photos, videos, audio) and **how hard it works** (Fast, Balanced, Gentle). Nothing is read until you
+   press **Start indexing**, and each option says how long it will take on this computer.
+3. **It stays current.** A watcher follows your folders; a new file is searchable a few seconds after it appears.
 
-"Turn off" stops the engine and keeps everything. "Delete downloaded files" removes the engine and models and keeps your index.
+A graphics card makes it fast (NVIDIA, AMD or Intel Arc, through Vulkan, or Metal on a Mac). Without one it still works, only slower to index: choose
+*Words only* for PDFs and *names* for photos.
 
 ## How it works
 
 ```
- hotkey ──▶ [ Go launcher (Wails v3) ] ──▶ Svelte page in WebView2 (the bar, Settings)
+ hotkey ──▶ [ Go launcher (Wails v3) ] ──▶ Svelte page in a web view (the bar, Settings)
                   │  apps · web · tags · pins · clipboard · snippets: answered in-process, microseconds
                   │
                   │  authenticated HTTP on 127.0.0.1                         (only when file search is on)
@@ -102,39 +101,33 @@ File search is the part that needs real resources, so it is a choice you make in
                   └── index: SQLite (metadata, keyword + path search) + one memory-mapped vector file, searched on the CPU
 ```
 
-- **Instant things are answered by Go itself** from memory (the Start Menu list, your pins and tags), so the bar never waits.
-- **File search is hybrid.** A file is split into chunks (code by lines, Markdown by section, PDFs by page, photos and
-  video frames as pictures, audio in 30-second windows a new one every 15 seconds, using the audio encoder of the same model: no speech
-  recognition, no extra download). Each chunk becomes a 768-number vector from a small embedding model, and a query is turned into one the
-  same way. Results blend three signals into one score: vector similarity, keyword (BM25) matches on the text and identifiers,
-  and the query appearing in the file's path. The engine also says when nothing is a *confident* match, using a noise ceiling it measures from
-  its own index, so a query with no real answer returns "closest files" rather than a confident wrong one.
-- **Only the model uses the graphics card.** Storage and search run on the processor; a search takes about 16 ms on a 45,000-chunk index.
-- **It stays current by itself.** A watcher follows your folders and the engine re-reads only what changed.
+- **Instant things are answered by Go itself**, from memory, so the bar never waits.
+- **File search is hybrid.** Files are split into chunks (code by lines, Markdown by section, PDFs by page, photos and video frames as pictures, audio in
+  30-second windows). Each chunk becomes a 768-number vector, and a query is turned into one the same way. Results blend vector similarity, keyword (BM25)
+  matches, and the query appearing in the file's path. The engine also says when nothing is a *confident* match, using a noise ceiling it measures from its
+  own index, so a query with no real answer returns "closest files" rather than a confident wrong one.
+- **Only the models use the graphics card.** Storage and search run on the processor.
 
-More: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (modules, data flow, on-disk format, invariants),
-[`docs/api.md`](docs/api.md) (the engine's HTTP contract), [`docs/decisions/`](docs/decisions/) (why each big choice was made, with the numbers).
+Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (modules, data flow, on-disk format, invariants) and [`docs/api.md`](docs/api.md) (the engine's HTTP contract).
 
 ## Performance
 
-Measured on a laptop with an RTX 4050 (6 GB) and a real index of 46,000 chunks; method, no-GPU numbers and caveats are in
-[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+Measured on a laptop with an RTX 4050 (6 GB) and a real index of 46,000 chunks.
 
 | | |
 |---|---|
 | Hotkey to a painted, focused input | **31 to 36 ms** median, under 50 ms p95 |
 | App search, per keystroke | **0.2 ms** |
-| File search query | **16 ms** median, 21 ms p95 (index of 45,000 chunks) |
-| New file searchable | about **3.5 s** after it appears |
-| Idle, launcher | **0 % CPU**, about **270 MB** private memory with its web view; file search adds about 450 MB and 1.06 GB of video memory |
+| File search query | **16 ms** median, 21 ms p95 |
+| Idle, launcher | **0 % CPU**, about **270 MB** with its web view; file search adds about 450 MB and 1 GB of video memory |
 | Indexing speed | text about 53 chunks/s; pictures and PDF pages about 6/s on the GPU, about 0.2/s on the CPU |
-| **No graphics card** | the sample folder (96 files) indexes in **8 minutes** instead of 16 seconds, or 5 minutes with the cheapest choices; a search still takes about **40 ms** |
+| No graphics card | a 96-file folder indexes in 8 minutes instead of 16 seconds; a search still takes about 40 ms |
 | Quality (92 hand-written queries) | right file first for 90 %, in the top three for 100 %, no false alarms |
 
 ## Privacy and the network
 
-No telemetry. No account. Your files are read only from folders you add, and secrets (`.env*`, keys and similar) are never
-opened. The program touches the network in exactly these cases, all started or switched on by you:
+No telemetry. No account. Your files are read only from folders you add, and secrets (`.env*`, keys and similar) are never opened. The program
+touches the network in exactly these cases, all started or switched on by you:
 
 | When | Where | What is sent |
 |---|---|---|
@@ -147,21 +140,20 @@ opened. The program touches the network in exactly these cases, all started or s
 | You press **Check for updates**, or turned on the daily check (off by default) | `api.github.com` | a request for the latest release number, nothing about you |
 | You press **Update to X** | `github.com` | a download of that release, checked against its published SHA-256 |
 
-The engine and the Omni AI model server listen on `127.0.0.1` only, behind a random per-run token (the engine also rejects foreign `Host` headers).
-Clipboard history is off by default and stored only on your machine. Omni AI's tools (your files, notes, clipboard, activity,
-browser history and bookmarks (read from a copy of each browser's own files, which are never changed) and your scripts, [`docs/SCRIPTS.md`](docs/SCRIPTS.md)) run on this computer and are off until you switch them on; with web search
-also on, the model could put what a tool found into the words it searches for. See [`docs/decisions/0005-update-check.md`](docs/decisions/0005-update-check.md).
+The engine and the Omni AI model server listen on `127.0.0.1` only, behind a random per-run token. Clipboard history is off by default and stored only on
+your machine. Omni AI's tools (your files, notes, clipboard, activity, browser history and bookmarks, and your [scripts](docs/SCRIPTS.md)) run on this
+computer and are off until you switch them on; with web search also on, the model could put what a tool found into the words it searches for.
 
 ## Settings and where things are
 
-Everything is in Settings (`Ctrl+,`, or the tray icon). The file behind it is `%APPDATA%\Omni\config.toml`; Settings edits it
-and takes effect without a restart, and a mistyped key is reported rather than ignored.
+Everything is in Settings (`Ctrl+,`, or the tray icon). The file behind it is `config.toml`; Settings edits it and takes effect without a restart, and a
+mistyped key is reported rather than ignored.
 
 ```toml
 hotkey  = 'Alt+Shift+Space'
 roots   = ['C:\Users\you\Documents', 'C:\dev']      # folders file search indexes
 exclude = ['C:\dev\big-generated-folder']           # inside a root, left out
-browser = 'firefox'                                 # empty = the Windows default
+browser = 'firefox'                                 # empty = the system default
 
 [[quicklink]]
 trigger = 'gh'
@@ -177,85 +169,55 @@ videos   = 'name'        # name | content
 audio    = 'name'        # name | content: audio files and the soundtrack of videos
 ```
 
-| What | Where |
-|---|---|
-| Settings | `%APPDATA%\Omni\config.toml` |
-| Log (Settings > About opens it) | `%LOCALAPPDATA%\Omni\logs\omni.log` |
-| Search engine and models | `%LOCALAPPDATA%\Omni\engine` (only after you turn file search on); the setup guide can put it and the index on another drive |
-| The index | `%LOCALAPPDATA%\Omni\memory` |
-| Clipboard history | `%LOCALAPPDATA%\Omni\clipboard.json` (only if switched on) |
-| Notes | `%APPDATA%\Omni\notes\*.md`, one file per note |
-| Omni AI conversations | `%APPDATA%\Omni\chats\*.json`, one file per chat (not encrypted) |
-| Omni AI model and its server | `%LOCALAPPDATA%\Omni\chat` (only after you turn Omni AI on; in the folder chosen for the downloads if you chose one) |
-| What you launched, tags, pins | `%APPDATA%\Omni\state.json` |
-
-The table is for Windows. On a Mac the settings, the index, the engine and the rest are under `~/Library/Application Support/Omni` and the log is
-`~/Library/Logs/Omni/omni.log` ([details](docs/INSTALL-MAC.md)).
+| What | Windows | macOS |
+|---|---|---|
+| Settings, notes, chats, launch history | `%APPDATA%\Omni` | `~/Library/Application Support/Omni` |
+| Search engine, models, the index, clipboard history | `%LOCALAPPDATA%\Omni` | `~/Library/Application Support/Omni` |
+| Log (Settings > About opens it) | `%LOCALAPPDATA%\Omni\logs\omni.log` | `~/Library/Logs/Omni/omni.log` |
 
 ## Build from source
 
-You need, on Windows 11 (with PowerShell) or on a Mac with Apple Silicon (with the Xcode command line tools):
-
-- [Go](https://go.dev/dl/) 1.27 or newer
-- [Node.js](https://nodejs.org/) 24 (any current LTS should do) and npm
-- the [Wails v3 CLI](https://v3alpha.wails.io/): `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.29` (the version the project is built with)
-- [uv](https://docs.astral.sh/uv/) for the Python engine's tests (not needed to build or run the launcher: the engine's source is embedded in the program)
-
-```powershell
-# Windows
-git clone https://github.com/Adityuhh11/Omni.git
-cd Omni
-.\scripts\build.ps1            # bindings, frontend, then bin\omni.exe  (-Console keeps the log window)
-.\bin\omni.exe
-```
+You need [Go](https://go.dev/dl/) 1.27+, [Node.js](https://nodejs.org/) 24 and npm, the [Wails v3 CLI](https://v3alpha.wails.io/)
+(`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.29`) and [uv](https://docs.astral.sh/uv/) for the engine's tests. On a Mac, also the Xcode
+command line tools.
 
 ```sh
-# macOS
-git clone https://github.com/Adityuhh11/Omni.git
-cd Omni
-./scripts/build-mac.sh         # bindings, frontend, then bin/omni
-./bin/omni
+git clone https://github.com/Adityuhh11/Omni.git && cd Omni
+.\scripts\build.ps1        # Windows: bindings, frontend, then bin\omni.exe
+./scripts/build-mac.sh     # macOS:   bindings, frontend, then bin/omni
 ```
 
-Tests and checks (the same ones CI runs on every pull request, on a Windows and a Mac machine):
+The checks CI runs on every pull request, on a Windows and a Mac machine:
 
 ```sh
 gofmt -l .                                                    # prints nothing when clean
 go vet ./... && go test ./...                                 # launcher
 cd frontend && npm test && npm run check                      # page
-cd ../sidecar && uv run pytest && uv run ruff check && uv run pyright   # engine (add -m model to use the real model)
-uv run python -m omni_memory.eval                              # retrieval quality against docs/eval/baseline.json (needs the maintainer's sample folder)
+cd sidecar && uv run pytest && uv run ruff check && uv run pyright   # engine
 ```
 
-The Go launcher builds on Windows and macOS only; the engine and page tests also run on Linux.
-
-`.\scripts\release.ps1 -Version X.Y.Z` makes the release zip; the full procedure is in [`docs/RELEASING.md`](docs/RELEASING.md).
-
-## Repository map
+The Go launcher builds on Windows and macOS only; the engine and page tests also run on Linux. Retrieval quality has its own eval:
+[`sidecar/eval/README.md`](sidecar/eval/README.md). Releases: [`docs/RELEASING.md`](docs/RELEASING.md).
 
 | Path | What |
 |---|---|
 | `cmd/omni` | the launcher's `main`: wires everything together |
-| `cmd/panelbench` | measures hotkey-to-painted latency on the real app |
-| `internal/panel`, `settingsui`, `tray` | the bar window, the Settings window, the tray icon |
-| `internal/apps`, `rank`, `palette`, `state`, `web`, `snippets`, `clipboard` | what the bar can answer instantly |
-| `internal/search`, `indexing`, `watcher`, `sidecar`, `enginesetup` | file search from the launcher's side: querying, syncing folders, running and installing the engine |
-| `internal/config`, `settings`, `update`, `autostart`, `files`, `atomicfile` | settings file and live store, update check and install, start at sign-in, opening results, crash-safe file writes |
+| `internal/` | the launcher's packages, one job each: the bar, Settings, apps, web, clipboard, file search from the launcher's side, Omni AI, update |
 | `frontend/` | the Svelte 5 + TypeScript page (the bar and Settings) |
 | `sidecar/` | the Python memory engine (`omni_memory`): chunking, embedding, store, search, eval |
-| `docs/` | architecture, status, API, decision records, specs, plans, measurements |
+| `docs/` | architecture, the engine's API, roadmap, release and install notes |
 
 ## Contributing
 
-Bug reports, ideas and testing on hardware the maintainer does not have are welcome now. Open an [issue](https://github.com/Adityuhh11/Omni/issues/new/choose)
-first: pull requests are by invitation, once an issue says go. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the whole process (setup, checks, the DCO
-sign-off, using AI tools); the code rules, which coding agents read too, are in [`AGENTS.md`](AGENTS.md). A vulnerability goes through
-[`SECURITY.md`](SECURITY.md), not a public issue. Where the project stands and what is next: [`docs/STATUS.md`](docs/STATUS.md).
+Bug reports, ideas and testing on hardware the maintainer does not have are welcome. Open an [issue](https://github.com/Adityuhh11/Omni/issues/new/choose)
+first: pull requests are by invitation, once an issue says go. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the whole process (setup, checks, the DCO sign-off,
+using AI tools); the code rules, which coding agents read too, are in [`AGENTS.md`](AGENTS.md). A vulnerability goes through [`SECURITY.md`](SECURITY.md),
+not a public issue.
 
 ## License
 
-Omni is released under the [MIT License](LICENSE). The libraries it is built on, the programs its setup installs and the models it can download
-have their own licenses; they are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Omni is released under the [MIT License](LICENSE). The libraries it is built on, the programs its setup installs and the models it can download have their
+own licenses; they are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 | Model (downloaded on request, not part of Omni) | License |
 |---|---|
