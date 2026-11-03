@@ -22,7 +22,7 @@ type vevent struct {
 // parse reads the events of an iCalendar file (RFC 5545). What it does not need (alarms, attendees, time zone definitions) is
 // skipped; a line it cannot read is skipped too, so one odd event does not cost the whole calendar.
 func parse(data []byte, local *time.Location) []vevent {
-	var events []vevent
+	events := []vevent{} // never nil: an empty calendar is a calendar, and nil means a fetch that failed
 	var cur *vevent
 	depth := 0 // nesting inside the VEVENT (a VALARM in it has a DESCRIPTION of its own)
 	for _, line := range unfold(data) {

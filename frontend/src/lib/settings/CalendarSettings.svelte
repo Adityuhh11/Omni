@@ -25,11 +25,14 @@
 
   async function add() {
     adding = true;
-    error = await Calendar.Add(name, address);
-    adding = false;
-    if (error === "") {
-      name = "";
-      address = "";
+    try {
+      error = await Calendar.Add(name, address);
+      if (error === "") {
+        name = "";
+        address = "";
+      }
+    } finally {
+      adding = false; // the button comes back even if the call failed
     }
     await refresh();
   }
@@ -42,9 +45,12 @@
 
   async function syncNow() {
     refreshing = true;
-    await Calendar.Refresh();
-    await refresh();
-    refreshing = false;
+    try {
+      await Calendar.Refresh();
+      await refresh();
+    } finally {
+      refreshing = false;
+    }
   }
 
   function ago(iso: string): string {

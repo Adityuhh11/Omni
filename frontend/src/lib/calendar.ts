@@ -33,11 +33,13 @@ export function covers(e: Span, day: Date): boolean {
 /** The timed events of a day, each cut to the day (one that runs past midnight shows on both days) and given a lane. Events that
  *  overlap, directly or through others, share the day's width equally; a short event still gets a usable height (minMinutes). */
 export function placeDay<T extends Span>(events: T[], day: Date, minMinutes = 20): Placed<T>[] {
-  const midnight = day.getTime();
+  // Positions are the time the clock shows, not time elapsed since midnight: on the days the clocks change a day is 23 or 25
+  // hours long, and an event at 15:00 still belongs at the 15:00 line.
+  const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+  const clock = (d: Date) => d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
   const parts = events
-    .filter((e) => !e.allDay)
-    .map((e) => ({ event: e, from: Math.max(0, (e.start.getTime() - midnight) / 60000), to: Math.min(DAY, (e.end.getTime() - midnight) / 60000) }))
-    .filter((p) => p.to > 0 && p.from < DAY && (p.to > p.from || p.from === p.to))
+    .filter((e) => !e.allDay && e.start < next && (e.end > day || (e.end.getTime() === e.start.getTime() && e.start >= day)))
+    .map((e) => ({ event: e, from: e.start < day ? 0 : clock(e.start), to: e.end >= next ? DAY : clock(e.end) }))
     .map((p) => ({ ...p, to: Math.max(p.to, p.from + minMinutes) }))
     .sort((a, b) => a.from - b.from || b.to - a.to || a.event.id.localeCompare(b.event.id));
 

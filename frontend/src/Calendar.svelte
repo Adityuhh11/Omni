@@ -49,9 +49,12 @@
 
   async function refresh() {
     refreshing = true;
-    await Calendars.Refresh();
-    await load();
-    refreshing = false;
+    try {
+      await Calendars.Refresh();
+      await load();
+    } finally {
+      refreshing = false; // the button comes back even if the call failed
+    }
   }
 
   async function join(e: Shown) {

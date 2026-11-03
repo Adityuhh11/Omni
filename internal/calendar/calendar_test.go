@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -156,5 +157,73 @@ func TestAPageThatIsNotACalendarIsRefused(t *testing.T) {
 	c.Sync(context.Background())
 	if st := c.Statuses()[0]; !strings.Contains(st.Error, "does not give a calendar") {
 		t.Errorf("status %+v", st)
+	}
+}
+
+// One invite in two calendars (same uid, same start) is two events with two ids: the page keys its lists by id.
+func TestTheSameInviteInTwoCalendarsHasTwoIDs(t *testing.T) {
+	evs := parse([]byte(feed), time.UTC)
+	from, to := week(t)
+	a, b := expand(evs, "Work", 0, from, to), expand(evs, "Home", 1, from, to)
+	if len(a) == 0 || a[0].ID == b[0].ID {
+		t.Fatalf("ids %q and %q", a[0].ID, b[0].ID)
+	}
+}
+
+// An empty calendar is a calendar that was fetched, not a failed fetch, and a calendar emptied since is shown empty.
+func TestAnEmptyFeedIsFetchedAndEmpties(t *testing.T) {
+	served := feed
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(served)) }))
+	defer srv.Close()
+	c := New(t.TempDir(), func() []config.CalendarFeed { return []config.CalendarFeed{{ID: "a", Name: "A"}} },
+		func(string) (string, error) { return srv.URL, nil }, t.Logf)
+	c.Sync(context.Background())
+	served = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n"
+	c.Sync(context.Background())
+	from, to := week(t)
+	if st := c.Statuses()[0]; st.Synced.IsZero() || st.Events != 0 || len(c.Between(from, to)) != 0 {
+		t.Errorf("after the calendar was emptied: %+v, %d events", st, len(c.Between(from, to)))
+	}
+}
+
+// An all-day event lasts whole days, also across a change of clocks, and an UNTIL with no zone is in the event's zone.
+func TestAllDayRecurrenceAcrossTheClockChangeAndAnUntilWithoutAZone(t *testing.T) {
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("no zone database")
+	}
+	ics := "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:w\r\nSUMMARY:Bins\r\nDTSTART;VALUE=DATE:20260301\r\nDTEND;VALUE=DATE:20260302\r\n" +
+		"RRULE:FREQ=WEEKLY;UNTIL=20260315\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	got := expand(parse([]byte(ics), ny), "Home", 0, time.Date(2026, 2, 1, 0, 0, 0, 0, ny), time.Date(2026, 4, 1, 0, 0, 0, 0, ny))
+	var days []string
+	for _, e := range got {
+		days = append(days, e.Start.In(ny).Format("01-02 15:04")+"→"+e.End.In(ny).Format("01-02 15:04"))
+	}
+	want := "03-01 00:00→03-02 00:00 03-08 00:00→03-09 00:00 03-15 00:00→03-16 00:00"
+	if strings.Join(days, " ") != want {
+		t.Errorf("occurrences %v\nwant %s", days, want)
+	}
+}
+
+// The reason a fetch failed never holds the address, also when the failure was after a redirect.
+func TestAFailureAfterARedirectDoesNotLogTheAddress(t *testing.T) {
+	var redirect *httptest.Server
+	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hj, _ := w.(http.Hijacker)
+		conn, _, _ := hj.Hijack()
+		conn.Close()
+	}))
+	defer dead.Close()
+	redirect = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dead.URL+"/published/2/SECRETTOKEN", http.StatusFound)
+	}))
+	defer redirect.Close()
+	var logged []string
+	c := New(t.TempDir(), func() []config.CalendarFeed { return []config.CalendarFeed{{ID: "a", Name: "A"}} },
+		func(string) (string, error) { return redirect.URL + "/published/2/SECRETTOKEN", nil },
+		func(f string, a ...any) { logged = append(logged, fmt.Sprintf(f, a...)) })
+	c.Sync(context.Background())
+	if st := c.Statuses()[0]; st.Error == "" || strings.Contains(st.Error+strings.Join(logged, " "), "SECRETTOKEN") {
+		t.Errorf("status %q, log %v", st.Error, logged)
 	}
 }
