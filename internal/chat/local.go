@@ -8,15 +8,14 @@ import (
 	"strings"
 )
 
-// Local is a tool that runs on this computer: a look into Omni's own data or a script of the person's (docs/decisions/
-// 0011-local-tools.md). main builds them (internal/aitools); the chat offers the ones whose group is switched on.
+// Local is a tool that runs on this computer: a look into Omni's own data or a script of the person's. main builds them (internal/aitools); the chat offers the ones whose group is switched on.
 type Local struct {
 	// Group is what switches the tool on in [chat] tools ("files", "notes", "script:backup.ps1"); one group may hold several tools.
 	Group string
 	// GroupTitle names the group in the + menu and in Settings.
 	GroupTitle string
 	Def        Tool
-	// Apps is the same tool as other AI apps see it over MCP (docs/decisions/0012-mcp-own-switches.md): the same name and
+	// Apps is the same tool as other AI apps see it over MCP: the same name and
 	// arguments, described in full for a model that can use it. Unset, Def is used.
 	Apps Tool
 	// Writes marks a tool that changes something (a new note, any script): the person is asked before each run unless its

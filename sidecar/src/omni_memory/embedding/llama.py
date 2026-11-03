@@ -1,6 +1,6 @@
 """EmbeddingGemma 2 through llama.cpp: the `Embedder` contract over a running llama-server.
 
-Measured against the torch model it replaced (docs/eval/2026-10-18-llamacpp-embedder.md): vectors
+Measured against the torch model it replaced: vectors
 agree to cosine 0.9999 for text and 0.994 or better for images and PDF pages, and the golden set
 gives identical results. What it takes to get there, each found by measuring:
 
@@ -16,9 +16,9 @@ gives identical results. What it takes to get there, each found by measuring:
 - Images go `_MEDIA_REQUESTS` at a time, one per request on connections of their own: the server
   decodes and slices one image while the GPU embeds the other (4.4 to 6.4 images/s), and PNG is
   written at compression level 1, half the encoding time of the default for the same pixels
-  (docs/eval/2026-10-20-indexing-throughput.md).
+.
 - Audio clips go the same way, as 16-bit WAV in an `input_audio` part (the projector file holds
-  the audio encoder too: docs/eval/2026-10-28-audio-embedding.md). Two connections embed six
+  the audio encoder too). Two connections embed six
   clips in 0.43 s against 0.74 s one by one.
 
 Not thread-safe by itself: `SerializedEmbedder` wraps it, as for every embedder.

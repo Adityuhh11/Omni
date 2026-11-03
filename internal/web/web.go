@@ -6,7 +6,7 @@
 //
 // A Firefox-based browser (Zen, Firefox, LibreWolf...) is asked to search with `-search`, which uses the
 // engine chosen inside it; any other browser, or an explicit search_url, gets an address built from a
-// template. Measured in docs/eval/2026-10-17-zen-command-line.md.
+// template.
 package web
 
 import (

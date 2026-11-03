@@ -22,7 +22,7 @@ import (
 // Pins are the files an install downloads.
 type Pins struct{ UV, Llama, Text, Vision Artifact }
 
-// DefaultPins are the artifacts measured in docs/eval/2026-10-18-llamacpp-embedder.md.
+// DefaultPins are the artifacts the engine was measured with.
 func DefaultPins() Pins { return Pins{UV: UV, Llama: Llama, Text: TextModel, Vision: VisionModel} }
 
 // Progress says where an install is, for the settings window.

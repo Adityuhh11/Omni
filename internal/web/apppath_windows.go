@@ -54,8 +54,7 @@ func Installed() []string {
 	return found
 }
 
-// searchesByCommandLine says that a Firefox-based browser can be asked to search with its own engine (`-search`, measured in
-// docs/eval/2026-10-17-zen-command-line.md) by running its program.
+// searchesByCommandLine says that a Firefox-based browser can be asked to search with its own engine (`-search`) by running its program.
 const searchesByCommandLine = true
 
 // start runs a program and lets it go: the launcher does not wait for a browser.

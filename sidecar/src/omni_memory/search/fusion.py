@@ -5,7 +5,7 @@ Rank fusion did not: an image has no keyword text, so it appeared in one list wh
 appeared in two, and the right image lost to files that merely mentioned its words. The other two
 signals only add to it: bm25 a small boost that settles close calls and rescues exact names the
 embedding misses, and a path match (the query typed as part of a file's path) a larger one.
-Weights come from the sweep in docs/eval/2026-10-15-search-quality-experiments.md.
+Weights come from a sweep against the golden queries.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@ import type { Kind } from "../indexingPlan";
 
 export type Option = { id: string; name: string; how: string };
 
-// The words are the measurements in docs/eval/2026-10-18-pace.md: 17.6 s, 33.4 s and 103.5 s to index the same
+// The words are measurements: 17.6 s, 33.4 s and 103.5 s to index the same
 // folder, with the graphics card busy 65%, 27% and 16% of the time.
 export const SPEEDS: Option[] = [
   { id: "fast", name: "Fast", how: "Finishes soonest. The graphics card works hard, and other things may slow down meanwhile." },

@@ -120,7 +120,7 @@ $f.Add_Shown({ $f.Activate(); $t.Focus() })
 [Windows.Forms.Application]::Run($f)
 `
 
-// TestRealPasteIntoAnotherProgram is the spike of docs/eval/2026-10-19-paste.md: it hands the keyboard to a
+// TestRealPasteIntoAnotherProgram is the spike that proved this works: it hands the keyboard to a
 // real window from another program the way the bar does, and types Ctrl+V after different waits.
 func TestRealPasteIntoAnotherProgram(t *testing.T) {
 	realOnly(t)

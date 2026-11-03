@@ -8,8 +8,7 @@ import (
 	"omni/internal/config"
 )
 
-// Duty is the share of the time indexing may keep the GPU busy at each speed of the settings. Measured in
-// docs/eval/2026-10-18-pace.md: Balanced takes about twice as long as Fast, Gentle about six times.
+// Duty is the share of the time indexing may keep the GPU busy at each speed of the settings. Measured: Balanced takes about twice as long as Fast, Gentle about six times.
 func Duty(pace string) float64 {
 	switch pace {
 	case "fast":
