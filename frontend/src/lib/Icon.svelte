@@ -1,6 +1,6 @@
 <script lang="ts">
   interface Props {
-    name: "code" | "text" | "image" | "video" | "audio" | "file" | "app" | "web" | "tag" | "pin" | "clip" | "snippet" | "settings" | "calc" | "system" | "note" | "timer" | "chat" | "plus" | "history" | "close" | "brain" | "send" | "stop" | "link" | "search" | "spark" | "info";
+    name: "code" | "text" | "image" | "video" | "audio" | "file" | "app" | "web" | "tag" | "pin" | "clip" | "snippet" | "settings" | "calc" | "system" | "note" | "timer" | "chat" | "plus" | "history" | "close" | "brain" | "send" | "stop" | "link" | "search" | "spark" | "info" | "calendar";
     size?: number;
   }
   let { name, size = 20 }: Props = $props();
@@ -35,6 +35,7 @@
     search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16 16l4 4",
     spark: "M12 4c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7z",
     info: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 11v5 M12 8h.01",
+    calendar: "M5.5 5.5h13a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z M4.5 10h15 M8.5 3.5v4 M15.5 3.5v4 M8.5 14h.01 M12 14h.01 M15.5 14h.01",
     app: "M5 5h5.5v5.5H5z M13.5 5H19v5.5h-5.5z M5 13.5h5.5V19H5z M13.5 13.5H19V19h-5.5z",
   };
 </script>

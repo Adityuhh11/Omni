@@ -50,6 +50,8 @@ type Config struct {
 	Notes Notes `toml:"notes"`
 	// Chat is the local language model and its chat window (internal/llm, internal/chat).
 	Chat Chat `toml:"chat"`
+	// Calendar is the calendars shown read-only in the calendar window and the bar (internal/calendar).
+	Calendar Calendar `toml:"calendar"`
 	// Snippets are texts kept to be pasted from the bar (internal/snippets).
 	Snippets []Snippet `toml:"snippet,omitempty"`
 	// Sidecar is the retired [sidecar] table (where the engine lived in the repository). Load reads
@@ -63,6 +65,18 @@ type UI struct {
 	SelectionEffect bool `toml:"selection_effect"`
 	// Theme is the colours of every window: one of Themes.
 	Theme string `toml:"theme"`
+}
+
+// Calendar lists the calendars that are shown. Their subscription addresses are secrets (anyone with one can read the
+// calendar), so they are in the system credential store under "calendar-<id>", never here.
+type Calendar struct {
+	Feeds []CalendarFeed `toml:"feed,omitempty"`
+}
+
+// CalendarFeed is one calendar: an id of Omni's own and the name the person gave it.
+type CalendarFeed struct {
+	ID   string `toml:"id"`
+	Name string `toml:"name"`
 }
 
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
@@ -286,6 +300,9 @@ func (c Config) Clone() Config {
 	c.Quicklinks = slices.Clone(c.Quicklinks)
 	c.Clipboard.Ignore = slices.Clone(c.Clipboard.Ignore)
 	c.Snippets = slices.Clone(c.Snippets)
+	c.Calendar.Feeds = slices.Clone(c.Calendar.Feeds)
+	c.Timer.BlockSites = slices.Clone(c.Timer.BlockSites)
+	c.Timer.BlockApps = slices.Clone(c.Timer.BlockApps)
 	return c
 }
 
@@ -363,6 +380,18 @@ func (c Config) Validate() error {
 		if minutes < 1 || minutes > 24*60 {
 			return fmt.Errorf("timer preset_minutes %d must be between 1 and %d", minutes, 24*60)
 		}
+	}
+	ids := map[string]bool{}
+	for _, feed := range c.Calendar.Feeds {
+		switch {
+		case feed.ID == "" || strings.ContainsAny(feed.ID, `/\. `):
+			return fmt.Errorf("calendar feed id %q must be a plain word", feed.ID)
+		case strings.TrimSpace(feed.Name) == "":
+			return fmt.Errorf("calendar feed %q needs a name", feed.ID)
+		case ids[feed.ID]:
+			return fmt.Errorf("calendar feed id %q is used twice", feed.ID)
+		}
+		ids[feed.ID] = true
 	}
 	for _, folder := range c.Exclude {
 		if !filepath.IsAbs(folder) {

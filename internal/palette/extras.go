@@ -30,6 +30,11 @@ type Extras struct {
 	OpenChat  func(id string)
 	// Timer is the countdown and the pomodoro.
 	Timer TimerControl
+	// Calendar is the calendars, read from memory (calendar.go); OpenCalendar shows the calendar window and Join opens a
+	// meeting's address in the browser.
+	Calendar     CalendarBox
+	OpenCalendar func()
+	Join         func(address string) error
 	// Sound offers to search the sound of audio files and videos (offer.go).
 	Sound SoundOffer
 	// Scripts are the person's script commands (scripts.go); RunScript runs one (scripts.Run) and Paste types text into the

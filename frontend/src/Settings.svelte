@@ -9,6 +9,7 @@
   import RoundButton from "./lib/RoundButton.svelte";
   import About from "./lib/settings/About.svelte";
   import AIApps from "./lib/settings/AIApps.svelte";
+  import CalendarSettings from "./lib/settings/CalendarSettings.svelte";
   import Clipboard from "./lib/settings/Clipboard.svelte";
   import FileSearch from "./lib/settings/FileSearch.svelte";
   import General from "./lib/settings/General.svelte";
@@ -24,6 +25,7 @@
     { id: "snippets", label: "Snippets", icon: "snippet" },
     { id: "clipboard", label: "Clipboard", icon: "clip" },
     { id: "timer", label: "Focus & timer", icon: "timer" },
+    { id: "calendar", label: "Calendar", icon: "calendar" },
     { id: "search", label: "File search", icon: "search", heading: "Intelligence" },
     { id: "omni-ai", label: "Omni AI", icon: "spark" },
     { id: "ai-apps", label: "AI apps", icon: "link" },
@@ -84,6 +86,8 @@
         <OmniAI />
       {:else if section === "ai-apps"}
         <AIApps />
+      {:else if section === "calendar"}
+        <CalendarSettings />
       {:else if section === "timer"}
         <TimerSettings {view} />
       {:else}
