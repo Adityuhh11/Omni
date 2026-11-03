@@ -103,6 +103,20 @@ func (t *Timer) StartPomodoro() {
 	t.begin(Focus, "Focus", minutes(c.FocusMinutes), 1, c.Rounds)
 }
 
+// StartFocus begins one focus period of d with no breaks after it ("focus 50"), replacing any timer there was.
+func (t *Timer) StartFocus(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	t.begin(Focus, "Focus", d, 0, 0)
+}
+
+// Focusing says a focus period is counting down now: the time to block what distracts. A paused or finished one is not.
+func (t *Timer) Focusing() bool {
+	s := t.State()
+	return s.Running && s.Phase == Focus
+}
+
 func minutes(n int) time.Duration { return time.Duration(n) * time.Minute }
 
 func (t *Timer) begin(phase Phase, label string, d time.Duration, round, rounds int) {
@@ -187,13 +201,14 @@ func (t *Timer) Skip() {
 // after the last round; a short break by the next focus; the long break by nothing.
 func (t *Timer) followingLocked() (phase Phase, label string, d time.Duration, round int, ok bool) {
 	c := t.settings()
-	switch t.phase {
-	case Focus:
+	switch {
+	case t.rounds == 0: // a countdown, or a single focus period: nothing follows
+	case t.phase == Focus:
 		if t.round < t.rounds {
 			return ShortBreak, "Short break", minutes(c.ShortBreakMinutes), t.round, true
 		}
 		return LongBreak, "Long break", minutes(c.LongBreakMinutes), t.round, true
-	case ShortBreak:
+	case t.phase == ShortBreak:
 		return Focus, "Focus", minutes(c.FocusMinutes), t.round + 1, true
 	}
 	return "", "", 0, 0, false

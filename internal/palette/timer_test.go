@@ -12,22 +12,27 @@ import (
 type fakeTimer struct {
 	state   timer.State
 	calls   []string
-	presets []int // the quick timers of the settings; the defaults when nil
+	presets []int         // the quick timers of the settings; the defaults when nil
+	block   *config.Timer // what blocking the settings say, when set
 }
 
 func (f *fakeTimer) Start(d time.Duration, label string) {
 	f.calls = append(f.calls, "start "+d.String()+" "+label)
 }
-func (f *fakeTimer) StartPomodoro()     { f.calls = append(f.calls, "pomodoro") }
-func (f *fakeTimer) Pause()             { f.calls = append(f.calls, "pause") }
-func (f *fakeTimer) Resume()            { f.calls = append(f.calls, "resume") }
-func (f *fakeTimer) Stop()              { f.calls = append(f.calls, "stop") }
-func (f *fakeTimer) Skip()              { f.calls = append(f.calls, "skip") }
-func (f *fakeTimer) State() timer.State { return f.state }
+func (f *fakeTimer) StartPomodoro()             { f.calls = append(f.calls, "pomodoro") }
+func (f *fakeTimer) StartFocus(d time.Duration) { f.calls = append(f.calls, "focus "+d.String()) }
+func (f *fakeTimer) Pause()                     { f.calls = append(f.calls, "pause") }
+func (f *fakeTimer) Resume()                    { f.calls = append(f.calls, "resume") }
+func (f *fakeTimer) Stop()                      { f.calls = append(f.calls, "stop") }
+func (f *fakeTimer) Skip()                      { f.calls = append(f.calls, "skip") }
+func (f *fakeTimer) State() timer.State         { return f.state }
 func (f *fakeTimer) Settings() config.Timer {
 	c := config.Default().Timer
 	if f.presets != nil {
 		c.PresetMinutes = f.presets
+	}
+	if f.block != nil {
+		c.Block, c.BlockSites, c.BlockApps = f.block.Block, f.block.BlockSites, f.block.BlockApps
 	}
 	return c
 }
@@ -120,7 +125,7 @@ func TestThePresetsAreTheOnesInTheSettingsAndTheFirstSaysYouCanTypeYourOwn(t *te
 
 func TestOrdinaryWordsAndOtherModesGetNoTimerRows(t *testing.T) {
 	s, _, _ := timerService(t)
-	for _, text := range []string{"time", "tim", "timers", "my timer 5", "focus", "timer abc", "timer 0", "timer 99h", "pomodoro 5"} {
+	for _, text := range []string{"time", "tim", "timers", "my timer 5", "focused", "focus abc", "timer abc", "timer 0", "timer 99h", "pomodoro 5"} {
 		for _, id := range ids(s.Query(text, ModeAll)) {
 			if strings.HasPrefix(id, "timer:") {
 				t.Errorf("%q offered %s", text, id)
@@ -162,5 +167,30 @@ func TestWithoutATimerTheBarSaysSoWhenAskedToRunOne(t *testing.T) {
 	}
 	if err := s.Do("timer:stop", "open", ""); err == nil {
 		t.Error("no timer, no error")
+	}
+}
+
+func TestFocusStartsOneFocusPeriodAndSaysWhatItBlocks(t *testing.T) {
+	s, ft, dismissed := timerService(t)
+	a := s.Query("focus", ModeAll)
+	if got := strings.Join(ids(a), " "); got != "timer:focus:1500 timer:pomodoro" {
+		t.Fatalf("focus offers %s", got)
+	}
+	if sub := a.Items[0].Subtitle; !strings.Contains(sub, "nothing is blocked") {
+		t.Errorf("with blocking off the row says %q", sub)
+	}
+	if got := kinds(a); !strings.Contains(got, "app") {
+		t.Errorf("the focus rows pushed out the app named Focus Keeper: %s", got)
+	}
+	ft.block = &config.Timer{Block: true, BlockSites: []string{"youtube.com", "x.com"}, BlockApps: []string{"discord.exe"}}
+	a = s.Query("focus 50", ModeAll)
+	if len(a.Items) == 0 || a.Items[0].ID != "timer:focus:3000" || a.Items[0].Title != "Start a 50-minute focus" || a.Items[0].Subtitle != "Focus · blocks 2 sites and 1 app" {
+		t.Fatalf("focus 50 = %+v", a.Items)
+	}
+	if err := s.Do("timer:focus:3000", "open", "focus 50"); err != nil || len(ft.calls) != 1 || ft.calls[0] != "focus 50m0s" || *dismissed != 1 {
+		t.Errorf("calls %v, err %v, dismissed %d", ft.calls, err, *dismissed)
+	}
+	if err := s.Do("timer:focus:x", "open", ""); err == nil {
+		t.Error("a nonsense length started a focus")
 	}
 }

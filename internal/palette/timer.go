@@ -14,6 +14,7 @@ import (
 type TimerControl interface {
 	Start(d time.Duration, label string)
 	StartPomodoro()
+	StartFocus(d time.Duration)
 	Pause()
 	Resume()
 	Stop()
@@ -28,6 +29,9 @@ var timerWords = map[string]bool{"timer": true, "countdown": true}
 // pomodoroWords start a pomodoro.
 var pomodoroWords = map[string]bool{"pomodoro": true, "pomo": true}
 
+// focusWords start one focus period, which blocks what the person listed.
+var focusWords = map[string]bool{"focus": true}
+
 // timerItems are the rows the timer offers for the text: the controls of a running timer, a pomodoro, or a countdown.
 func (s *Service) timerItems(text string) []Item {
 	if s.x.Timer == nil {
@@ -39,6 +43,15 @@ func (s *Service) timerItems(text string) []Item {
 	switch {
 	case pomodoroWords[first] && rest == "":
 		items = append(items, s.pomodoroItem())
+	case focusWords[first] && rest == "":
+		items = append(items, s.timerControls()...)
+		if !s.x.Timer.State().Active {
+			items = append(items, s.focusItem(time.Duration(s.x.Timer.Settings().FocusMinutes)*time.Minute), s.pomodoroItem())
+		}
+	case focusWords[first]:
+		if d, _, ok := timer.ParseDuration(rest); ok {
+			items = append(items, s.focusItem(d))
+		}
 	case timerWords[first] && rest == "":
 		items = append(items, s.timerControls()...)
 		if !s.x.Timer.State().Active {
@@ -66,6 +79,34 @@ func (s *Service) pomodoroItem() Item {
 		Title:    fmt.Sprintf("Start a pomodoro: %d min focus, %d min break", c.FocusMinutes, c.ShortBreakMinutes),
 		Subtitle: "Timer",
 	}
+}
+
+func (s *Service) focusItem(d time.Duration) Item {
+	return Item{
+		ID: "timer:focus:" + strconv.Itoa(int(d/time.Second)), Kind: "timer",
+		Title: "Start a " + sayDuration(d) + " focus", Subtitle: "Focus · " + blockSummary(s.x.Timer.Settings()),
+	}
+}
+
+// blockSummary says what a focus period keeps away: "blocks 3 sites and 1 app".
+func blockSummary(c config.Timer) string {
+	sites, apps := len(c.BlockSites), len(c.BlockApps)
+	if !c.Block || sites+apps == 0 {
+		return "nothing is blocked; choose what in Settings, Timer"
+	}
+	var parts []string
+	for _, n := range []struct {
+		count     int
+		one, many string
+	}{{sites, "site", "sites"}, {apps, "app", "apps"}} {
+		switch {
+		case n.count == 1:
+			parts = append(parts, "1 "+n.one)
+		case n.count > 1:
+			parts = append(parts, strconv.Itoa(n.count)+" "+n.many)
+		}
+	}
+	return "blocks " + strings.Join(parts, " and ")
 }
 
 func countdownItem(d time.Duration, label string) Item {
@@ -132,6 +173,12 @@ func (s *Service) doTimer(rest, action string) error {
 		run = s.x.Timer.Stop
 	case rest == "skip":
 		run = s.x.Timer.Skip
+	case strings.HasPrefix(rest, "focus:"):
+		n, err := strconv.Atoi(strings.TrimPrefix(rest, "focus:"))
+		if err != nil || n <= 0 {
+			return fmt.Errorf("%q is not a length of time", rest)
+		}
+		run = func() { s.x.Timer.StartFocus(time.Duration(n) * time.Second) }
 	case strings.HasPrefix(rest, "start:"):
 		seconds, label, _ := strings.Cut(strings.TrimPrefix(rest, "start:"), ":")
 		n, err := strconv.Atoi(seconds)

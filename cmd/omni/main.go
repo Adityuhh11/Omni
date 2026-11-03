@@ -30,6 +30,7 @@ import (
 	"omni/internal/config"
 	"omni/internal/enginesetup"
 	"omni/internal/files"
+	"omni/internal/focus"
 	"omni/internal/hotkey"
 	"omni/internal/indexing"
 	"omni/internal/llm"
@@ -455,6 +456,13 @@ func run(afterUpdate bool) error {
 				timerWindow.Close()
 			}
 		})
+	// During a focus period the window in front is hidden if it is a site or program the person listed, and the timer shows.
+	focusGuard := &focus.Guard{
+		Focusing: countdown.Focusing,
+		Rules:    func() config.Timer { return store.Get().Timer },
+		OnBlock:  func(string) { timerWindow.Open() },
+		Logf:     log.Printf,
+	}
 	var checker *update.Checker
 	checker = update.NewChecker(version, func() {
 		release, _ := checker.Found()
@@ -716,6 +724,7 @@ func run(afterUpdate bool) error {
 		indexer.SetWindow(indexWindow(cfg.Search.IndexBetween))
 		go indexer.Run(ctx)
 		go countdown.Run(ctx)
+		go focusGuard.Run(ctx)
 		go surveys.Run(ctx)
 		go clips.Run(ctx)
 		go checker.Run(ctx, func() bool { return store.Get().CheckUpdates })

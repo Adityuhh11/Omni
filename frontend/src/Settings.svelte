@@ -23,7 +23,7 @@
     { id: "quicklinks", label: "Quicklinks", icon: "link", heading: "Features" },
     { id: "snippets", label: "Snippets", icon: "snippet" },
     { id: "clipboard", label: "Clipboard", icon: "clip" },
-    { id: "timer", label: "Timer", icon: "timer" },
+    { id: "timer", label: "Focus & timer", icon: "timer" },
     { id: "search", label: "File search", icon: "search", heading: "Intelligence" },
     { id: "omni-ai", label: "Omni AI", icon: "spark" },
     { id: "ai-apps", label: "AI apps", icon: "link" },

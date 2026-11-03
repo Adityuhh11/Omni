@@ -79,6 +79,11 @@ type Timer struct {
 	AutoNext bool `toml:"auto_next"`
 	// PresetMinutes are the quick countdowns the bar offers when only "timer" is typed. Any other length is typed after it.
 	PresetMinutes []int `toml:"preset_minutes"`
+	// Block keeps the sites in BlockSites ("youtube.com", which covers its subdomains) and the programs in BlockApps
+	// ("discord.exe" on Windows, "Discord" on a Mac) out of the way while a focus period runs (internal/focus).
+	Block      bool     `toml:"block"`
+	BlockSites []string `toml:"block_sites"`
+	BlockApps  []string `toml:"block_apps"`
 }
 
 // maxPresets keeps the bar's list of quick timers short enough to read at a glance.

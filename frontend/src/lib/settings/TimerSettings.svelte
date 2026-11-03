@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac } from "../platform";
   import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { View } from "../../../bindings/omni/internal/settingsui";
 
@@ -17,6 +18,13 @@
   let auto = $state(view.Timer.AutoNext);
   // svelte-ignore state_referenced_locally
   let presets = $state((view.Timer.PresetMinutes ?? []).join(", "));
+  // svelte-ignore state_referenced_locally
+  let block = $state(view.Timer.Block);
+  // svelte-ignore state_referenced_locally
+  let sites = $state((view.Timer.BlockSites ?? []).join("\n"));
+  // svelte-ignore state_referenced_locally
+  let apps = $state((view.Timer.BlockApps ?? []).join("\n"));
+  const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
   let error = $state("");
   let saved = $state(false);
   let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -35,6 +43,9 @@
       Rounds: rounds,
       AutoNext: auto,
       PresetMinutes: minutes,
+      Block: block,
+      BlockSites: lines(sites),
+      BlockApps: lines(apps),
     });
     if (error === "") {
       saved = true;
@@ -45,9 +56,32 @@
 </script>
 
 <div class="head-row">
-  <h2>Timer</h2>
+  <h2>Focus &amp; timer</h2>
   <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 </div>
+
+<h3 class="group-title">Focus</h3>
+<div class="group">
+  <label class="item">
+    <span class="text">
+      <span class="name">Block distractions while I focus</span>
+      <span class="sub">During a focus period, a listed site or app is {isMac ? "hidden" : "minimized"} and the timer shows</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={block} onchange={save} />
+  </label>
+  <div class="item stack">
+    <label class="name" for="block-sites">Sites</label>
+    <textarea id="block-sites" rows="4" bind:value={sites} onchange={save} disabled={!block} spellcheck="false" placeholder={"youtube.com\nreddit.com\nx.com"}></textarea>
+  </div>
+  <div class="item stack">
+    <label class="name" for="block-apps">Apps</label>
+    <textarea id="block-apps" rows="3" bind:value={apps} onchange={save} disabled={!block} spellcheck="false" placeholder={isMac ? "Discord\nSteam" : "discord.exe\nsteam.exe"}></textarea>
+  </div>
+</div>
+<p class="group-note">
+  Type <span class="mono">focus</span> or <span class="mono">focus 50</span> in the bar; a pomodoro's focus periods block too.
+  {#if isMac}The first time, macOS asks whether Omni may read each browser's address.{/if}
+</p>
 
 <h3 class="group-title">Pomodoro</h3>
 <div class="group">
@@ -110,5 +144,26 @@
   }
   label.item {
     cursor: pointer;
+  }
+  textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--tile);
+    color: var(--text);
+    font: 450 13px/1.5 var(--mono);
+    resize: vertical;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
+  }
+  textarea:disabled {
+    color: var(--text-3);
+  }
+  textarea::placeholder {
+    color: var(--text-3);
   }
 </style>

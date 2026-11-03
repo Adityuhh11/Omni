@@ -56,6 +56,28 @@ func TestAPlainTimerCountsDownAndFinishesOnce(t *testing.T) {
 	}
 }
 
+func TestOneFocusPeriodBlocksWhileItRunsAndNothingFollowsIt(t *testing.T) {
+	h := newHarness()
+	h.cfg.AutoNext = true
+	h.StartFocus(50 * time.Minute)
+	if s := h.State(); s.Phase != Focus || s.Next != "" || !h.Focusing() {
+		t.Fatalf("state = %+v, focusing %v", s, h.Focusing())
+	}
+	h.Pause()
+	if h.Focusing() {
+		t.Error("a paused focus period still blocks")
+	}
+	h.Resume()
+	h.pass(50 * time.Minute)
+	if s := h.State(); !s.Finished || h.Focusing() || len(h.finished) != 1 {
+		t.Errorf("after the end: %+v, focusing %v", s, h.Focusing())
+	}
+	h.Start(time.Minute, "")
+	if h.Focusing() {
+		t.Error("a plain countdown blocks")
+	}
+}
+
 func TestPausingStopsTheClockAndResumingContinuesFromWhereItWas(t *testing.T) {
 	h := newHarness()
 	h.Start(time.Minute, "")

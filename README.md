@@ -42,7 +42,7 @@
 | **Snippets** | Text you paste often, with `{date}`, `{time}` and `{clipboard}` filled in. `snip:` or a keyword. |
 | **Omni AI** *(optional)* | `ask:` opens a small chat window. It answers with a language model on this computer (Liquid AI's LFM3-1.7B, 1 GB, downloaded once), or with a model you already run (LM Studio, Ollama) or a service with your own API key. It can use tools you switch on: your files, notes, clipboard history, browser history, your scripts, and web search. Other AI apps (Claude Desktop, Cursor, VS Code) can use those tools too. |
 | **Notes** | `note:` lists your notes; `note: buy milk` makes one. They are plain markdown files. |
-| **Timer and pomodoro** | `timer 25`, `timer 1h30 tea`, `pomodoro`: a small timer sits at the edge of the screen. |
+| **Focus, timer and pomodoro** | `focus 50` starts a focus period that keeps the sites and apps you list out of the way (minimized on Windows, hidden on a Mac) until it ends; a pomodoro's focus periods do the same. `timer 25`, `timer 1h30 tea`, `pomodoro`: a small timer sits at the edge of the screen. |
 | **Calculator and conversions** | `12*7+3`, `15% of 80`, `5 km in miles`, `72 f in c`. Enter copies the answer. |
 | **System** | `lock`, `sleep`, `hibernate`, `turn off the display`, `sign out`, `restart`, `shut down`, `task manager`, `recycle bin`, `windows settings`. The three that end the session take a second Enter. |
 | **Tags and pins** | `Ctrl+T` tags an app or file, `#work` lists everything tagged. `Ctrl+P` pins up to eight rows that show the moment the bar opens. |
