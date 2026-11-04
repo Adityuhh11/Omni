@@ -102,7 +102,7 @@ html[data-active="false"] *::after {
 }
 
 /* No ring: the bar and the chat's box get a plain hairline edge instead, and the plate fills the card to its edge. */
-html[data-ring="off"] {
+html[data-ring="off"][data-theme] { /* above a theme's own edges, Glass's included */
   --ring: 0px;
   --bar-edge: 12%;
   --well-edge: 12%;

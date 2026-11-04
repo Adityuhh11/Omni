@@ -75,6 +75,10 @@ const dwmwaUseHostBackdropBrush = 17
 // object is a COM object: its first word points at its table of methods.
 type object struct{ table *[64]uintptr }
 
+// The arguments may be pointers converted to uintptr (a place for a result, a Vector3): uintptrescapes keeps what they point at on
+// the heap and alive until the call returns, so a stack that grows meanwhile cannot move it from under the system.
+//
+//go:uintptrescapes
 func (o *object) call(slot int, args ...uintptr) error {
 	hr, _, _ := syscall.SyscallN(o.table[slot], append([]uintptr{uintptr(unsafe.Pointer(o))}, args...)...)
 	if int32(hr) < 0 {
@@ -100,7 +104,11 @@ func (o *object) create(slot int) (*object, error) {
 	return out, nil
 }
 
-func (o *object) release() { _ = o.call(slotRelease) }
+func (o *object) release() {
+	if o != nil {
+		_ = o.call(slotRelease) // Release returns a count, not an HRESULT: nothing to check
+	}
+}
 
 // float is a float32 argument as the system's calling convention takes it; the first four arguments also travel in the float
 // registers, and later ones are read from their slot on the stack.
@@ -124,6 +132,12 @@ type pane struct {
 	target *object // kept alive: releasing it takes the visual off the window
 }
 
+func (p *pane) release() {
+	p.clip.release()
+	p.visual.release()
+	p.target.release()
+}
+
 var (
 	compositor *object // ICompositor, made on the windows' thread on first use
 	panes      = map[uintptr]*pane{}
@@ -135,8 +149,30 @@ func shape(hwnd uintptr, r Rect, _ bool) error {
 		return errors.New("glass: the window has no handle yet")
 	}
 	var err error
-	application.InvokeSync(func() { err = shapeNow(hwnd, r) })
+	application.InvokeSync(func() {
+		// A panic here would leave InvokeSync waiting for ever (Wails recovers it without finishing the call).
+		defer func() {
+			if v := recover(); v != nil {
+				err = fmt.Errorf("glass: %v", v)
+			}
+		}()
+		err = shapeNow(hwnd, r)
+	})
 	return err
+}
+
+// forget releases a window's glass when the window closes: Windows gives a later window the same handle, which must get a pane
+// of its own.
+func forget(hwnd uintptr) {
+	application.InvokeSync(func() {
+		mu.Lock()
+		p := panes[hwnd]
+		delete(panes, hwnd)
+		mu.Unlock()
+		if p != nil {
+			p.release()
+		}
+	})
 }
 
 func shapeNow(hwnd uintptr, r Rect) error {
@@ -166,12 +202,14 @@ func shapeNow(hwnd uintptr, r Rect) error {
 	s := float64(dpi) / 96
 	x, y, w, h, radius := r.X*s, r.Y*s, r.W*s, r.H*s, r.R*s
 	offset := [3]float32{float32(x), float32(y), 0} // a Vector3 is 12 bytes, passed by address
+	if err := p.visual.call(slotPutOffset, uintptr(unsafe.Pointer(&offset))); err != nil {
+		return fmt.Errorf("glass: place the pane: %w", err)
+	}
 	steps := []struct {
 		o    *object
 		slot int
 		arg  uintptr
 	}{
-		{p.visual, slotPutOffset, uintptr(unsafe.Pointer(&offset))},
 		{p.visual, slotPutSize, vector2(w, h)},
 		{p.clip, slotPutLeft, float(0)},
 		{p.clip, slotPutTop, float(0)},
@@ -198,7 +236,13 @@ func boolArg(b bool) uintptr {
 }
 
 // newPane puts a visual filled with the blurred backdrop behind the window's page.
-func newPane(hwnd uintptr) (*pane, error) {
+func newPane(hwnd uintptr) (_ *pane, err error) {
+	built := &pane{}
+	defer func() {
+		if err != nil {
+			built.release() // what was made before the step that failed
+		}
+	}()
 	if compositor == nil {
 		c, err := newCompositor()
 		if err != nil {
@@ -215,9 +259,8 @@ func newPane(hwnd uintptr) (*pane, error) {
 		return nil, fmt.Errorf("desktop interop: %w", err)
 	}
 	defer interop.release()
-	var target *object
 	// Not topmost: the visual goes behind the window's content, the page.
-	if err := interop.call(slotCreateDesktopWindowTarget, hwnd, 0, uintptr(unsafe.Pointer(&target))); err != nil {
+	if err := interop.call(slotCreateDesktopWindowTarget, hwnd, 0, uintptr(unsafe.Pointer(&built.target))); err != nil {
 		return nil, fmt.Errorf("window target: %w", err)
 	}
 	sprite, err := compositor.create(slotCreateSpriteVisual)
@@ -248,8 +291,7 @@ func newPane(hwnd uintptr) (*pane, error) {
 	if err := spriteVisual.call(slotPutBrush, uintptr(unsafe.Pointer(brush))); err != nil {
 		return nil, fmt.Errorf("fill the visual: %w", err)
 	}
-	visual, err := sprite.as(iidVisual)
-	if err != nil {
+	if built.visual, err = sprite.as(iidVisual); err != nil {
 		return nil, err
 	}
 	c7, err := compositor.as(iidCompositor7)
@@ -262,8 +304,7 @@ func newPane(hwnd uintptr) (*pane, error) {
 		return nil, fmt.Errorf("clip: %w", err)
 	}
 	defer rect.release()
-	clip, err := rect.as(iidRectangleClip)
-	if err != nil {
+	if built.clip, err = rect.as(iidRectangleClip); err != nil {
 		return nil, err
 	}
 	asClip, err := rect.as(iidClip)
@@ -271,18 +312,18 @@ func newPane(hwnd uintptr) (*pane, error) {
 		return nil, err
 	}
 	defer asClip.release()
-	if err := visual.call(slotPutClip, uintptr(unsafe.Pointer(asClip))); err != nil {
+	if err := built.visual.call(slotPutClip, uintptr(unsafe.Pointer(asClip))); err != nil {
 		return nil, fmt.Errorf("clip the visual: %w", err)
 	}
-	asTarget, err := target.as(iidCompositionTarget)
+	asTarget, err := built.target.as(iidCompositionTarget)
 	if err != nil {
 		return nil, err
 	}
 	defer asTarget.release()
-	if err := asTarget.call(slotPutRoot, uintptr(unsafe.Pointer(visual))); err != nil {
+	if err := asTarget.call(slotPutRoot, uintptr(unsafe.Pointer(built.visual))); err != nil {
 		return nil, fmt.Errorf("put the visual on the window: %w", err)
 	}
-	return &pane{visual: visual, clip: clip, target: target}, nil
+	return built, nil
 }
 
 // newCompositor makes the compositor on this thread, with the dispatcher queue it needs to send its changes to the screen.

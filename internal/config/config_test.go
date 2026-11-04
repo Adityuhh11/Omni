@@ -120,6 +120,7 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 		{"unknown video mode", "[search]\npace = 'fast'\nvideos = 'off'\n", "videos"},
 		{"unknown audio mode", "[search]\npace = 'fast'\naudio = 'on'\n", "audio"},
 		{"unknown theme", "[ui]\ntheme = 'neon'\n", "ui theme"},
+		{"unknown accent", "[ui]\naccent = 'neon'\n", "ui accent"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -384,7 +385,7 @@ pace = 'fast'
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.UI.SelectionEffect || !got.Search.GroupResults {
+	if !got.UI.SelectionEffect || !got.Search.GroupResults || !got.UI.Ring || got.UI.Accent != "none" {
 		t.Errorf("the feel settings must be on when the file lacks them: %+v %+v", got.UI, got.Search)
 	}
 	if !reflect.DeepEqual(got.Timer, Timer{FocusMinutes: 25, ShortBreakMinutes: 5, LongBreakMinutes: 15, Rounds: 4, PresetMinutes: []int{5, 10, 25, 45},

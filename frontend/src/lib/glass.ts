@@ -28,10 +28,15 @@ export function glass(node: HTMLElement, radius: number) {
     const key = `${box.left} ${box.top} ${box.width} ${box.height} ${radius} ${dark}`;
     if (key === last) return;
     last = key;
-    Glass.Shape(box.left, box.top, box.width, box.height, radius, dark).catch((err) => {
-      console.warn("glass:", err);
-      off();
-    });
+    Glass.Shape(box.left, box.top, box.width, box.height, radius, dark).then(
+      // A call that failed earlier (the window had no handle yet) does not keep the card opaque once one works.
+      () => delete document.documentElement.dataset.glass,
+      (err) => {
+        console.warn("glass:", err);
+        off();
+        last = ""; // tried again on the next change
+      },
+    );
   };
   // Once a frame at most: the bar's card changes height every frame while it grows.
   const soon = () => (frame ||= requestAnimationFrame(send));
@@ -42,8 +47,8 @@ export function glass(node: HTMLElement, radius: number) {
   themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("resize", soon);
   const changed = () => {
+    // Turning it on takes the blur away (send sees what was shown); turning it off shows it again (the key no longer matches).
     if (!reduced.matches) delete document.documentElement.dataset.glass;
-    last = "";
     soon();
   };
   reduced.addEventListener("change", changed);

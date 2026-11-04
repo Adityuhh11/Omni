@@ -22,3 +22,6 @@ func shape(window uintptr, r Rect, dark bool) error {
 	C.omniGlassShape(C.ulong(window), C.double(r.X), C.double(r.Y), C.double(r.W), C.double(r.H), C.double(r.R), C.int(d))
 	return nil
 }
+
+// forget has nothing to do on a Mac: the effect view belongs to its window and goes with it.
+func forget(uintptr) {}

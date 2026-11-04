@@ -67,7 +67,9 @@ export function applyLook(next: Partial<Look>) {
 export function followLook() {
   let saved: Partial<Look> = DEFAULT;
   try {
-    saved = { ...DEFAULT, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
+    // Before the ring and the accent, only the theme was kept, under its own name.
+    const kept = localStorage.getItem(KEY);
+    saved = kept ? { ...DEFAULT, ...JSON.parse(kept) } : { ...DEFAULT, Theme: localStorage.getItem("omni.theme") ?? DEFAULT.Theme };
   } catch {
     // nothing kept, or not readable: the default until the launcher answers
   }

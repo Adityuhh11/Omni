@@ -71,6 +71,10 @@ Three choices in Settings, General change this, and every window follows at once
 |---|---|---|
 | `--plate` | `#000` | the plate, flat |
 | `--glass` | the plate; plate at 55% in Glass | the cards' fill |
+| `--card-rim`, `--card-edge` | 16%, 10% of ink (24%, 14% in Glass) | the cards' lit top rim and hairline edge |
+| `--bar-rim`, `--bar-edge` | 13%, 4.5% (22%, 8% in Glass; edge 12% without the ring) | the bar's rim and edge |
+| `--well`, `--well-edge` | `#0d0d0e`, 0% (12% without the ring) | the chat's box inside its ring |
+| `--ring` | 2.5px (0 without the ring) | how much of the card the ring takes |
 | `--glass-raised` + `--glass-blur` | the plate, no blur; plate at 84% and the page's own blur in Glass | what floats inside a card: the action panel, an event's details, the chat's history |
 | `--lift` | `rgba(255,255,255,.075)` | selected row |
 | `--tile` | `rgba(255,255,255,.055)` | icon tiles, count and key chips |
