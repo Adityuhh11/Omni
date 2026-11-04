@@ -381,7 +381,7 @@ func run(afterUpdate bool) error {
 		log.Printf("scripts are off: %v", err)
 	}
 	localTools := aitools.Deps{
-		Files: fileSearch, Clips: clips, Browser: browsers.Search,
+		Files: fileSearch, Clips: clips, Browser: browsers.Search, Calendar: calendars,
 		Launches: func(since time.Time) []aitools.Launch {
 			var out []aitools.Launch
 			for _, u := range history.Since(since) {
