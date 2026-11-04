@@ -9,6 +9,7 @@
   import RoundButton from "./lib/RoundButton.svelte";
   import About from "./lib/settings/About.svelte";
   import AIApps from "./lib/settings/AIApps.svelte";
+  import CalendarSettings from "./lib/settings/CalendarSettings.svelte";
   import Clipboard from "./lib/settings/Clipboard.svelte";
   import FileSearch from "./lib/settings/FileSearch.svelte";
   import General from "./lib/settings/General.svelte";
@@ -17,16 +18,18 @@
   import Snippets from "./lib/settings/Snippets.svelte";
   import TimerSettings from "./lib/settings/TimerSettings.svelte";
 
+  // The sidebar is in three parts; a section with a heading starts a part.
   const SECTIONS = [
     { id: "general", label: "General", icon: "settings" },
-    { id: "quicklinks", label: "Quicklinks", icon: "link" },
+    { id: "quicklinks", label: "Quicklinks", icon: "link", heading: "Features" },
     { id: "snippets", label: "Snippets", icon: "snippet" },
-    { id: "search", label: "File search", icon: "search" },
     { id: "clipboard", label: "Clipboard", icon: "clip" },
+    { id: "timer", label: "Focus & timer", icon: "timer" },
+    { id: "calendar", label: "Calendar", icon: "calendar" },
+    { id: "search", label: "File search", icon: "search", heading: "Intelligence" },
     { id: "omni-ai", label: "Omni AI", icon: "spark" },
     { id: "ai-apps", label: "AI apps", icon: "link" },
-    { id: "timer", label: "Timer", icon: "timer" },
-    { id: "about", label: "About", icon: "info" },
+    { id: "about", label: "About", icon: "info", heading: "" },
   ] as const;
 
   // A window opened on a section ("#settings/about", after an update) starts there.
@@ -58,6 +61,9 @@
   <nav aria-label="Settings sections">
     <h1>Settings</h1>
     {#each SECTIONS as s (s.id)}
+      {#if "heading" in s}
+        {#if s.heading}<h2>{s.heading}</h2>{:else}<hr />{/if}
+      {/if}
       <button type="button" class:on={section === s.id} aria-current={section === s.id ? "page" : undefined} onclick={() => (section = s.id)}>
         <Icon name={s.icon} size={18} />
         {s.label}
@@ -80,6 +86,8 @@
         <OmniAI />
       {:else if section === "ai-apps"}
         <AIApps />
+      {:else if section === "calendar"}
+        <CalendarSettings />
       {:else if section === "timer"}
         <TimerSettings {view} />
       {:else}
@@ -128,6 +136,18 @@
     padding: 0 12px;
     font: 620 15px/1.2 var(--sans);
     letter-spacing: -0.01em;
+  }
+  nav h2 {
+    margin: 16px 0 4px;
+    padding: 0 12px;
+    color: var(--text-3);
+    font: 560 11.5px/1.2 var(--sans);
+  }
+  nav hr {
+    width: calc(100% - 24px);
+    margin: 12px auto;
+    border: 0;
+    border-top: 1px solid var(--line);
   }
   nav button {
     display: flex;

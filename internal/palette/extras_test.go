@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestASumIsAnsweredFirstAndEnterCopiesTheAnswer(t *testing.T) {
@@ -83,8 +84,32 @@ func TestSystemRowsAreFoundByNameAndRunAfterTheBarIsClosed(t *testing.T) {
 	if got := kinds(s.Query("lo", ModeAll)); strings.Contains(got, "system") {
 		t.Errorf("two letters offered a system row: %s", got)
 	}
-	if got := kinds(s.Query("shutdown", ModeAll)); strings.Contains(got, "system") {
-		t.Errorf("shutting down must not be offered: %s", got)
+}
+
+func TestEndingTheSessionTakesASecondEnterInTime(t *testing.T) {
+	s, dismissed := newService(t)
+	now := time.Unix(1000, 0)
+	s.now = func() time.Time { return now }
+	var ran []string
+	With(s, Extras{RunSystem: func(id string) error { ran = append(ran, id); return nil }})
+
+	err := s.Do("sys:shutdown", "open", "")
+	if err == nil || !strings.Contains(err.Error(), "Enter again") || len(ran) != 0 || *dismissed != 0 {
+		t.Fatalf("first Enter: err %v, ran %v, dismissed %d", err, ran, *dismissed)
+	}
+	now = now.Add(confirmWindow + time.Second) // too late: this one is a first Enter again
+	if err := s.Do("sys:shutdown", "open", ""); err == nil || len(ran) != 0 {
+		t.Fatalf("late Enter ran: %v", ran)
+	}
+	if err := s.Do("sys:restart", "open", ""); err == nil || len(ran) != 0 {
+		t.Fatalf("an Enter on another row counted as the second: %v", ran)
+	}
+	now = now.Add(time.Second)
+	if err := s.Do("sys:restart", "open", ""); err != nil || len(ran) != 1 || ran[0] != "sys:restart" || *dismissed != 1 {
+		t.Errorf("second Enter: err %v, ran %v, dismissed %d", err, ran, *dismissed)
+	}
+	if err := s.Do("sys:restart", "open", ""); err == nil || len(ran) != 1 {
+		t.Errorf("a third Enter ran it again: %v", ran)
 	}
 }
 

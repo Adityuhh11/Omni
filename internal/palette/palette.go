@@ -138,6 +138,7 @@ type Service struct {
 	openSettings func(section string)
 	dismiss      func()
 	now          func() time.Time
+	armed        armed
 }
 
 // New returns a service. dismiss closes the bar after something was started, without giving the
@@ -182,6 +183,7 @@ func (s *Service) Query(raw, mode string) Answer {
 	if mode == ModeAll {
 		answer.Items = append(answer.Items, calcItems(text)...) // a sum is the answer to a sum, ahead of anything it also spells
 		answer.Items = append(answer.Items, s.timerItems(text)...)
+		answer.Items = append(answer.Items, s.calendarItems(text)...)
 		answer.Items = append(answer.Items, s.keywordItems(text)...)
 		answer.Items = append(answer.Items, s.scriptItems(text)...)
 		if soundScope.MatchString(raw) {
@@ -315,6 +317,9 @@ func (s *Service) Do(id, action, typed string) error {
 	}
 	if rest, ok := strings.CutPrefix(id, "timer:"); ok {
 		return s.doTimer(rest, action)
+	}
+	if rest, ok := strings.CutPrefix(id, "cal:"); ok {
+		return s.doCalendar(rest, action)
 	}
 	if rest, ok := strings.CutPrefix(id, "note:"); ok {
 		return s.doNote(rest, action)

@@ -85,6 +85,13 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
 - **Hints:** one row of key caps (`↑↓`, `Enter`, `Ctrl+Enter`, `→` when the file has more matches, `Esc`), with the
   index status at the right while indexing.
 - **Notes:** one line each above the results (hotkey taken, engine failed, nothing matched, no strong match).
+- **Settings pages:** a page is titled groups (`.group-title`, `.group`) of rows (`.item`): the name on the left, its control on the
+  right, a line under the name (`.sub`) only when it changes a decision (what is sent, what is deleted, how much space), a hint for
+  the whole group under it (`.group-note`). On and off is a switch (`input.switch`), never a checkbox. The sidebar is in three parts
+  (General; Features; Intelligence) and About. The shared styles are in `lib/settings/forms.css`.
+- **Calendar window:** a week grid (an hour is 46 px), today's date in a chrome disc and a thin red line at the time now, events
+  as tinted blocks with a 2 px bar of their calendar's colour. The calendar colours are the one exception to "no accent hue":
+  they tell calendars apart, so they are data, and they are muted metals (`lib/calendar.ts`) from the ring's family.
 - **Browser surfaces:** themed selection, caret and scrollbar; no focus ring on rows (selection is the focus).
 
 ## Rules

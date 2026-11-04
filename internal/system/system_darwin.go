@@ -6,13 +6,24 @@ import (
 	"os/exec"
 )
 
-// Commands are the rows the bar offers on a Mac. Shut down and restart are left out, as on Windows.
+// Commands are the rows the bar offers on a Mac. There is no Hibernate: a Mac decides that itself (pmset hibernatemode).
 var Commands = []Command{
-	{"sys:lock", "Lock the screen"},
-	{"sys:sleep", "Sleep"},
-	{"sys:activitymonitor", "Activity Monitor"},
-	{"sys:recycle", "Empty the Trash"},
-	{"sys:systemsettings", "System Settings"},
+	{ID: "sys:lock", Title: "Lock the screen"},
+	{ID: "sys:sleep", Title: "Sleep"},
+	{ID: "sys:displayoff", Title: "Turn off the display"},
+	{ID: "sys:signout", Title: "Log out", Confirm: true},
+	{ID: "sys:restart", Title: "Restart", Confirm: true},
+	{ID: "sys:shutdown", Title: "Shut down", Confirm: true},
+	{ID: "sys:activitymonitor", Title: "Activity Monitor"},
+	{ID: "sys:recycle", Title: "Empty the Trash"},
+	{ID: "sys:systemsettings", Title: "System Settings"},
+}
+
+// systemEvents asks System Events to end the session. The bar has already asked for a second Enter, so no system dialog follows: System
+// Events restarts and shuts down without one, and «event aevtrlgo» is the log out that skips it. Programs may still ask to save their work.
+// The first time, macOS asks whether Omni may control System Events.
+func systemEvents(verb string) func() error {
+	return func() error { return run("osascript", "-e", `tell application "System Events" to `+verb) }
 }
 
 // cgSession is the helper that locks the session without asking for any permission. Apple has moved it before, so it is used when it is
@@ -30,6 +41,10 @@ func lock() error {
 func init() {
 	actions["sys:lock"] = lock
 	actions["sys:sleep"] = func() error { return run("pmset", "sleepnow") }
+	actions["sys:displayoff"] = func() error { return run("pmset", "displaysleepnow") }
+	actions["sys:signout"] = systemEvents("«event aevtrlgo»")
+	actions["sys:restart"] = systemEvents("restart")
+	actions["sys:shutdown"] = systemEvents("shut down")
 	actions["sys:activitymonitor"] = func() error { return run("open", "-a", "Activity Monitor") }
 	actions["sys:systemsettings"] = func() error { return run("open", "x-apple.systempreferences:") }
 	// Finder asks the person to confirm, as the Recycle Bin does on Windows. The first time, macOS asks whether Omni may control Finder.

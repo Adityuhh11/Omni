@@ -11,7 +11,20 @@ func TestEveryOfferedActionIsKnownAndAnUnknownOneIsRefused(t *testing.T) {
 			t.Errorf("%s has no action", c.ID)
 		}
 	}
-	if err := Run("sys:shutdown"); err == nil {
-		t.Error("shutting down must not be offered")
+	if err := Run("sys:nothing"); err == nil {
+		t.Error("an unknown action ran")
+	}
+}
+
+func TestEndingTheSessionAsksFirst(t *testing.T) {
+	ends := map[string]bool{"sys:shutdown": true, "sys:restart": true, "sys:signout": true}
+	for _, c := range Commands {
+		if c.Confirm != ends[c.ID] {
+			t.Errorf("%s: confirm = %v", c.ID, c.Confirm)
+		}
+		delete(ends, c.ID)
+	}
+	if len(ends) > 0 {
+		t.Errorf("not offered: %v", ends)
 	}
 }

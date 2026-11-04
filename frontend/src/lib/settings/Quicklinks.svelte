@@ -38,66 +38,50 @@
   }
 </script>
 
-<h2>Quicklinks</h2>
-<p class="lede">
-  Type a trigger, a space, and what to look for: <span class="mono">gh rust lifetimes</span> opens that search on GitHub. Put {QUERY} in the
-  address where the words go.
-</p>
+<div class="head-row">
+  <h2>Quicklinks</h2>
+  <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
+</div>
 
-{#if rows.length > 0}
-  <div class="table" role="group" aria-label="Quicklinks">
-    <div class="head"><span>Trigger</span><span>Name</span><span>Address</span><span></span></div>
+<h3 class="group-title">Type a trigger and words: <span class="mono">gh rust lifetimes</span></h3>
+<div class="group" role="group" aria-label="Quicklinks">
+  {#if rows.length > 0}
+    <div class="item cols head" aria-hidden="true"><span>Trigger</span><span>Name</span><span>Address, with {QUERY} for the words</span><span></span></div>
     {#each rows as row, i (i)}
-      <div class="row">
+      <div class="item cols">
         <input type="text" class="mono" aria-label="Trigger" placeholder="gh" bind:value={row.trigger} onchange={commit} spellcheck="false" />
         <input type="text" aria-label="Name" placeholder="GitHub" bind:value={row.title} onchange={commit} />
-        <input
-          type="text"
-          class="mono"
-          aria-label="Address"
-          placeholder={"https://github.com/search?q=" + QUERY}
-          bind:value={row.url}
-          onchange={commit}
-          spellcheck="false"
-        />
+        <input type="text" class="mono" aria-label="Address" placeholder={"https://github.com/search?q=" + QUERY} bind:value={row.url} onchange={commit} spellcheck="false" />
         <button type="button" class="btn quiet" aria-label="Remove this quicklink" onclick={() => remove(i)}>✕</button>
       </div>
     {/each}
+  {:else}
+    <p class="item sub">No quicklinks yet.</p>
+  {/if}
+  <div class="item">
+    <button type="button" class="btn" onclick={() => rows.push({ trigger: "", title: "", url: "" })}>Add quicklink</button>
+    {#if incomplete}<span class="sub">Saved once all three are filled in.</span>{/if}
   </div>
-{:else}
-  <p class="help">No quicklinks yet.</p>
-{/if}
-
-<div class="actions">
-  <button type="button" class="btn" onclick={() => rows.push({ trigger: "", title: "", url: "" })}>Add quicklink</button>
 </div>
-{#if incomplete}<p class="help">A quicklink is saved once its trigger, name and address are all filled in.</p>{/if}
 {#if error}<p class="error">{error}</p>{/if}
-<p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 
 <style>
-  .table {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  .head,
-  .row {
+  .cols {
     display: grid;
     grid-template-columns: 84px 120px minmax(0, 1fr) 34px;
     gap: 8px;
-    align-items: center;
   }
-  .head {
-    color: var(--text-3);
-    font: 500 11.5px/1 var(--sans);
-    padding: 0 2px;
-  }
-  .row :global(input) {
+  .item.cols > input {
+    width: auto;
     min-width: 0;
   }
-  .actions {
-    margin-bottom: 10px;
+  .head {
+    min-height: 0;
+    padding-bottom: 0;
+    color: var(--text-3);
+    font: 500 11.5px/1 var(--sans);
+  }
+  .head + .item {
+    border-top: 0;
   }
 </style>
