@@ -1,8 +1,13 @@
-/* Pure black (the default theme; the others are at the end of this file): the plate is #000, flat, like an OLED screen or black paint on a sports car; the premium
-   comes from the lit edge and the ring, not from texture or gradient. One metal for the ring. No accent hue; emphasis is weight and brightness. The plate is opaque, so it stays dark
-   whatever is behind the panel. */
+/* Pure black (the default theme; the others are at the end of this file): the plate is #000, like an OLED screen or black paint on a sports car; the premium
+   comes from the lit edge and the ring, not from texture or gradient. One metal for the ring. No accent hue; emphasis is weight and brightness. The cards are frosted
+   glass: the system blurs what is behind them (lib/glass.ts) and --glass, the plate part see-through, tints it dark enough to read over a white page. */
 :root {
   --plate: #000;
+  --glass-tint: 55%;
+  --glass: color-mix(in srgb, var(--plate) var(--glass-tint), transparent);
+  /* What floats inside a card (a menu, an event's details): more plate, and the page's own blur of what it covers. */
+  --glass-raised: color-mix(in srgb, var(--plate) 84%, transparent);
+  --glass-blur: blur(24px) saturate(150%);
   /* The colour that lifts and outlines things on the plate (white on a dark theme, near black on a light one); every tint
      below and in the components is this colour at some strength, so a theme only has to set its few colours. */
   --ink: #fff;
@@ -90,10 +95,22 @@ html[data-active="false"] *::after {
   animation-play-state: paused !important;
 }
 
-/* The settings window is an ordinary opaque window, not the transparent search bar. */
+/* No glass where the system cannot blur, or where the person asked it for less transparency: the plate is opaque again. */
+html[data-glass="off"] {
+  --glass: var(--plate);
+  --glass-raised: var(--plate);
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass: var(--plate);
+    --glass-raised: var(--plate);
+  }
+}
+
+/* The setup is an ordinary window with a title bar; the system frosts all of it (Mica on Windows) and the page tints it. */
 html[data-surface="settings"],
 html[data-surface="settings"] body {
-  background: var(--plate);
+  background: transparent;
   overflow: auto;
   user-select: text;
 }
@@ -143,6 +160,7 @@ html[data-theme="forest"] {
   --on-chrome: #09140f;
 }
 html[data-theme="cream"] {
+  --glass-tint: 68%;
   --ring-fallback: linear-gradient(135deg, #6b4a2f, #e9cfae 45%, #6b4a2f 70%, #b08a63);
   --plate: #f6f0e2;
   --ink: #1c1a16;
@@ -156,6 +174,7 @@ html[data-theme="cream"] {
   color-scheme: light;
 }
 html[data-theme="blush"] {
+  --glass-tint: 68%;
   --ring-fallback: linear-gradient(135deg, #c2556f, #ffd3de 45%, #c2556f 70%, #e79bb0);
   --plate: #f8e8e6;
   --ink: #2b1716;
@@ -169,6 +188,7 @@ html[data-theme="blush"] {
   color-scheme: light;
 }
 html[data-theme="coral"] {
+  --glass-tint: 68%;
   --ring-fallback: linear-gradient(135deg, #d0534a, #ffd2cb 45%, #d0534a 70%, #ee9a92);
   --plate: #f1c9c2;
   --ink: #3a1512;

@@ -535,8 +535,10 @@
     overflow-y: auto;
     border: 1px solid var(--line);
     border-radius: 16px;
-    background: var(--plate);
-    box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+    background: var(--glass-raised);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
   }
   .detail-head {
     display: flex;

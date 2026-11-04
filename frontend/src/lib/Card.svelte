@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { onMount } from "svelte";
+  import { glass } from "./glass";
 
   let { children }: { children: Snippet } = $props();
 
@@ -18,12 +19,12 @@
 </script>
 
 <!--
-  The look of the notes, the chat and the settings: no frame and no title bar, one rounded card on a clear window with a lit
-  edge, like the timer and the search bar. The page decides which part drags it (--wails-draggable: drag) and where its
+  The look of the notes, the chat, the calendar and the settings: no frame and no title bar, one rounded card of frosted glass
+  (lib/glass.ts) on a clear window with a lit edge, like the timer and the search bar. The page decides which part drags it (--wails-draggable: drag) and where its
   close button is; the window stays resizable from its edges. The grips are clear strips around the edge that give the
   resize cursor wherever the pointer is on them: what is under them would otherwise choose the cursor.
 -->
-<div class="card">{@render children()}</div>
+<div class="card" use:glass={26}>{@render children()}</div>
 {#each EDGES as edge (edge)}<div class="grip {edge}" aria-hidden="true"></div>{/each}
 
 <style>
@@ -33,10 +34,10 @@
     display: flex;
     flex-direction: column;
     border-radius: 26px;
-    background: var(--plate);
+    background: var(--glass);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--ink) 16%, transparent),
-      inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+      inset 0 1px 0 color-mix(in srgb, var(--ink) 24%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
     color: var(--text);
   }
   .grip {

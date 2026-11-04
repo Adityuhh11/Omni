@@ -5,10 +5,14 @@ The visual system of the launcher panel, recorded from the built page (`frontend
 
 ## World
 
-Pure black and chrome. The plate is flat `#000`, like an OLED screen or black paint on a sports car: no gradient,
-no texture (a brushed grain, a band of light, a graphite gradient and frosted glass were all tried on 2026-10-16 and
-dropped; they read as stray lines or turned the plate grey). The premium comes from a lit top rim and a hairline edge, and
-from the ring. It is opaque, so it stays black whatever is behind the panel. The interface itself has no accent hue (emphasis is
+Black glass and chrome. Every card (the bar, the timer, the settings, notes, chat and calendar) is frosted glass, chosen by the
+owner on 2026-11-04 from five studies (black plate, frosted, clear liquid glass, smoked, frosted with flowing liquid): the
+system blurs what is behind the card and the theme's plate, 55% opaque (`--glass`; 68% on the light themes), tints it dark
+enough to read over a white page. A web page cannot blur what is behind its own window, so the blur is the system's, cut to
+the card's exact rounded shape (`internal/glass`). Frosted glass was tried once before, on 2026-10-16, as a flat grey plate, and
+dropped; this one keeps the plate's colour and its lit rim. No grain, no gradient. The premium comes from a lit top rim and a
+hairline edge, and from the ring. Where the system cannot blur, or the person asked it for less transparency, the plate is
+opaque again (`html[data-glass="off"]`, `prefers-reduced-transparency`). The interface itself has no accent hue (emphasis is
 weight and brightness); the only colour is the ring, a metal that changes every time the panel closes.
 
 ## Shape and motion
@@ -56,7 +60,9 @@ weight and brightness); the only colour is the ring, a metal that changes every 
 
 | Token | Value | Use |
 |---|---|---|
-| `--plate` | `#000` | the plate, flat |
+| `--plate` | `#000` | the theme's colour; opaque only where there is no glass |
+| `--glass` | plate at 55% | the cards: tint over the system's blur |
+| `--glass-raised` + `--glass-blur` | plate at 84%, the page's own blur | what floats inside a card: the action panel, an event's details, the chat's composer and history |
 | `--lift` | `rgba(255,255,255,.075)` | selected row |
 | `--tile` | `rgba(255,255,255,.055)` | icon tiles, count and key chips |
 | `--line` | `rgba(255,255,255,.07)` | hairlines between bar, list and hints |
@@ -101,4 +107,6 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
 
 - Nothing animated may run while the panel is closed; nothing visual may be added to the hotkey path.
 - No accent color in the interface. Emphasis by weight and brightness; the ring is the one coloured thing.
-- The ring is real shader output, never a CSS imitation (the static gradient behind it is only the no-WebGL fallback).
+- The ring is real shader output, never a CSS imitation (the static gradient behind it is only the no-WebGL fallback). It is masked to
+  its rim, so it never shows through the glass.
+- Nothing inside a card paints a band of the plate's colour to fade content (it shows as a stripe on glass): fade with a mask.

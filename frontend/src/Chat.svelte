@@ -476,8 +476,6 @@
       </div>
     {/if}
 
-    <div class="fade-top" aria-hidden="true"></div>
-    <div class="fade" aria-hidden="true"></div>
     <div class="dock">
       <!-- The composer floats over the end of the conversation. Its rim is the search card's ring; it moves only while the box
            has the keyboard or an answer is coming, and rests as a still metal edge otherwise. -->
@@ -587,6 +585,10 @@
     min-height: 0;
     padding: 12px max(24px, calc((100% - 640px) / 2)) 170px;
     overflow-y: auto;
+    /* Messages scroll under the header through a soft edge and fade out under the composer. A mask, not a band of the plate's
+       colour: the card is glass, and a painted band would show as a darker stripe. */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22px, #000 calc(100% - 150px), transparent calc(100% - 57px));
+    mask-image: linear-gradient(to bottom, transparent, #000 22px, #000 calc(100% - 150px), transparent calc(100% - 57px));
     user-select: text;
     cursor: auto;
   }
@@ -835,28 +837,6 @@
     line-height: 1.55;
   }
 
-  /* Messages scroll up under the header through a soft edge, not a hard cut. */
-  .fade-top {
-    position: absolute;
-    top: 54px;
-    right: 0;
-    left: 0;
-    z-index: 1;
-    height: 22px;
-    background: linear-gradient(to bottom, var(--plate), color-mix(in srgb, var(--plate) 0%, transparent));
-    pointer-events: none;
-  }
-  /* The end of the conversation fades under the composer. Its corners follow the card's, or they would paint over the clear window. */
-  .fade {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 150px;
-    border-radius: 0 0 26px 26px;
-    background: linear-gradient(to bottom, color-mix(in srgb, var(--plate) 0%, transparent), var(--plate) 62%);
-    pointer-events: none;
-  }
   .dock {
     position: absolute;
     right: 0;
@@ -883,7 +863,9 @@
     flex-direction: column;
     padding: 6px;
     border-radius: 26.5px;
-    background: #0d0d0e;
+    background: var(--glass-raised);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
   }
   .line {
     display: flex;
@@ -1037,7 +1019,9 @@
     gap: 8px;
     padding: 6px 18px 14px;
     border-radius: 0 0 26px 26px;
-    background: var(--plate);
+    background: var(--glass-raised);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
   }
   .history ul {
     flex: 1;

@@ -16,6 +16,7 @@
   import Hints from "./lib/Hints.svelte";
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
+  import { glass } from "./lib/glass";
   import Loader from "./lib/Loader.svelte";
   import { nextMetal, ringsFor } from "./lib/palettes";
   import { currentTheme, onTheme } from "./lib/theme";
@@ -530,7 +531,7 @@
 <svelte:window onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
 <main>
-  <div class="card" style:height="{cardHeight}px">
+  <div class="card" style:height="{cardHeight}px" use:glass={30}>
     <LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />
     <div class="surface">
       <div class="content" class:acting={target || picker} bind:this={content}>
@@ -621,8 +622,6 @@
   .card {
     position: relative;
     border-radius: var(--radius);
-    /* The ring's fallback and its first frame: static chrome, in case the shader cannot run. */
-    background: var(--ring-fallback);
     box-shadow: var(--shadow);
     /* Height is animated on purpose: one small element, its content is absolutely positioned inside,
        and it only runs for 240 ms when results appear or go. */
@@ -632,7 +631,7 @@
     position: absolute;
     inset: var(--ring);
     border-radius: calc(var(--radius) - var(--ring));
-    background: var(--plate);
+    background: var(--glass);
   }
   .surface::after {
     content: "";
@@ -642,8 +641,8 @@
     pointer-events: none;
     /* The edge: a lit top rim and a hairline all round, as on a machined card. */
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--ink) 13%, transparent),
-      inset 0 0 0 1px color-mix(in srgb, var(--ink) 4.5%, transparent);
+      inset 0 1px 0 color-mix(in srgb, var(--ink) 22%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
   }
   .content {
     position: relative;

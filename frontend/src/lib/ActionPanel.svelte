@@ -92,7 +92,9 @@
     padding: 6px;
     border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
     border-radius: 16px;
-    background: var(--plate);
+    background: var(--glass-raised);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
     box-shadow: 0 14px 30px rgba(0, 0, 0, 0.7);
   }
   input {
