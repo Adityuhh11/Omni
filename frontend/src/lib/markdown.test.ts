@@ -48,9 +48,11 @@ test("nothing typed can become markup or script", () => {
     "`</code><script>`",
     "> <a href=javascript:1>",
     "```\n</code></pre><script>\n```",
+    "| <b> | x |\n|---|---|\n| <script> | `|` |",
+    "3. <img src=x>\n   - <svg onload=1>",
   ];
-  const allowedTags = new Set(["a", "input", "li", "code", "pre", "p", "strong", "em", "del", "ul", "ol", "blockquote", "hr", "br", "h1", "h2", "h3", "h4", "h5", "h6"]);
-  const allowedAttributes = /^( href="[^"<>]*")?( type="checkbox")?( data-line="\d+")?( checked)?( class="[a-z ]*")?$/;
+  const allowedTags = new Set(["div", "table", "thead", "tbody", "tr", "th", "td", "a", "input", "li", "code", "pre", "p", "strong", "em", "del", "ul", "ol", "blockquote", "hr", "br", "h1", "h2", "h3", "h4", "h5", "h6"]);
+  const allowedAttributes = /^( href="[^"<>]*")?( type="checkbox")?( data-line="\d+")?( checked)?( class="[a-z -]*")?( start="\d+")?$/;
   for (const text of nasty) {
     const html = render(text);
     for (const [, name, attributes] of html.matchAll(/<\/?([a-z0-9]+)([^>]*)>/gi)) {
@@ -111,4 +113,37 @@ test("a NUL in the text cannot forge a placeholder", () => {
   const html = render("a\u0000" + "0\u0000 `code`");
   assert.ok(!html.includes("undefined"), html);
   assert.ok(!html.includes("\u0000"), html);
+});
+
+test("a numbered list keeps counting across blank lines and nested blocks", () => {
+  const answer = "1. **Create** it.  \n   The runtime runs it.\n\n2. Then:\n   ```go\n   go f()\n   ```\n\n3. Done";
+  const html = render(answer);
+  assert.equal((html.match(/<ol/g) ?? []).length, 1, html);
+  assert.match(html, /<li><strong>Create<\/strong> it\.<p>The runtime runs it\.<\/p><\/li>/);
+  assert.match(html, /<li>Then:<pre><code>go f\(\)<\/code><\/pre><\/li>/);
+  assert.equal(render("3. three\n4. four"), '<ol start="3"><li>three</li><li>four</li></ol>');
+});
+
+test("an indented list nests inside the item above it", () => {
+  assert.equal(render("- a\n  - b\n  - c\n- d"), "<ul><li>a<ul><li>b</li><li>c</li></ul></li><li>d</li></ul>");
+  assert.equal(render("1. one\n   - x\n2. two"), "<ol><li>one<ul><li>x</li></ul></li><li>two</li></ol>");
+});
+
+test("a table with a header and a rule becomes a table", () => {
+  assert.equal(
+    render("| Line | Issue |\n|------|:-----:|\n| `a \\| b` | **bad** |\n| one |"),
+    '<div class="md-table"><table><thead><tr><th>Line</th><th>Issue</th></tr></thead><tbody><tr><td><code>a | b</code></td><td><strong>bad</strong></td></tr><tr><td>one</td><td></td></tr></tbody></table></div>',
+  );
+  assert.equal(render("a | b\nc | d"), "<p>a | b<br>c | d</p>");
+});
+
+test("a fence indented under text is still a fence", () => {
+  assert.equal(render("Run:\n  ```\n  x\n    y\n  ```"), "<p>Run:</p>\n<pre><code>x\n  y</code></pre>");
+});
+
+test("deeply nested lists render without blowing the stack", () => {
+  const deep = Array.from({ length: 3000 }, (_, n) => " ".repeat(n * 2) + "- x").join("\n");
+  const started = Date.now();
+  assert.ok(render(deep).length > 0);
+  assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
 });

@@ -17,6 +17,7 @@
   import { copyable } from "./lib/chat/copy";
   import { when } from "./lib/format";
   import { render } from "./lib/markdown";
+  import "./lib/markdown.css";
 
   /** chat.Confirm, sent with the chat:confirm event (events carry no generated type). */
   type Confirm = { id: string; title: string; tool: string; input: string };
@@ -645,6 +646,9 @@
   .prose :global(h4) {
     margin: 14px 0 6px;
     font: 620 14.5px/1.3 var(--sans);
+  }
+  .prose :global(li > :is(p, pre, ul, ol, blockquote, .md-table)) {
+    margin: 4px 0;
   }
   .prose :global(ul),
   .prose :global(ol) {
