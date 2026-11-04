@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { colorOf, covers, placeDay, weekDays, weekStart, type Span } from "./calendar.ts";
+import { colorOf, covers, meetingName, notesMarkdown, placeDay, weekDays, weekStart, type Span } from "./calendar.ts";
 
 const at = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m); // November 2026; the 2nd is a Monday
 const ev = (id: string, start: Date, end: Date, allDay = false): Span => ({ id, start, end, allDay });
@@ -44,4 +44,20 @@ test("all-day events cover each day they span", () => {
 test("calendar colours cycle", () => {
   assert.equal(colorOf(0), colorOf(6));
   assert.notEqual(colorOf(0), colorOf(1));
+});
+
+test("a meeting link names its service", () => {
+  assert.equal(meetingName("https://us02web.zoom.us/j/123"), "Zoom");
+  assert.equal(meetingName("https://meet.google.com/abc-defg-hij"), "Google Meet");
+  assert.equal(meetingName("https://teams.microsoft.com/l/meetup-join/x"), "Teams");
+  assert.equal(meetingName("https://acme.webex.com/meet/x"), "Webex");
+  assert.equal(meetingName("https://example.com/zoom.us"), "the meeting");
+});
+
+test("notes written as HTML become markdown, plain notes stay as they are", () => {
+  assert.equal(notesMarkdown("Agenda:\n- one\n2 < 3"), "Agenda:\n- one\n2 < 3");
+  assert.equal(
+    notesMarkdown('<b>Agenda</b><br>Read <a href="https://a.com/x?y=1&amp;z=2">the doc</a> &amp; <a href="https://b.com">https://b.com</a><ul><li>one</li><li>two</li></ul><script>x</script>'),
+    "**Agenda**\nRead [the doc](https://a.com/x?y=1&z=2) & https://b.com\n- one\n- two\n\nx",
+  );
 });

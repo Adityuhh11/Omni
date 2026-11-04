@@ -1,7 +1,7 @@
 /**
- * A small markdown renderer for notes: headings, paragraphs, quotes, lists (also numbered and task lists), code and code
- * blocks, rules, and bold, italic, strike-through, code, links. Everything in the text is escaped first and only the tags
- * written here are added, so a note can never put script or markup into the page. Links are limited to http, https and mailto.
+ * A small markdown renderer for notes, Omni AI's answers and calendar events: headings, paragraphs, quotes, lists (also numbered,
+ * nested and task lists), tables, code and code blocks, rules, and bold, italic, strike-through, code, links. Everything in
+ * the text is escaped first and only the tags written here are added, so a note can never put script or markup into the page. Links are limited to http, https and mailto.
  */
 
 const escapes: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -26,15 +26,35 @@ function inline(escaped: string): string {
 }
 
 const MAX_INLINE = 4000; // characters of one line that get emphasis and links
-const MAX_QUOTE_DEPTH = 8; // levels of > that are nested; deeper ones are shown as text
+const MAX_DEPTH = 8; // levels of quotes and lists that are nested; deeper ones are shown as text
 
 const heading = /^(#{1,6})\s+(.*)$/;
 const rule = /^\s*([-*_])(\s*\1){2,}\s*$/;
-const bullet = /^(\s*)[-*+]\s+(.*)$/;
-const ordered = /^(\s*)\d+[.)]\s+(.*)$/;
+const listItem = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
 const task = /^\[([ xX])\]\s+(.*)$/;
 const quote = /^>\s?(.*)$/;
-const fence = /^```/;
+const fence = /^(\s*)```/;
+const tableRule = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/;
+
+const indentOf = (line: string) => line.length - line.trimStart().length;
+const isBlank = (line: string) => line.trim() === "";
+const isTable = (lines: string[], i: number) => lines[i].includes("|") && i + 1 < lines.length && tableRule.test(lines[i + 1]);
+
+/** A table row's cells: the outer pipes dropped, split on the pipes that are not escaped. */
+function cells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/(?<!\\)\|$/, "")
+    .split(/(?<!\\)\|/)
+    .map((c) => inline(escape(c.trim().replaceAll("\\|", "|"))));
+}
+
+/** Whether a line starts a block of its own, which ends a paragraph. */
+function startsBlock(lines: string[], i: number, depth: number): boolean {
+  const line = lines[i];
+  return isBlank(line) || fence.test(line) || heading.test(line) || rule.test(line) || listItem.test(line) || isTable(lines, i) || (quote.test(line) && depth < MAX_DEPTH);
+}
 
 /** Renders markdown to HTML. A task's box carries `data-line`, the line of the source it came from (see toggleTask). */
 export function render(markdown: string, firstLine = 0, depth = 0): string {
@@ -43,12 +63,17 @@ export function render(markdown: string, firstLine = 0, depth = 0): string {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    if (line.trim() === "") {
+    if (isBlank(line)) {
       i++;
     } else if (fence.test(line)) {
+      // A fence indented under a list item is still a fence; its lines lose that indent.
+      const indent = line.match(fence)![1].length;
       const code: string[] = [];
       i++;
-      while (i < lines.length && !fence.test(lines[i])) code.push(lines[i++]);
+      while (i < lines.length && !fence.test(lines[i])) {
+        const l = lines[i++];
+        code.push(l.slice(Math.min(indent, indentOf(l))));
+      }
       i++; // the closing fence (a missing one ends the block at the end of the note)
       out.push(`<pre><code>${escape(code.join("\n"))}</code></pre>`);
     } else if (heading.test(line)) {
@@ -58,47 +83,82 @@ export function render(markdown: string, firstLine = 0, depth = 0): string {
     } else if (rule.test(line)) {
       out.push("<hr>");
       i++;
-    } else if (quote.test(line) && depth < MAX_QUOTE_DEPTH) {
+    } else if (isTable(lines, i)) {
+      const head = cells(line);
+      const rows: string[] = [];
+      i += 2;
+      while (i < lines.length && !isBlank(lines[i]) && lines[i].includes("|")) {
+        const row = cells(lines[i++]);
+        rows.push(`<tr>${head.map((_, c) => `<td>${row[c] ?? ""}</td>`).join("")}</tr>`);
+      }
+      out.push(`<div class="md-table"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`);
+    } else if (quote.test(line) && depth < MAX_DEPTH) {
       const start = i;
       const body: string[] = [];
       while (i < lines.length && quote.test(lines[i])) body.push(lines[i++].match(quote)![1]);
       // The quoted lines keep their place in the note, so a task inside a quote toggles its own line (see toggleTask).
       out.push(`<blockquote>${render(body.join("\n"), firstLine + start, depth + 1)}</blockquote>`);
-    } else if (bullet.test(line) || ordered.test(line)) {
-      const isOrdered = !bullet.test(line);
-      const items: string[] = [];
-      while (i < lines.length && (isOrdered ? ordered : bullet).test(lines[i])) {
-        const text = lines[i].match(isOrdered ? ordered : bullet)![2];
-        const t = !isOrdered ? text.match(task) : null;
-        if (t) {
-          const checked = t[1] !== " ";
-          items.push(
-            `<li class="task${checked ? " done" : ""}"><input type="checkbox" data-line="${firstLine + i}"${checked ? " checked" : ""}> <span>${inline(escape(t[2]))}</span></li>`,
-          );
-        } else {
-          items.push(`<li>${inline(escape(text))}</li>`);
-        }
-        i++;
-      }
-      out.push(`<${isOrdered ? "ol" : "ul"}>${items.join("")}</${isOrdered ? "ol" : "ul"}>`);
+    } else if (listItem.test(line)) {
+      i = list(lines, i, firstLine, depth, out);
     } else {
       const para: string[] = [];
-      while (
-        i < lines.length &&
-        lines[i].trim() !== "" &&
-        !fence.test(lines[i]) &&
-        !heading.test(lines[i]) &&
-        !rule.test(lines[i]) &&
-        !(quote.test(lines[i]) && depth < MAX_QUOTE_DEPTH) &&
-        !bullet.test(lines[i]) &&
-        !ordered.test(lines[i])
-      ) {
-        para.push(inline(escape(lines[i++])));
-      }
+      do para.push(inline(escape(lines[i++])));
+      while (i < lines.length && !startsBlock(lines, i, depth));
       out.push(`<p>${para.join("<br>")}</p>`);
     }
   }
   return out.join("\n");
+}
+
+/**
+ * One list from line i: its items are the lines with its marker at its indent, and what is indented under an item (more
+ * text, a nested list, a code block) belongs to that item, also across blank lines. A numbered list keeps the number it
+ * starts at. Returns the line after the list.
+ */
+function list(lines: string[], i: number, firstLine: number, depth: number, out: string[]): number {
+  const [, lead, marker] = lines[i].match(listItem)!;
+  const indent = lead.length;
+  const ordered = /\d/.test(marker);
+  const sameKind = (l: string) => {
+    const m = l.match(listItem);
+    return m !== null && m[1].length === indent && /\d/.test(m[2]) === ordered;
+  };
+  const items: string[] = [];
+  while (i < lines.length && sameKind(lines[i])) {
+    const text = lines[i].match(listItem)![3].trimEnd();
+    const at = i++;
+    const bodyStart = i;
+    while (i < lines.length) {
+      if (!isBlank(lines[i])) {
+        if (indentOf(lines[i]) <= indent) break;
+        i++;
+        continue;
+      }
+      let next = i;
+      while (next < lines.length && isBlank(lines[next])) next++;
+      if (next === lines.length || indentOf(lines[next]) <= indent) break;
+      i = next;
+    }
+    const body = lines.slice(bodyStart, i);
+    const t = !ordered ? text.match(task) : null;
+    const head = t ? `<input type="checkbox" data-line="${firstLine + at}"${t[1] !== " " ? " checked" : ""}> <span>${inline(escape(t[2]))}</span>` : inline(escape(text));
+    let rest = "";
+    if (body.length) {
+      const cut = body.reduce((least, l) => (isBlank(l) ? least : Math.min(least, indentOf(l))), Infinity);
+      rest =
+        depth < MAX_DEPTH
+          ? render(body.map((l) => l.slice(cut)).join("\n"), firstLine + bodyStart, depth + 1)
+          : `<p>${body.filter((l) => !isBlank(l)).map((l) => inline(escape(l.trim()))).join("<br>")}</p>`;
+    }
+    items.push(`<li${t ? ` class="task${t[1] !== " " ? " done" : ""}"` : ""}>${head}${rest}</li>`);
+    // Blank lines between two items of the same list do not end it.
+    let next = i;
+    while (next < lines.length && isBlank(lines[next])) next++;
+    if (next < lines.length && sameKind(lines[next])) i = next;
+  }
+  const start = ordered ? parseInt(marker, 10) : 1;
+  out.push(ordered ? `<ol${start !== 1 ? ` start="${start}"` : ""}>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
+  return i;
 }
 
 /** The note with the task on this line (0-based) ticked if it was open, or unticked if it was done. Other lines are left alone. */

@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -438,5 +439,25 @@ func TestToolDescriptionsAreCountedAgainstTheContext(t *testing.T) {
 	many := toolset{web: true, locals: []Local{echoTool("a", "a", false, &ran), echoTool("b", "b", false, &ran), echoTool("c", "c", true, &ran)}}
 	if (toolset{}).schemaTokens() != 0 || one.schemaTokens() <= 0 || many.schemaTokens() <= one.schemaTokens()*3 {
 		t.Fatalf("none %d, one %d, many %d", toolset{}.schemaTokens(), one.schemaTokens(), many.schemaTokens())
+	}
+}
+
+func TestCalendarEventsAreSourcesApartFromTheCap(t *testing.T) {
+	l := &lookup{}
+	for i := range 8 {
+		l.used = addSource(l.used, Source{Title: "file", Path: fmt.Sprintf("C:/f%d", i)})
+		l.used = addSource(l.used, Source{Title: "event", Event: &Event{ID: fmt.Sprintf("e%d", i)}})
+	}
+	l.used = addSource(l.used, Source{Title: "event again", Event: &Event{ID: "e0"}})
+	var files, events int
+	for _, s := range l.sources() {
+		if s.Event != nil {
+			events++
+		} else {
+			files++
+		}
+	}
+	if files != maxSources || events != 8 {
+		t.Errorf("%d files and %d events, want %d and 8", files, events, maxSources)
 	}
 }

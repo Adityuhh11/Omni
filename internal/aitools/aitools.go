@@ -1,5 +1,5 @@
 // Package aitools turns what Omni already keeps (the file index, the clipboard history, the notes, what was opened from the
-// bar) and the person's scripts into tools Omni AI may use. Every group is off until the
+// bar, the calendars) and the person's scripts into tools Omni AI may use. Every group is off until the
 // person switches it on; the chat package offers and runs them.
 package aitools
 
@@ -51,6 +51,8 @@ type Deps struct {
 	Clips   Clips
 	Notes   Notes
 	Scripts Scripts
+	// Calendar is the calendars; nil leaves the calendar tool out.
+	Calendar Calendar
 	// Browser is browsers.Search; nil leaves the browser tool out.
 	Browser Browser
 	// Launches lists what was opened from the bar after since, newest first, by name.
@@ -83,6 +85,9 @@ func (d Deps) Tools() []chat.Local {
 	}
 	if d.Browser != nil {
 		out = append(out, d.browserTool())
+	}
+	if d.Calendar != nil {
+		out = append(out, d.calendarTool())
 	}
 	if d.Scripts != nil {
 		out = append(out, d.scriptTools()...)

@@ -16,3 +16,6 @@ func logDir() (string, error) {
 	}
 	return filepath.Join(dir, "logs"), nil
 }
+
+// distractingApps start the focus list of programs (Timer.BlockApps), by the name the system knows them by.
+var distractingApps = []string{"discord.exe", "steam.exe"}

@@ -28,6 +28,8 @@ const (
 	// minToolChars is the room below which the tools are not offered: a result cut that small would only mislead.
 	minToolChars = 1500
 	maxSources   = 5
+	// maxEvents is how many calendar events an answer shows under it, apart from the other sources: a busy week fits.
+	maxEvents = 40
 	// toolOverheadTokens is what the calls and the closing "answer now" message take of the context; the tools' descriptions
 	// are counted apart (toolset.schemaTokens).
 	toolOverheadTokens = 100
@@ -39,11 +41,31 @@ type Web interface {
 	Read(ctx context.Context, address string, maxChars int) (websearch.Page, error)
 }
 
-// Source is a page or a file an answer drew on; it is kept with the answer and shown under it.
+// Source is a page, a file or a calendar event an answer drew on; it is kept with the answer and shown under it.
 type Source struct {
 	Title string `json:"title"`
 	URL   string `json:"url,omitempty"`
 	Path  string `json:"path,omitempty"` // a file on this computer, in place of URL
+	// Event, in place of URL and Path, is an occurrence from the person's calendars; the window shows these as an agenda.
+	Event *Event `json:"event,omitempty"`
+}
+
+// Event is a calendar occurrence as an answer keeps it: enough to draw the agenda without the calendar.
+type Event struct {
+	ID       string `json:"id"`
+	Start    int64  `json:"start"` // milliseconds since 1970, what the page's Date takes
+	End      int64  `json:"end"`
+	AllDay   bool   `json:"all_day,omitempty"`
+	Calendar string `json:"calendar"`
+	Color    int    `json:"color"` // the calendar's place in the list, which picks its colour
+	Join     string `json:"join,omitempty"`
+}
+
+func (s Source) same(o Source) bool {
+	if s.Event != nil || o.Event != nil {
+		return s.Event != nil && o.Event != nil && s.Event.ID == o.Event.ID
+	}
+	return s.URL == o.URL && s.Path == o.Path
 }
 
 // Tool is a function the model may call, as the API takes it.
@@ -160,7 +182,7 @@ type lookup struct {
 
 // addSource adds s unless its address (or path) is listed already: two searches overlap, and a redirect can land on a listed page.
 func addSource(list []Source, s Source) []Source {
-	if slices.ContainsFunc(list, func(x Source) bool { return x.URL == s.URL && x.Path == s.Path }) {
+	if slices.ContainsFunc(list, s.same) {
 		return list
 	}
 	return append(list, s)
@@ -189,8 +211,16 @@ func (l *lookup) sources() []Source {
 	if len(pages) == 0 {
 		pages = l.found
 	}
-	out := append(slices.Clip(l.used), pages...)
-	return out[:min(len(out), maxSources)]
+	var out, events []Source
+	for _, s := range l.used {
+		if s.Event != nil {
+			events = append(events, s)
+		} else {
+			out = append(out, s)
+		}
+	}
+	out = append(out, pages...)
+	return append(out[:min(len(out), maxSources)], events[:min(len(events), maxEvents)]...)
 }
 
 // run does one call and returns what the model is told. A failure is a result too: the model reads it and says it could not look.

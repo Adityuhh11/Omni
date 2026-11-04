@@ -11,12 +11,14 @@
   import RoundButton from "./lib/RoundButton.svelte";
   import Icon from "./lib/Icon.svelte";
   import PlusMenu from "./lib/chat/PlusMenu.svelte";
+  import Agenda from "./lib/chat/Agenda.svelte";
   import { ringsFor } from "./lib/palettes";
   import { currentTheme, onTheme } from "./lib/theme";
   import { escapeStep, lastQuestion, meter, sends, thoughtFor, unloadsIn, waiting, type Phase } from "./lib/chat/chat";
   import { copyable } from "./lib/chat/copy";
   import { when } from "./lib/format";
   import { render } from "./lib/markdown";
+  import "./lib/markdown.css";
 
   /** chat.Confirm, sent with the chat:confirm event (events carry no generated type). */
   type Confirm = { id: string; title: string; tool: string; input: string };
@@ -410,6 +412,8 @@
             <div class="row user"><div class="bubble">{message.text}</div></div>
           {:else}
             {@const html = render(message.text)}
+            {@const events = message.sources?.filter((s) => s.event) ?? []}
+            {@const links = message.sources?.filter((s) => !s.event) ?? []}
             <div class="row ai">
               {#if message.thinking}
                 <button type="button" class="thought" aria-expanded={!!opened[i]} onclick={() => (opened[i] = !opened[i])}>
@@ -422,9 +426,10 @@
                 <div class="prose" use:copyable={html} onclick={onProseClick}>{@html html}</div>
               {/if}
               {#if message.stopped}<p class="stopped">Stopped</p>{/if}
-              {#if message.sources?.length}
+              {#if events.length}<Agenda {events} />{/if}
+              {#if links.length}
                 <div class="sources" aria-label="Sources">
-                  {#each message.sources as source (source.url || source.path)}
+                  {#each links as source (source.url || source.path)}
                     <button type="button" class="source" title="{source.title}: {source.url || source.path}" onclick={() => openSource(source)}>
                       {#if source.path}<Icon name="file" size={12} />{source.title}{:else}<Icon name="web" size={12} />{hostOf(source.url ?? "")}{/if}
                     </button>
@@ -645,6 +650,9 @@
   .prose :global(h4) {
     margin: 14px 0 6px;
     font: 620 14.5px/1.3 var(--sans);
+  }
+  .prose :global(li > :is(p, pre, ul, ol, blockquote, .md-table)) {
+    margin: 4px 0;
   }
   .prose :global(ul),
   .prose :global(ol) {

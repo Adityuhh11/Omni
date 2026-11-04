@@ -40,7 +40,7 @@
 | **Web and quicklinks** | `?` or `web:` searches in the browser you choose. `gh rust lifetimes` searches GitHub; add your own quicklinks. |
 | **Clipboard history** *(off until you switch it on)* | `clip:` lists what you copied, newest first. Enter pastes it into the program you came from. Skips copies marked private, password managers and programs you list. |
 | **Snippets** | Text you paste often, with `{date}`, `{time}` and `{clipboard}` filled in. `snip:` or a keyword. |
-| **Omni AI** *(optional)* | `ask:` opens a small chat window. It answers with a language model on this computer (Liquid AI's LFM3-1.7B, 1 GB, downloaded once), or with a model you already run (LM Studio, Ollama) or a service with your own API key. It can use tools you switch on: your files, notes, clipboard history, browser history, your scripts, and web search. Other AI apps (Claude Desktop, Cursor, VS Code) can use those tools too. |
+| **Omni AI** *(optional)* | `ask:` opens a small chat window. It answers with a language model on this computer (Liquid AI's LFM3-1.7B, 1 GB, downloaded once), or with a model you already run (LM Studio, Ollama) or a service with your own API key. It can use tools you switch on: your files, notes, clipboard history, browser history, your calendars (with your free time worked out), your scripts, and web search. Other AI apps (Claude Desktop, Cursor, VS Code) can use those tools too. |
 | **Notes** | `note:` lists your notes; `note: buy milk` makes one. They are plain markdown files. |
 | **Focus, timer and pomodoro** | `focus 50` starts a focus period that keeps the sites and apps you list out of the way (minimized on Windows, hidden on a Mac) until it ends; a pomodoro's focus periods do the same. `timer 25`, `timer 1h30 tea`, `pomodoro`: a small timer sits at the edge of the screen. |
 | **Calendar** *(read only)* | Add Google, iCloud or Outlook calendars by their subscription address. `cal` lists what is coming today and tomorrow; `join` opens the next meeting's Zoom, Meet or Teams link; the calendar window shows the week. |
@@ -137,13 +137,13 @@ touches the network in exactly these cases, all started or switched on by you:
 | You open a web search or link | your browser | what you typed after the trigger |
 | You switch on **Search the web** in the Omni AI chat's + menu (off by default) | `duckduckgo.com`, or `wikipedia.org` when DuckDuckGo asks for a check; then the pages the model chooses to read | the words the model chooses to search for (it composes them from your question and, after a read, from pages; it is a small model); then ordinary requests for pages that searches returned or that you wrote. Local and private addresses are refused |
 | You choose **Another model** in Settings, Omni AI, and use it (off by default) | the address you typed: LM Studio or Ollama on this computer, or a service (OpenAI and others) | your questions and the conversation, and what the tools you switched on found for them. The API key, kept in the system credential store, goes as that service's `Authorization` header. The page says whether the address is on this computer |
-| You switch on **Let AI apps on this computer use these tools** in Settings, Omni AI (off by default) | the AI app you connect (Claude Desktop, Cursor, VS Code…) | what that app asks Omni's tools that read (your files, notes, clipboard history, activity) and are switched on; the app may send it to its own servers |
+| You switch on **Let AI apps on this computer use these tools** in Settings, Omni AI (off by default) | the AI app you connect (Claude Desktop, Cursor, VS Code…) | what that app asks Omni's tools that read (your files, notes, clipboard history, activity, calendars) and are switched on; the app may send it to its own servers |
 | You add a calendar in Settings, Calendar | the address you added (Google, iCloud, Outlook…) | a request for the calendar, at once and every 15 minutes while Omni runs; the address is kept in the system credential store |
 | You press **Check for updates**, or turned on the daily check (off by default) | `api.github.com` | a request for the latest release number, nothing about you |
 | You press **Update to X** | `github.com` | a download of that release, checked against its published SHA-256 |
 
 The engine and the Omni AI model server listen on `127.0.0.1` only, behind a random per-run token. Clipboard history is off by default and stored only on
-your machine. Omni AI's tools (your files, notes, clipboard, activity, browser history and bookmarks, and your [scripts](docs/SCRIPTS.md)) run on this
+your machine. Omni AI's tools (your files, notes, clipboard, activity, browser history and bookmarks, calendars, and your [scripts](docs/SCRIPTS.md)) run on this
 computer and are off until you switch them on; with web search also on, the model could put what a tool found into the words it searches for.
 
 ## Settings and where things are

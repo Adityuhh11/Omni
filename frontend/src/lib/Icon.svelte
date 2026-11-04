@@ -1,6 +1,6 @@
 <script lang="ts">
   interface Props {
-    name: "code" | "text" | "image" | "video" | "audio" | "file" | "app" | "web" | "tag" | "pin" | "clip" | "snippet" | "settings" | "calc" | "system" | "note" | "timer" | "chat" | "plus" | "history" | "close" | "brain" | "send" | "stop" | "link" | "search" | "spark" | "info" | "calendar";
+    name: "code" | "text" | "image" | "video" | "audio" | "file" | "app" | "web" | "tag" | "pin" | "clip" | "snippet" | "settings" | "calc" | "system" | "note" | "timer" | "chat" | "plus" | "history" | "close" | "brain" | "send" | "stop" | "link" | "search" | "spark" | "info" | "calendar" | "clock" | "place" | "camera";
     size?: number;
   }
   let { name, size = 20 }: Props = $props();
@@ -36,6 +36,9 @@
     spark: "M12 4c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7z",
     info: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 11v5 M12 8h.01",
     calendar: "M5.5 5.5h13a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z M4.5 10h15 M8.5 3.5v4 M15.5 3.5v4 M8.5 14h.01 M12 14h.01 M15.5 14h.01",
+    clock: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 8v4.2l2.8 1.8",
+    place: "M12 20.5s6-5.6 6-10.5a6 6 0 0 0-12 0c0 4.9 6 10.5 6 10.5z M12 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+    camera: "M4.5 7h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z M15.5 10.5l5-3v9l-5-3",
     app: "M5 5h5.5v5.5H5z M13.5 5H19v5.5h-5.5z M5 13.5h5.5V19H5z M13.5 13.5H19V19h-5.5z",
   };
 </script>

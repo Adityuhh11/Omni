@@ -92,6 +92,9 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
 - **Calendar window:** a week grid (an hour is 46 px), today's date in a chrome disc and a thin red line at the time now, events
   as tinted blocks with a 2 px bar of their calendar's colour. The calendar colours are the one exception to "no accent hue":
   they tell calendars apart, so they are data, and they are muted metals (`lib/calendar.ts`) from the ring's family.
+  An event opens a panel at the bottom right: the title beside a 3 px bar of its colour, then time (with "in 12 min" or "Now"),
+  place and calendar as icon rows, a wide Join button tinted with the event's colour that names the service (Zoom, Google Meet,
+  Teams, Webex), and the notes rendered as markdown (HTML from Google or Outlook is turned into markdown first).
 - **Browser surfaces:** themed selection, caret and scrollbar; no focus ring on rows (selection is the focus).
 
 ## Rules

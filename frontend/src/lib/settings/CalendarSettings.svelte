@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Browser } from "@wailsio/runtime";
   import { Calendar } from "../../../bindings/omni/internal/settingsui";
   import type { CalendarFeedView } from "../../../bindings/omni/internal/settingsui";
   import { colorOf } from "../calendar";
@@ -13,6 +14,31 @@
   let confirming = $state("");
   let error = $state("");
   let help = $state(false);
+
+  // Where each service keeps a calendar's subscription address. Google's page for one calendar needs its id, so its link
+  // opens the settings and the steps say the rest.
+  const providers = [
+    {
+      name: "Google Calendar",
+      open: "https://calendar.google.com/calendar/r/settings",
+      steps: "Pick the calendar under “Settings for my calendars”, scroll to “Integrate calendar”, copy “Secret address in iCal format”.",
+    },
+    {
+      name: "Outlook.com",
+      open: "https://outlook.live.com/calendar/0/options/calendar/SharedCalendars",
+      steps: "Under “Publish a calendar”, choose the calendar and “Can view all details”, Publish, then copy the ICS link.",
+    },
+    {
+      name: "Outlook for work or school",
+      open: "https://outlook.office.com/calendar/options/calendar/SharedCalendars",
+      steps: "The same as Outlook.com. If “Publish a calendar” is missing, your organization has switched it off.",
+    },
+    {
+      name: "iCloud",
+      open: "https://www.icloud.com/calendar/",
+      steps: "Click the share icon next to the calendar, tick “Public Calendar”, Copy Link.",
+    },
+  ];
 
   const refresh = async () => {
     feeds = (await Calendar.View()) ?? [];
@@ -111,14 +137,23 @@
     <input id="cal-address" type="password" class="mono" placeholder="https://… or webcal://…" bind:value={address} autocomplete="off" spellcheck="false" />
   </div>
   <div class="item">
-    <button type="button" class="btn quiet where" onclick={() => (help = !help)} aria-expanded={help}>Where do I find it?</button>
+    <button type="button" class="btn quiet where" onclick={() => (help = !help)} aria-expanded={help} aria-controls="cal-help">
+      Where do I find it?<span class="chev" class:open={help} aria-hidden="true"></span>
+    </button>
     <button type="submit" class="btn primary" disabled={adding || !name.trim() || !address.trim()}>{adding ? "Adding…" : "Add"}</button>
   </div>
   {#if help}
-    <div class="item stack how">
-      <p><b>Google</b>: Calendar settings, the calendar under "Settings for my calendars", Integrate calendar, Secret address in iCal format.</p>
-      <p><b>iCloud</b>: in the Calendar app, the share icon next to the calendar, Public Calendar, Copy Link.</p>
-      <p><b>Outlook</b>: Settings, Calendar, Shared calendars, Publish a calendar, the ICS link.</p>
+    <div class="item stack how" id="cal-help">
+      {#each providers as p (p.name)}
+        <div class="provider">
+          <span class="text">
+            <span class="name">{p.name}</span>
+            <span class="sub">{p.steps}</span>
+          </span>
+          <button type="button" class="btn" onclick={() => Browser.OpenURL(p.open)} title={p.open}>Open ↗</button>
+        </div>
+      {/each}
+      <p class="sub">The address ends in <span class="mono">.ics</span> or starts with <span class="mono">webcal://</span>. Sign in first if the page asks.</p>
     </div>
   {/if}
 </form>
@@ -149,16 +184,47 @@
     font-size: 12px;
   }
   .where {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     margin-left: -14px; /* the quiet button's padding, so its words line up with the rows' */
   }
-  .how p {
-    margin: 0;
-    color: var(--text-2);
-    font-size: 12.5px;
-    line-height: 1.5;
+  .chev {
+    width: 6px;
+    height: 6px;
+    margin-top: -3px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.15s var(--ease);
   }
-  .how b {
-    color: var(--text);
-    font-weight: 580;
+  .chev.open {
+    margin-top: 3px;
+    transform: rotate(-135deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chev {
+      transition: none;
+    }
+  }
+  .how {
+    gap: 14px;
+  }
+  .provider {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .provider .btn {
+    flex: none;
+  }
+  .how .sub {
+    line-height: 1.45;
+  }
+  .how > p.sub {
+    margin: 0;
+    color: var(--text-3);
+    font-size: 12px;
   }
 </style>
