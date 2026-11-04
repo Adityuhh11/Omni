@@ -53,11 +53,12 @@ func (s *Service) calendarItems(text string) []Item {
 		}
 		return nil
 	}
-	var items []Item
+	// The window row comes first and says "Omni": the system's own Calendar app answers the same word further down.
+	items := []Item{{ID: "cal:open", Kind: "calendar", Title: "Omni calendar", Subtitle: "Week view"}}
 	for _, e := range events[:min(len(events), upcomingRows)] {
 		items = append(items, eventItem(e, now))
 	}
-	return append(items, Item{ID: "cal:open", Kind: "calendar", Title: "Open the calendar", Subtitle: "Calendar"})
+	return items
 }
 
 // eventItem is an event as a row: Enter joins its meeting, or opens the calendar. Every row has its own id, because the page keys

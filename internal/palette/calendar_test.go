@@ -48,11 +48,11 @@ func TestCalendarListsWhatIsComingAndJoinOpensTheNextMeeting(t *testing.T) {
 		}
 	}
 	want := []string{
+		"Omni calendar | Week view",
 		"Holiday | All day · Work",
 		"Standup | 10:00–10:15 · Work · now",
 		"Design review | 10:30–11:00 · Work · in 25 min · Enter joins",
 		"Dentist | Tomorrow 09:00–10:00 · Home",
-		"Open the calendar | Calendar",
 	}
 	if strings.Join(rows, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("cal rows:\n%s\nwant:\n%s", strings.Join(rows, "\n"), strings.Join(want, "\n"))
@@ -107,7 +107,7 @@ func TestCalendarRowsForEventsThatBeganEarlierAndAUIDWithSpaces(t *testing.T) {
 			rows = append(rows, item.Title+" | "+item.Subtitle)
 		}
 	}
-	want := "Vacation | All day · Home\nRelease | 23:00–01:00 · Work · now\nSync | 09:00–10:00 · Work · Enter joins\nOpen the calendar | Calendar"
+	want := "Omni calendar | Week view\nVacation | All day · Home\nRelease | 23:00–01:00 · Work · now\nSync | 09:00–10:00 · Work · Enter joins"
 	if strings.Join(rows, "\n") != want {
 		t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(rows, "\n"), want)
 	}
