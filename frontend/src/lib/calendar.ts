@@ -70,3 +70,37 @@ export function placeDay<T extends Span>(events: T[], day: Date, minMinutes = 20
 export const CALENDAR_COLORS = ["#8fb8d8", "#c98a5e", "#6fbf95", "#a690d8", "#d88fa6", "#cdb06a"];
 
 export const colorOf = (n: number) => CALENDAR_COLORS[((n % CALENDAR_COLORS.length) + CALENDAR_COLORS.length) % CALENDAR_COLORS.length];
+
+/** The service a meeting link is on, for the Join button: "Zoom", "Google Meet", "Teams", "Webex". */
+export function meetingName(link: string): string {
+  const host = link.match(/^https:\/\/([^/]+)/)?.[1] ?? "";
+  if (host.endsWith("zoom.us")) return "Zoom";
+  if (host === "meet.google.com") return "Google Meet";
+  if (host.startsWith("teams.")) return "Teams";
+  if (host.endsWith("webex.com")) return "Webex";
+  return "the meeting";
+}
+
+const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", apos: "'", nbsp: " " };
+
+/**
+ * An event's notes as markdown. Google and Outlook write them as HTML (line breaks, links, bold); that becomes the markdown
+ * it means and every other tag is dropped, so the page's markdown renderer, which escapes everything, can show it.
+ */
+export function notesMarkdown(notes: string): string {
+  if (!/<\/?[a-z][^>]*>/i.test(notes)) return notes;
+  return notes
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h\d|ul|ol)>/gi, "\n\n")
+    .replace(/<li[^>]*>/gi, "\n- ")
+    .replace(/<a\s[^>]*href="(https?:[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href, text) => {
+      const words = text.replace(/<[^>]*>/g, "").trim();
+      return !words || words === href ? href : `[${words}](${href})`;
+    })
+    .replace(/<\/?(b|strong)>/gi, "**")
+    .replace(/<\/?(i|em)>/gi, "_")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (_, name) => entities[name])
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

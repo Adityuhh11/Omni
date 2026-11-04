@@ -1,12 +1,15 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { Window } from "@wailsio/runtime";
+  import { Browser, Window } from "@wailsio/runtime";
   import { Service as Calendars } from "../bindings/omni/internal/calendar";
   import type { Event as CalEvent, Status } from "../bindings/omni/internal/calendar";
   import Card from "./lib/Card.svelte";
   import RoundButton from "./lib/RoundButton.svelte";
+  import Icon from "./lib/Icon.svelte";
   import "./lib/settings/forms.css";
-  import { colorOf, covers, placeDay, sameDay, weekDays, weekStart } from "./lib/calendar";
+  import "./lib/markdown.css";
+  import { render } from "./lib/markdown";
+  import { colorOf, covers, meetingName, notesMarkdown, placeDay, sameDay, weekDays, weekStart } from "./lib/calendar";
 
   const HOUR = 46; // pixels an hour takes in the grid
 
@@ -76,6 +79,23 @@
     }
     return `${e.start.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}, ${time(e.start)} – ${time(e.end)}`;
   };
+  /** "Now", "in 12 min" or "in 2 h" for an event that has not ended and starts within a day; "" otherwise. */
+  const startsIn = (e: Shown) => {
+    if (e.allDay || e.end <= now) return "";
+    const minutes = Math.round((e.start.getTime() - now.getTime()) / 60_000);
+    if (minutes <= 0) return "Now";
+    return minutes < 60 ? `in ${minutes} min` : minutes < 24 * 60 ? `in ${Math.round(minutes / 60)} h` : "";
+  };
+  const isAddress = (text: string) => /^https?:\/\//i.test(text.trim());
+  const host = (link: string) => link.match(/^https:\/\/([^/]+)/)?.[1] ?? "";
+
+  function openLink(event: MouseEvent) {
+    const link = (event.target as HTMLElement).closest("a");
+    if (link) {
+      event.preventDefault(); // a click must not navigate the calendar window itself
+      Browser.OpenURL(link.getAttribute("href") ?? "");
+    }
+  }
   const hourLabel = (h: number) => new Date(2000, 0, 1, h).toLocaleTimeString(undefined, { hour: "numeric" });
 
   function onKey(e: KeyboardEvent) {
@@ -198,18 +218,29 @@
     {/if}
 
     {#if open}
-      <div class="detail" role="dialog" aria-label={open.Title}>
+      {@const e = open}
+      {@const soon = startsIn(e)}
+      <div class="detail" role="dialog" aria-label={e.Title || "Event"} style:--c={colorOf(e.Color)}>
         <div class="detail-head">
-          <span class="dot" style:background={colorOf(open.Color)}></span>
-          <h2>{open.Title || "(no title)"}</h2>
+          <h2>{e.Title || "(no title)"}</h2>
           <RoundButton icon="close" label="Close the event" size={28} onclick={() => (open = null)} />
         </div>
-        <p class="meta">{span(open)}</p>
-        <p class="meta">{open.Calendar}{open.Location ? ` · ${open.Location}` : ""}</p>
-        {#if open.Join}
-          <button type="button" class="btn primary join" onclick={() => open && join(open)}>Join the meeting</button>
+        <ul class="facts">
+          <li><Icon name="clock" size={15} /><span>{span(e)}{#if soon}<span class="soon" class:live={soon === "Now"}>{soon}</span>{/if}</span></li>
+          {#if e.Location && !isAddress(e.Location)}<li><Icon name="place" size={15} /><span>{e.Location}</span></li>{/if}
+          <li><span class="swatch" aria-hidden="true"></span><span>{e.Calendar}</span></li>
+        </ul>
+        {#if e.Join}
+          <button type="button" class="join" onclick={() => join(e)} title={e.Join}>
+            <Icon name="camera" size={17} />
+            <span>Join {meetingName(e.Join)}</span>
+            <span class="host">{host(e.Join)}</span>
+          </button>
         {/if}
-        {#if open.Notes}<p class="notes">{open.Notes}</p>{/if}
+        {#if e.Notes}
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <div class="notes" onclick={openLink}>{@html render(notesMarkdown(e.Notes))}</div>
+        {/if}
       </div>
     {/if}
   </main>
@@ -496,10 +527,11 @@
     z-index: 3;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    width: 320px;
+    gap: 12px;
+    width: 340px;
     max-height: calc(100% - 120px);
-    padding: 14px 14px 16px 16px;
+    box-sizing: border-box;
+    padding: 16px 14px 16px 18px;
     overflow-y: auto;
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -511,33 +543,144 @@
     align-items: flex-start;
     gap: 10px;
   }
-  .detail-head .dot {
-    margin-top: 7px;
-  }
   .detail h2 {
     flex: 1;
-    margin: 0;
-    font: 620 15px/1.35 var(--sans);
+    margin: 2px 0 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--c);
+    font: 620 16px/1.3 var(--sans);
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
   }
-  .meta {
+  .facts {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
     margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .facts li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
     color: var(--text-2);
     font-size: 12.5px;
-    line-height: 1.45;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
+  .facts li > :global(svg) {
+    flex: none;
+    margin-top: 1px;
+    color: var(--text-3);
+  }
+  .swatch {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    margin: 4px 3px 0;
+    border-radius: 3px;
+    background: var(--c);
+  }
+  .soon {
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 8px;
+    background: var(--tile);
+    color: var(--text);
+    font: 560 11px/1.4 var(--sans);
+    white-space: nowrap;
+  }
+  .soon.live {
+    background: color-mix(in srgb, var(--c) 30%, transparent);
+  }
+  /* The one action an event has: wide, in the event's own colour, so it reads as part of it and not as a stray button. */
   .join {
-    align-self: flex-start;
-    margin: 6px 0 2px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--c) 18%, var(--plate));
+    color: var(--text);
+    font: 600 13.5px/1 var(--sans);
+    cursor: pointer;
+    transition: background-color 0.12s, border-color 0.12s;
+  }
+  .join:hover {
+    border-color: color-mix(in srgb, var(--c) 70%, transparent);
+    background: color-mix(in srgb, var(--c) 30%, var(--plate));
+  }
+  .join:focus-visible {
+    outline: 1px solid var(--chrome);
+    outline-offset: 2px;
+  }
+  .join .host {
+    margin-left: auto;
+    overflow: hidden;
+    color: var(--text-3);
+    font: 500 11px/1 var(--mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .notes {
-    margin: 6px 0 0;
-    padding-top: 10px;
+    padding-top: 12px;
     border-top: 1px solid var(--line);
     color: var(--text-2);
     font-size: 12.5px;
-    line-height: 1.5;
-    white-space: pre-wrap;
+    line-height: 1.55;
     overflow-wrap: anywhere;
     user-select: text;
+  }
+  .notes :global(:is(p, ul, ol, pre, blockquote, .md-table)) {
+    margin: 0 0 8px;
+  }
+  .notes :global(> :last-child) {
+    margin-bottom: 0;
+  }
+  .notes :global(:is(ul, ol)) {
+    padding-left: 18px;
+  }
+  .notes :global(:is(h1, h2, h3, h4, h5, h6)) {
+    margin: 10px 0 4px;
+    color: var(--text);
+    font: 620 13px/1.3 var(--sans);
+  }
+  .notes :global(strong) {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .notes :global(code) {
+    padding: 1px 4px;
+    border-radius: 5px;
+    background: var(--tile);
+    font: 500 11.5px var(--mono);
+  }
+  .notes :global(pre) {
+    padding: 8px 10px;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--tile);
+  }
+  .notes :global(pre code) {
+    padding: 0;
+    background: none;
+  }
+  .notes :global(a) {
+    color: var(--text);
+    text-decoration-color: var(--text-3);
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  .notes :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+  .notes :global(blockquote) {
+    padding-left: 10px;
+    border-left: 2px solid var(--line);
   }
 </style>
