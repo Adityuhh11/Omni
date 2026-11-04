@@ -387,7 +387,8 @@ pace = 'fast'
 	if !got.UI.SelectionEffect || !got.Search.GroupResults {
 		t.Errorf("the feel settings must be on when the file lacks them: %+v %+v", got.UI, got.Search)
 	}
-	if !reflect.DeepEqual(got.Timer, Timer{FocusMinutes: 25, ShortBreakMinutes: 5, LongBreakMinutes: 15, Rounds: 4, PresetMinutes: []int{5, 10, 25, 45}}) {
+	if !reflect.DeepEqual(got.Timer, Timer{FocusMinutes: 25, ShortBreakMinutes: 5, LongBreakMinutes: 15, Rounds: 4, PresetMinutes: []int{5, 10, 25, 45},
+		BlockSites: distractingSites, BlockApps: distractingApps}) {
 		t.Errorf("timer = %+v, want the pomodoro defaults", got.Timer)
 	}
 }

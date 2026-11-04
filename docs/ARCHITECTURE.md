@@ -136,7 +136,7 @@ is Objective-C through cgo, which cannot be compiled from Windows, so that runne
 
 | Package | Shared | Windows | macOS |
 |---|---|---|---|
-| `config` | settings, validation | `paths_windows.go`: data in `%LOCALAPPDATA%\Omni`, log in `...\Omni\logs` | `paths_darwin.go`: `~/Library/Application Support/Omni`, log in `~/Library/Logs/Omni` |
+| `config` | settings, validation | `paths_windows.go`: data in `%LOCALAPPDATA%\Omni`, log in `...\Omni\logs`, the focus list's default programs (`discord.exe`) | `paths_darwin.go`: `~/Library/Application Support/Omni`, log in `~/Library/Logs/Omni`, the focus list's default programs (`Discord`) |
 | `apps` | `Index`, `Catalog`, `icons.go` (HTTP, cache) | Start Menu through PowerShell (`list_`, `parse_`, `launch_`, `focus_`, `icon_windows.go`) | scan of `.app` bundles, `open` (`list_`, `launch_darwin.go`), icons from `NSWorkspace` (`icon_darwin.go`/`.m`), refreshed when the bar opens |
 | `system` | `Run`, `Command` | lock, `shutdown.exe` for sign out, restart, shut down and hibernate; sleep and display off through `powrprof` and `user32` (`power_windows.go`: on a Modern Standby computer sleep turns the screen off, as the Start menu does); Task Manager, Recycle Bin, Settings | lock, `pmset` for sleep and display off, System Events for log out, restart and shut down; Activity Monitor, Trash, System Settings |
 | `focus` | rules, the watch loop | foreground window, process name, the address bar through UI Automation (`uia_windows.go`), minimize | System Events and the browser through `osascript`, hide |
