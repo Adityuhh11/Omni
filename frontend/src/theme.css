@@ -1,13 +1,19 @@
-/* Pure black (the default theme; the others are at the end of this file): the plate is #000, like an OLED screen or black paint on a sports car; the premium
-   comes from the lit edge and the ring, not from texture or gradient. One metal for the ring. No accent hue; emphasis is weight and brightness. The cards are frosted
-   glass: the system blurs what is behind them (lib/glass.ts) and --glass, the plate part see-through, tints it dark enough to read over a white page. */
+/* Pure black (the default theme; the others are at the end of this file): the plate is #000, flat, like an OLED screen or black paint on a sports car; the premium
+   comes from the lit edge and the ring, not from texture or gradient. One metal for the ring. No accent hue unless the person picks one (data-accent); emphasis is
+   weight and brightness. The plate is opaque, so it stays dark whatever is behind the panel; only the Glass theme (at the end) makes the cards see-through. */
 :root {
   --plate: #000;
-  --glass-tint: 55%;
-  --glass: color-mix(in srgb, var(--plate) var(--glass-tint), transparent);
-  /* What floats inside a card (a menu, an event's details): more plate, and the page's own blur of what it covers. */
-  --glass-raised: color-mix(in srgb, var(--plate) 84%, transparent);
-  --glass-blur: blur(24px) saturate(150%);
+  /* The cards' fill, what floats inside a card (a menu, an event's details) and that layer's blur: the plate itself here, glass in the Glass theme. */
+  --glass: var(--plate);
+  --glass-raised: var(--plate);
+  --glass-blur: none;
+  /* The lit top rim and the hairline edge, as strengths of --ink: the cards', the bar's, and the chat box's (none while the ring is its edge). */
+  --card-rim: 16%;
+  --card-edge: 10%;
+  --bar-rim: 13%;
+  --bar-edge: 4.5%;
+  --well: #0d0d0e;
+  --well-edge: 0%;
   /* The colour that lifts and outlines things on the plate (white on a dark theme, near black on a light one); every tint
      below and in the components is this colour at some strength, so a theme only has to set its few colours. */
   --ink: #fff;
@@ -95,22 +101,17 @@ html[data-active="false"] *::after {
   animation-play-state: paused !important;
 }
 
-/* No glass where the system cannot blur, or where the person asked it for less transparency: the plate is opaque again. */
-html[data-glass="off"] {
-  --glass: var(--plate);
-  --glass-raised: var(--plate);
-}
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass: var(--plate);
-    --glass-raised: var(--plate);
-  }
+/* No ring: the bar and the chat's box get a plain hairline edge instead, and the plate fills the card to its edge. */
+html[data-ring="off"] {
+  --ring: 0px;
+  --bar-edge: 12%;
+  --well-edge: 12%;
 }
 
-/* The setup is an ordinary window with a title bar; the system frosts all of it (Mica on Windows) and the page tints it. */
+/* The settings window is an ordinary opaque window, not the transparent search bar. */
 html[data-surface="settings"],
 html[data-surface="settings"] body {
-  background: transparent;
+  background: var(--plate);
   overflow: auto;
   user-select: text;
 }
@@ -160,7 +161,6 @@ html[data-theme="forest"] {
   --on-chrome: #09140f;
 }
 html[data-theme="cream"] {
-  --glass-tint: 68%;
   --ring-fallback: linear-gradient(135deg, #6b4a2f, #e9cfae 45%, #6b4a2f 70%, #b08a63);
   --plate: #f6f0e2;
   --ink: #1c1a16;
@@ -174,7 +174,6 @@ html[data-theme="cream"] {
   color-scheme: light;
 }
 html[data-theme="blush"] {
-  --glass-tint: 68%;
   --ring-fallback: linear-gradient(135deg, #c2556f, #ffd3de 45%, #c2556f 70%, #e79bb0);
   --plate: #f8e8e6;
   --ink: #2b1716;
@@ -188,7 +187,6 @@ html[data-theme="blush"] {
   color-scheme: light;
 }
 html[data-theme="coral"] {
-  --glass-tint: 68%;
   --ring-fallback: linear-gradient(135deg, #d0534a, #ffd2cb 45%, #d0534a 70%, #ee9a92);
   --plate: #f1c9c2;
   --ink: #3a1512;
@@ -200,4 +198,50 @@ html[data-theme="coral"] {
   --on-chrome: #f6d7d2;
   --danger: #9e1b12;
   color-scheme: light;
+}
+
+/* Glass: frosted cards. The system blurs what is behind each card (lib/glass.ts, internal/glass) and the plate, part see-through,
+   tints it dark enough to read over a white page; what floats inside a card blurs what it covers itself. Where the system cannot
+   blur, or the person asked it for less transparency, the plate is opaque again. */
+html[data-theme="glass"] {
+  --ring-fallback: linear-gradient(135deg, #565963, #e4e8f0 45%, #565963 70%, #c9ced9);
+  --plate: #0b0c11;
+  --glass: color-mix(in srgb, var(--plate) 55%, transparent);
+  --glass-raised: color-mix(in srgb, var(--plate) 84%, transparent);
+  --glass-blur: blur(24px) saturate(150%);
+  --card-rim: 24%;
+  --card-edge: 14%;
+  --bar-rim: 22%;
+  --bar-edge: 8%;
+  --well: var(--glass-raised);
+  --text: #f1f2f5;
+  --text-2: #c4c6cc;
+  --text-3: #a3a6ae; /* lighter than black's: the glass under it is lighter than #000 */
+}
+html[data-theme="glass"][data-glass="off"] {
+  --glass: var(--plate);
+  --glass-raised: var(--plate);
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-theme="glass"] {
+    --glass: var(--plate);
+    --glass-raised: var(--plate);
+  }
+}
+
+/* Accents: what the chrome marks (focus, the caret, filled buttons, switches, the selection and the selected row) in a colour of
+   the person's choosing, a light shade on the dark themes and a deep one on the light themes. "none" keeps the chrome. */
+html[data-accent="blue"] { --chrome: #8ab4ff; --chrome-hot: #b3ceff; --on-chrome: #04122e; }
+html[data-accent="violet"] { --chrome: #bba6ff; --chrome-hot: #d6caff; --on-chrome: #160a33; }
+html[data-accent="green"] { --chrome: #7fdcae; --chrome-hot: #aeeccc; --on-chrome: #032115; }
+html[data-accent="amber"] { --chrome: #f4c071; --chrome-hot: #f8d7a3; --on-chrome: #2b1a02; }
+html[data-accent="rose"] { --chrome: #f59ab6; --chrome-hot: #f9c1d2; --on-chrome: #33061a; }
+html[data-accent="blue"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #1f56c4; --chrome-hot: #123e96; --on-chrome: #fff; }
+html[data-accent="violet"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #5b3cc4; --chrome-hot: #432a96; --on-chrome: #fff; }
+html[data-accent="green"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #17784c; --chrome-hot: #0f5636; --on-chrome: #fff; }
+html[data-accent="amber"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #8f5a00; --chrome-hot: #6b4300; --on-chrome: #fff; }
+html[data-accent="rose"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #b0264f; --chrome-hot: #851a3a; --on-chrome: #fff; }
+/* With an accent, the selected row carries a little of it. */
+html[data-accent]:not([data-accent="none"]) {
+  --lift: color-mix(in srgb, var(--chrome) 14%, transparent);
 }

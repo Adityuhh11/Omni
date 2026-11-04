@@ -13,7 +13,7 @@
   import PlusMenu from "./lib/chat/PlusMenu.svelte";
   import Agenda from "./lib/chat/Agenda.svelte";
   import { ringsFor } from "./lib/palettes";
-  import { currentTheme, onTheme } from "./lib/theme";
+  import { currentLook, onLook } from "./lib/theme";
   import { escapeStep, lastQuestion, meter, sends, thoughtFor, unloadsIn, waiting, type Phase } from "./lib/chat/chat";
   import { copyable } from "./lib/chat/copy";
   import { when } from "./lib/format";
@@ -31,7 +31,8 @@
   let error = $state("");
   // The answer being written: it is shown from the events, and replaced by the finished message when the answer ends.
   let live = $state<{ text: string; thinking: string; phase: Phase; status: string } | null>(null);
-  let theme = $state(currentTheme()); // the composer's ring is the first ring of the theme
+  let theme = $state(currentLook().Theme); // the composer's ring is the first ring of the theme
+  let ring = $state(currentLook().Ring);
   let focused = $state(false); // the composer has the keyboard: its ring moves
   let historyOpen = $state(false);
   let menuOpen = $state(false); // the + menu above the composer
@@ -284,7 +285,7 @@
     follow().then(() => tick().then(() => box?.focus()));
 
     const offs = [
-      onTheme((id) => (theme = id)),
+      onLook((look) => ((theme = look.Theme), (ring = look.Ring))),
       Events.On("chat:model", (e) => {
         info = e.data as Info;
         now = Date.now(); // the countdown to the unload is read against this
@@ -480,7 +481,7 @@
       <!-- The composer floats over the end of the conversation. Its rim is the search card's ring; it moves only while the box
            has the keyboard or an answer is coming, and rests as a still metal edge otherwise. -->
       <form class="composer" onsubmit={(event) => { event.preventDefault(); submit(); }}>
-        <LiquidRing speed={busy ? 1.5 : 0.6} running={focused || busy} metal={ringsFor(theme)[0]} radius={27} />
+        {#if ring}<LiquidRing speed={busy ? 1.5 : 0.6} running={focused || busy} metal={ringsFor(theme)[0]} radius={27} />{/if}
         {#if info?.thinking || info?.web_search || toolsOn.length}
           <!-- What is switched on floats over the box's top edge, so it takes no room in the row: a click turns it off. -->
           <div class="pills">
@@ -854,7 +855,7 @@
   }
   .composer {
     position: relative;
-    padding: 2.5px; /* the metal of the ring around the plate */
+    padding: var(--ring); /* the metal of the ring around the plate */
     border-radius: 29px;
   }
   .plate {
@@ -863,9 +864,10 @@
     flex-direction: column;
     padding: 6px;
     border-radius: 26.5px;
-    background: var(--glass-raised);
+    background: var(--well);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--well-edge), transparent);
   }
   .line {
     display: flex;

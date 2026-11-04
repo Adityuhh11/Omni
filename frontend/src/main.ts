@@ -5,10 +5,10 @@ import "./theme.css";
 import { mount } from "svelte";
 import App from "./App.svelte";
 import { catchUnexpected } from "./lib/oops";
-import { followTheme } from "./lib/theme";
+import { followLook } from "./lib/theme";
 
 catchUnexpected();
-followTheme();
+followLook();
 
 // Line icons are drawn with a stroke of a whole number of device pixels, the only width a screen draws sharply: at 125% a
 // 1.6 px line is a blurred 2 px one. The resize event also fires when the window moves to a screen of another scale.

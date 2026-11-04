@@ -36,8 +36,8 @@
     border-radius: 26px;
     background: var(--glass);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--ink) 24%, transparent),
-      inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
+      inset 0 1px 0 color-mix(in srgb, var(--ink) var(--card-rim), transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--card-edge), transparent);
     color: var(--text);
   }
   .grip {

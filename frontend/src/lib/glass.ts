@@ -1,6 +1,6 @@
 import { Service as Glass } from "../../bindings/omni/internal/glass";
 
-// The frosted glass behind a card. A page cannot blur what is behind its own window, so it tells the window where its card is
+// The frosted glass behind a card, while the Glass theme is chosen. A page cannot blur what is behind its own window, so it tells the window where its card is
 // (internal/glass) and the system blurs the desktop there; the page paints the tint (--glass) on top. Someone who asked the
 // system for less transparency, or a system that cannot do it, gets the plate opaque (html[data-glass="off"] in theme.css).
 
@@ -12,12 +12,15 @@ function off() {
 
 /** A Svelte action: the glass follows the element's box, rounded by radius CSS pixels. */
 export function glass(node: HTMLElement, radius: number) {
-  let last = "";
+  let last = ""; // what the window was last told; "none" for no glass
   let frame = 0;
   const send = () => {
     frame = 0;
-    if (reduced.matches) {
-      off();
+    if (document.documentElement.dataset.theme !== "glass" || reduced.matches) {
+      if (reduced.matches) off();
+      // Another theme, or no transparency wanted: take away any blur this card had.
+      if (last !== "none" && last !== "") Glass.Shape(0, 0, 0, 0, 0, true).catch((err) => console.warn("glass:", err));
+      last = "none"; // a window that never had glass is not asked to remove it
       return;
     }
     const box = node.getBoundingClientRect();
@@ -34,7 +37,7 @@ export function glass(node: HTMLElement, radius: number) {
   const soon = () => (frame ||= requestAnimationFrame(send));
   const observer = new ResizeObserver(soon);
   observer.observe(node);
-  // The theme switches between dark and light glass.
+  // The glass comes and goes with the Glass theme.
   const themes = new MutationObserver(soon);
   themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("resize", soon);
@@ -57,7 +60,7 @@ export function glass(node: HTMLElement, radius: number) {
       reduced.removeEventListener("change", changed);
       cancelAnimationFrame(frame);
       // The card is gone: no glass left behind on an empty window.
-      Glass.Shape(0, 0, 0, 0, 0, true).catch((err) => console.warn("glass:", err));
+      if (last !== "none" && last !== "") Glass.Shape(0, 0, 0, 0, 0, true).catch((err) => console.warn("glass:", err));
     },
   };
 }

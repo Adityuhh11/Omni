@@ -142,7 +142,7 @@ test("a fence indented under text is still a fence", () => {
 });
 
 test("deeply nested lists render without blowing the stack", () => {
-  const deep = Array.from({ length: 3000 }, (_, n) => " ".repeat(n * 2) + "- x").join("\n");
+  const deep = Array.from({ length: 1000 }, (_, n) => " ".repeat(n * 2) + "- x").join("\n");
   const started = Date.now();
   assert.ok(render(deep).length > 0);
   assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);

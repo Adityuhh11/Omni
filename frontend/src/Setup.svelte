@@ -124,7 +124,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: var(--glass);
+    background: var(--plate);
     color: var(--text);
   }
   .content {
