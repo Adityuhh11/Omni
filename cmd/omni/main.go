@@ -32,6 +32,7 @@ import (
 	"omni/internal/enginesetup"
 	"omni/internal/files"
 	"omni/internal/focus"
+	"omni/internal/glass"
 	"omni/internal/hotkey"
 	"omni/internal/indexing"
 	"omni/internal/llm"
@@ -484,6 +485,7 @@ func run(afterUpdate bool) error {
 	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, indexer.Rescan, togglePause)
 	for _, service := range []application.Service{
 		application.NewService(panel.NewService(bar)),
+		application.NewService(&glass.Service{}),
 		application.NewService(status.New(store.Get, bar.HotkeyError, engine.Status, indexer.Status)),
 		application.NewService(fileSearch),
 		application.NewService(opener),
@@ -615,8 +617,8 @@ func run(afterUpdate bool) error {
 	// first and only saves the change if that worked.
 	store.Subscribe(func(old, updated config.Config) {
 		browser.Update(updated.Browser, updated.SearchURL, updated.Quicklinks)
-		if old.UI.Theme != updated.UI.Theme {
-			app.Event.Emit("ui:theme", updated.UI.Theme) // every open window repaints
+		if old.UI.Theme != updated.UI.Theme || old.UI.Ring != updated.UI.Ring || old.UI.Accent != updated.UI.Accent {
+			app.Event.Emit("ui:look", updated.UI) // every open window repaints
 		}
 		if old.Search.Pace != updated.Search.Pace {
 			indexer.SetPace(updated.Search.Pace)

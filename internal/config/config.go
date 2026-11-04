@@ -63,8 +63,13 @@ type Config struct {
 type UI struct {
 	// SelectionEffect lifts the selected result and dims the others while the arrow keys move through the list.
 	SelectionEffect bool `toml:"selection_effect"`
-	// Theme is the colours of every window: one of Themes.
+	// Theme is the colours of every window: one of Themes. "glass" is the frosted one (internal/glass).
 	Theme string `toml:"theme"`
+	// Ring draws the flowing metal ring around the bar and the chat's box; off, they have a plain hairline edge.
+	Ring bool `toml:"ring"`
+	// Accent colours what the bright chrome marks (focus, the caret, filled buttons, switches, the selected row): one of Accents,
+	// "none" for the chrome itself.
+	Accent string `toml:"accent"`
 }
 
 // Calendar lists the calendars that are shown. Their subscription addresses are secrets (anyone with one can read the
@@ -80,7 +85,10 @@ type CalendarFeed struct {
 }
 
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
-var Themes = []string{"black", "midnight", "forest", "cream", "blush", "coral"}
+var Themes = []string{"black", "midnight", "forest", "cream", "blush", "coral", "glass"}
+
+// Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
+var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}
 
 // Timer holds the lengths of a pomodoro and how it goes on.
 type Timer struct {
@@ -350,6 +358,7 @@ func (c Config) Validate() error {
 		allowed     []string
 	}{
 		{"ui theme", c.UI.Theme, Themes},
+		{"ui accent", c.UI.Accent, Accents},
 		{"search pace", c.Search.Pace, Paces},
 		{"pdf_pages", c.Search.PDFPages, PDFPageModes},
 		{"photos", c.Search.Photos, PhotoModes},

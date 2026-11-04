@@ -752,10 +752,19 @@ func TestTheDailyHoursAndTheThemeAreSavedAndABadValueIsRefused(t *testing.T) {
 	if msg := h.svc.SetIndexBetween(""); msg != "" || h.store.Get().Search.IndexBetween != "" {
 		t.Fatalf("turning the hours off: %q", msg)
 	}
-	if msg := h.svc.SetTheme("cream"); msg != "" || h.svc.Theme() != "cream" {
+	if msg := h.svc.SetTheme("cream"); msg != "" || h.svc.Look().Theme != "cream" {
 		t.Fatalf("SetTheme: %q", msg)
 	}
-	if msg := h.svc.SetTheme("neon"); msg == "" || h.svc.Theme() != "cream" {
+	if msg := h.svc.SetTheme("neon"); msg == "" || h.svc.Look().Theme != "cream" {
 		t.Fatalf("an unknown theme was accepted: %q", msg)
+	}
+	if msg := h.svc.SetAccent("blue"); msg != "" || h.svc.Look().Accent != "blue" {
+		t.Fatalf("SetAccent: %q", msg)
+	}
+	if msg := h.svc.SetAccent("neon"); msg == "" || h.svc.Look().Accent != "blue" {
+		t.Fatalf("an unknown accent was accepted: %q", msg)
+	}
+	if msg := h.svc.SetRing(false); msg != "" || h.svc.Look().Ring {
+		t.Fatalf("SetRing: %q", msg)
 	}
 }

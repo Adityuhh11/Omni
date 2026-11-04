@@ -8,8 +8,21 @@ The visual system of the launcher panel, recorded from the built page (`frontend
 Pure black and chrome. The plate is flat `#000`, like an OLED screen or black paint on a sports car: no gradient,
 no texture (a brushed grain, a band of light, a graphite gradient and frosted glass were all tried on 2026-10-16 and
 dropped; they read as stray lines or turned the plate grey). The premium comes from a lit top rim and a hairline edge, and
-from the ring. It is opaque, so it stays black whatever is behind the panel. The interface itself has no accent hue (emphasis is
-weight and brightness); the only colour is the ring, a metal that changes every time the panel closes.
+from the ring. It is opaque, so it stays black whatever is behind the panel. The interface itself has no accent hue unless the
+person picks one (emphasis is weight and brightness); the only colour is the ring, a metal that changes every time the panel closes.
+
+Three choices in Settings, General change this, and every window follows at once (`ui:look`):
+
+- **Glass theme.** Frosted cards, chosen by the owner on 2026-11-04 from five studies (black plate, frosted, clear liquid glass,
+  smoked, frosted with flowing liquid). The system blurs what is behind each card, cut to its exact rounded shape
+  (`internal/glass`; a page cannot blur what is behind its own window), and the plate (`#0b0c11`) at 55% tints it dark enough
+  to read over a white page (`--glass`). What floats inside a card is denser and blurs what it covers (`--glass-raised`,
+  `--glass-blur`). Where the system cannot blur, or the person asked it for less transparency, the plate is opaque again. The
+  other themes are untouched: for them `--glass` is the plate.
+- **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.
+- **An accent** (blue, violet, green, amber, rose) takes the place of the chrome where it marks something: focus, the caret,
+  filled buttons, switches, the text selection, and a little of it in the selected row. A light shade on the dark themes, a deep
+  one on the light themes. "Chrome" is the default and keeps the interface without a hue.
 
 ## Shape and motion
 
@@ -57,6 +70,12 @@ weight and brightness); the only colour is the ring, a metal that changes every 
 | Token | Value | Use |
 |---|---|---|
 | `--plate` | `#000` | the plate, flat |
+| `--glass` | the plate; plate at 55% in Glass | the cards' fill |
+| `--card-rim`, `--card-edge` | 16%, 10% of ink (24%, 14% in Glass) | the cards' lit top rim and hairline edge |
+| `--bar-rim`, `--bar-edge` | 13%, 4.5% (22%, 8% in Glass; edge 12% without the ring) | the bar's rim and edge |
+| `--well`, `--well-edge` | `#0d0d0e`, 0% (12% without the ring) | the chat's box inside its ring |
+| `--ring` | 2.5px (0 without the ring) | how much of the card the ring takes |
+| `--glass-raised` + `--glass-blur` | the plate, no blur; plate at 84% and the page's own blur in Glass | what floats inside a card: the action panel, an event's details, the chat's history |
 | `--lift` | `rgba(255,255,255,.075)` | selected row |
 | `--tile` | `rgba(255,255,255,.055)` | icon tiles, count and key chips |
 | `--line` | `rgba(255,255,255,.07)` | hairlines between bar, list and hints |
@@ -100,5 +119,8 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
 ## Rules
 
 - Nothing animated may run while the panel is closed; nothing visual may be added to the hotkey path.
-- No accent color in the interface. Emphasis by weight and brightness; the ring is the one coloured thing.
-- The ring is real shader output, never a CSS imitation (the static gradient behind it is only the no-WebGL fallback).
+- No accent color in the interface unless the person picks one, and then only where the chrome would be. Emphasis by weight and
+  brightness; the ring is the one coloured thing.
+- The ring is real shader output, never a CSS imitation (the static gradient behind it is only the no-WebGL fallback). It is masked to
+  its rim, so it never shows through the glass.
+- Nothing inside a card paints a band of the plate's colour to fade content (it shows as a stripe on glass): fade with a mask.

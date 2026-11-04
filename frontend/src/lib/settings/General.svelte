@@ -4,7 +4,7 @@
   import { OmniAI, Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
   import HotkeyField from "./HotkeyField.svelte";
-  import { applyTheme, THEMES } from "../theme";
+  import { ACCENTS, applyLook, THEMES } from "../theme";
 
   let { view }: { view: View } = $props();
 
@@ -21,6 +21,10 @@
   let lift = $state(view.SelectionEffect);
   // svelte-ignore state_referenced_locally
   let theme = $state(view.Theme);
+  // svelte-ignore state_referenced_locally
+  let ring = $state(view.Ring);
+  // svelte-ignore state_referenced_locally
+  let accent = $state(view.Accent);
   let browsers = $state<string[]>([]);
   // The other hotkeys live on pages of their own services; they are shown here, beside the search bar's, and saved there.
   let clipboard = $state<ClipboardView | null>(null);
@@ -100,11 +104,29 @@
   async function saveTheme(id: string) {
     const before = theme;
     theme = id;
-    applyTheme(id);
+    applyLook({ Theme: id });
     error = await Settings.SetTheme(id);
     if (error !== "") {
       theme = before;
-      applyTheme(before);
+      applyLook({ Theme: before });
+    } else flashSaved();
+  }
+
+  async function saveRing() {
+    applyLook({ Ring: ring });
+    error = await Settings.SetRing(ring);
+    if (error !== "") applyLook({ Ring: (ring = !ring) });
+    else flashSaved();
+  }
+
+  async function saveAccent(id: string) {
+    const before = accent;
+    accent = id;
+    applyLook({ Accent: id });
+    error = await Settings.SetAccent(id);
+    if (error !== "") {
+      accent = before;
+      applyLook({ Accent: before });
     } else flashSaved();
   }
 
@@ -133,6 +155,24 @@
       {/each}
     </div>
   </div>
+  <div class="item stack">
+    <span class="name" id="accent-label">Accent</span>
+    <div class="themes" role="radiogroup" aria-labelledby="accent-label">
+      {#each ACCENTS as a (a.id)}
+        <button type="button" role="radio" aria-checked={accent === a.id} class:on={accent === a.id} onclick={() => saveAccent(a.id)}>
+          <span class="dot" style:background={a.swatch}></span>
+          {a.label}
+        </button>
+      {/each}
+    </div>
+  </div>
+  <label class="item">
+    <span class="text">
+      <span class="name">Metal ring</span>
+      <span class="sub">The flowing ring around the search bar and the Omni AI box</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
+  </label>
   <label class="item">
     <span class="text">
       <span class="name">Lift the selected result</span>
@@ -232,6 +272,13 @@
   .themes button:focus-visible {
     outline: 1px solid var(--chrome);
     outline-offset: 2px;
+  }
+  .dot {
+    width: 14px;
+    height: 14px;
+    margin: 6px 0 6px 6px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
   }
   .swatch {
     display: grid;

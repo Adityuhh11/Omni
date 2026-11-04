@@ -16,9 +16,10 @@
   import Hints from "./lib/Hints.svelte";
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
+  import { glass } from "./lib/glass";
   import Loader from "./lib/Loader.svelte";
   import { nextMetal, ringsFor } from "./lib/palettes";
-  import { currentTheme, onTheme } from "./lib/theme";
+  import { currentLook, onLook } from "./lib/theme";
   import ResultRow from "./lib/ResultRow.svelte";
   import { actionsFor, available, type Way } from "./lib/actions";
   import { filePathOf, flatten, openLine, pathOf, pinIdOf, step, tagIdOf, timeOf, type Item } from "./lib/flatten";
@@ -42,7 +43,8 @@
   let expanded = $state(new Set<string>());
   let problem = $state("");
   let active = $state(false); // the panel has the keyboard
-  let theme = $state(currentTheme());
+  let theme = $state(currentLook().Theme);
+  let ring = $state(currentLook().Ring); // the metal ring, or a plain edge
   let metal = $state(0); // which of the theme's rings the bar wears; changes whenever the panel closes
   const rings = $derived(ringsFor(theme));
   let pending = $state(false); // a search is in flight
@@ -510,7 +512,10 @@
     item.kind === "entry" ? item.entry.ID : item.kind === "row" ? item.row.Path : item.row.Path + "#" + item.match.Line;
 
   onMount(() => {
-    const stopTheme = onTheme((id) => ((theme = id), (metal = 0)));
+    const stopTheme = onLook((look) => {
+      if (look.Theme !== theme) (theme = look.Theme), (metal = 0);
+      ring = look.Ring;
+    });
     takeFocus();
     loadPins();
     // The observer fires after layout, whenever what the card holds changes size (results arriving,
@@ -530,8 +535,8 @@
 <svelte:window onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
 <main>
-  <div class="card" style:height="{cardHeight}px">
-    <LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />
+  <div class="card" style:height="{cardHeight}px" use:glass={30}>
+    {#if ring}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
       <div class="content" class:acting={target || picker} bind:this={content}>
         <header class="bar">
@@ -621,8 +626,6 @@
   .card {
     position: relative;
     border-radius: var(--radius);
-    /* The ring's fallback and its first frame: static chrome, in case the shader cannot run. */
-    background: var(--ring-fallback);
     box-shadow: var(--shadow);
     /* Height is animated on purpose: one small element, its content is absolutely positioned inside,
        and it only runs for 240 ms when results appear or go. */
@@ -632,7 +635,7 @@
     position: absolute;
     inset: var(--ring);
     border-radius: calc(var(--radius) - var(--ring));
-    background: var(--plate);
+    background: var(--glass);
   }
   .surface::after {
     content: "";
@@ -642,8 +645,8 @@
     pointer-events: none;
     /* The edge: a lit top rim and a hairline all round, as on a machined card. */
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--ink) 13%, transparent),
-      inset 0 0 0 1px color-mix(in srgb, var(--ink) 4.5%, transparent);
+      inset 0 1px 0 color-mix(in srgb, var(--ink) var(--bar-rim), transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--bar-edge), transparent);
   }
   .content {
     position: relative;
