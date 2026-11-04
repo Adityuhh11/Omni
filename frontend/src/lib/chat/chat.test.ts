@@ -70,6 +70,7 @@ test("a tool group's glyph and hint say what it is and whether it asks", () => {
   assert.equal(toolGlyph("browser"), "web");
   assert.match(toolHint({ group: "browser", writes: false, always: false }), /visited or bookmarked/);
   assert.equal(toolGlyph("script:backup"), "code");
+  assert.equal(toolGlyph("calendar"), "calendar");
   assert.equal(toolGlyph("something-new"), "spark");
   assert.match(toolHint({ group: "script:backup", writes: true, always: false }), /Asks before each run/);
   assert.match(toolHint({ group: "script:backup", writes: true, always: true }), /without asking/);

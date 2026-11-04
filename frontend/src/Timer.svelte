@@ -3,6 +3,7 @@
   import { Service as Timer } from "../bindings/omni/internal/timer";
   import type { State } from "../bindings/omni/internal/timer";
   import { clock } from "./lib/format";
+  import { glass } from "./lib/glass";
 
   const POLL_MS = 250;
 
@@ -37,7 +38,7 @@
 </script>
 
 {#if state?.Active}
-  <div class="timer" class:finished={state.Finished} class:paused={state.Paused} role="timer" aria-label="{state.Label}, {heading}">
+  <div class="timer" use:glass={26} class:finished={state.Finished} class:paused={state.Paused} role="timer" aria-label="{state.Label}, {heading}">
     <div class="top">
       <span class="time" aria-live="off">{heading}</span>
       <div class="buttons">
@@ -81,10 +82,10 @@
     flex-direction: column;
     justify-content: space-between;
     border-radius: 26px;
-    background: var(--plate);
+    background: var(--glass);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--ink) 16%, transparent),
-      inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+      inset 0 1px 0 color-mix(in srgb, var(--ink) var(--card-rim), transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--card-edge), transparent);
     color: var(--text);
     --wails-draggable: drag; /* the window is moved by holding it anywhere but on a button */
     user-select: none;

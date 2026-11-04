@@ -60,9 +60,9 @@ export function sends(event: { key: string; shiftKey: boolean; isComposing: bool
 export type Phase = "loading" | "reading" | "web" | "tool" | "thinking" | "answering" | "";
 
 /** The glyph of a group of tools in the + menu. */
-export function toolGlyph(group: string): "file" | "clip" | "note" | "history" | "web" | "code" | "spark" {
+export function toolGlyph(group: string): "file" | "clip" | "note" | "history" | "web" | "code" | "calendar" | "spark" {
   if (group.startsWith("script:")) return "code";
-  return ({ files: "file", clipboard: "clip", notes: "note", activity: "history", browser: "web" } as const)[group] ?? "spark";
+  return ({ files: "file", clipboard: "clip", notes: "note", activity: "history", browser: "web", calendar: "calendar" } as const)[group] ?? "spark";
 }
 
 /** What a group of tools does, in the + menu and in Settings. */
@@ -79,6 +79,8 @@ export function toolHint(tool: { group: string; writes: boolean; always: boolean
       return "Searches the pages you visited or bookmarked in your browsers.";
     case "activity":
       return "Sees the files you changed, the apps you opened and what you copied.";
+    case "calendar":
+      return "Reads your calendars' events and works out your free time.";
   }
   return tool.writes ? `Your script. ${asks}` : "A tool on this computer.";
 }

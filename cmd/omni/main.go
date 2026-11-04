@@ -25,11 +25,14 @@ import (
 	"omni/internal/apps"
 	"omni/internal/autostart"
 	"omni/internal/browsers"
+	"omni/internal/calendar"
 	"omni/internal/chat"
 	"omni/internal/clipboard"
 	"omni/internal/config"
 	"omni/internal/enginesetup"
 	"omni/internal/files"
+	"omni/internal/focus"
+	"omni/internal/glass"
 	"omni/internal/hotkey"
 	"omni/internal/indexing"
 	"omni/internal/llm"
@@ -320,6 +323,11 @@ func run(afterUpdate bool) error {
 	setupWindow := settingsui.NewSetupWindow(app)
 	notesWindow := settingsui.NewNotesWindow(app)
 	timerWindow := settingsui.NewTimerWindow(app)
+	calendarWindow := settingsui.NewCalendarWindow(app)
+	// Calendars, read only: a feed's subscription address is a secret, so it is in the credential store, not config.toml.
+	calendarAddress := func(id string) string { return "calendar-" + id }
+	calendars := calendar.New(filepath.Join(dataDir, "calendar"), func() []config.CalendarFeed { return store.Get().Calendar.Feeds },
+		func(id string) (string, error) { return secrets.Get(calendarAddress(id)) }, log.Printf)
 	chatWindow := settingsui.NewChatWindow(app, func() bool { return store.Get().Chat.OnTop })
 	// A notes folder that cannot be opened (read-only, a strange profile) costs the notes, not the launcher.
 	noteStore, err := notes.Open(filepath.Join(filepath.Dir(path), "notes"))
@@ -374,7 +382,7 @@ func run(afterUpdate bool) error {
 		log.Printf("scripts are off: %v", err)
 	}
 	localTools := aitools.Deps{
-		Files: fileSearch, Clips: clips, Browser: browsers.Search,
+		Files: fileSearch, Clips: clips, Browser: browsers.Search, Calendar: calendars,
 		Launches: func(since time.Time) []aitools.Launch {
 			var out []aitools.Launch
 			for _, u := range history.Since(since) {
@@ -455,6 +463,13 @@ func run(afterUpdate bool) error {
 				timerWindow.Close()
 			}
 		})
+	// During a focus period the window in front is hidden if it is a site or program the person listed, and the timer shows.
+	focusGuard := &focus.Guard{
+		Focusing: countdown.Focusing,
+		Rules:    func() config.Timer { return store.Get().Timer },
+		OnBlock:  func(string) { timerWindow.Open() },
+		Logf:     log.Printf,
+	}
 	var checker *update.Checker
 	checker = update.NewChecker(version, func() {
 		release, _ := checker.Found()
@@ -470,6 +485,7 @@ func run(afterUpdate bool) error {
 	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, indexer.Rescan, togglePause)
 	for _, service := range []application.Service{
 		application.NewService(panel.NewService(bar)),
+		application.NewService(&glass.Service{}),
 		application.NewService(status.New(store.Get, bar.HotkeyError, engine.Status, indexer.Status)),
 		application.NewService(fileSearch),
 		application.NewService(opener),
@@ -488,11 +504,14 @@ func run(afterUpdate bool) error {
 				chatSvc.Ask(text)
 				chatWindow.OpenAt("new")
 			},
-			OpenChat:  chatWindow.OpenAt,
-			Timer:     countdown,
-			Scripts:   scriptBox,
-			RunScript: scripts.Run,
-			Paste:     clipboard.NewPaster(app.Clipboard.SetText, bar.Previous, bar.Hide).Paste,
+			OpenChat:     chatWindow.OpenAt,
+			Timer:        countdown,
+			Calendar:     calendars,
+			OpenCalendar: calendarWindow.Open,
+			Join:         browser.Open,
+			Scripts:      scriptBox,
+			RunScript:    scripts.Run,
+			Paste:        clipboard.NewPaster(app.Clipboard.SetText, bar.Previous, bar.Hide).Paste,
 			Sound: &soundoffer.Service{
 				Settings: store, Surveys: surveys, Waivers: history, Now: time.Now,
 				// An engine from before audio search would refuse the sync the choice starts: it is offered after the update.
@@ -502,6 +521,14 @@ func run(afterUpdate bool) error {
 		})),
 		application.NewService(notes.NewService(noteStore, notesWindow.SetAlwaysOnTop)),
 		application.NewService(timer.NewService(countdown)),
+		application.NewService(calendar.NewService(calendars, browser.Open, func() { settingsWindow.OpenAt("calendar") })),
+		application.NewService(settingsui.NewCalendar(settingsui.CalendarOptions{
+			Store:         store,
+			Calendar:      calendars,
+			SetAddress:    func(id, address string) error { return secrets.Set(calendarAddress(id), address) },
+			DeleteAddress: func(id string) error { return secrets.Delete(calendarAddress(id)) },
+			Open:          calendarWindow.Open,
+		})),
 		application.NewService(chatSvc),
 		application.NewService(settingsui.NewOmniAI(settingsui.OmniAIOptions{
 			Store:        store,
@@ -590,8 +617,8 @@ func run(afterUpdate bool) error {
 	// first and only saves the change if that worked.
 	store.Subscribe(func(old, updated config.Config) {
 		browser.Update(updated.Browser, updated.SearchURL, updated.Quicklinks)
-		if old.UI.Theme != updated.UI.Theme {
-			app.Event.Emit("ui:theme", updated.UI.Theme) // every open window repaints
+		if old.UI.Theme != updated.UI.Theme || old.UI.Ring != updated.UI.Ring || old.UI.Accent != updated.UI.Accent {
+			app.Event.Emit("ui:look", updated.UI) // every open window repaints
 		}
 		if old.Search.Pace != updated.Search.Pace {
 			indexer.SetPace(updated.Search.Pace)
@@ -716,6 +743,8 @@ func run(afterUpdate bool) error {
 		indexer.SetWindow(indexWindow(cfg.Search.IndexBetween))
 		go indexer.Run(ctx)
 		go countdown.Run(ctx)
+		go focusGuard.Run(ctx)
+		go calendars.Run(ctx)
 		go surveys.Run(ctx)
 		go clips.Run(ctx)
 		go checker.Run(ctx, func() bool { return store.Get().CheckUpdates })

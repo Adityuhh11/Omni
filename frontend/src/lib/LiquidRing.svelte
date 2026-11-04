@@ -21,8 +21,8 @@
   // and a ring that lurches with every keystroke looks broken.
   const EASE_MS = 350;
 
-  // The shader fills the whole card; the page's own plate covers all but the outer rim, so what shows
-  // is a ring of flowing metal.
+  // The shader fills the whole card and is masked to its outer rim (--ring wide), so what shows is a ring of flowing metal and the
+  // glass inside stays clear of it.
 
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -95,10 +95,22 @@
   .ring {
     position: absolute;
     inset: 0;
+    box-sizing: border-box;
+    padding: var(--ring);
     border-radius: inherit;
     overflow: hidden;
+    /* The ring's first frame, and its stand-in when the shader cannot run: static chrome. */
+    background: var(--ring-fallback);
+    -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+    -webkit-mask-clip: content-box, border-box;
+    -webkit-mask-composite: xor;
+    mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+    mask-clip: content-box, border-box;
+    mask-composite: exclude;
   }
   .ring :global(canvas) {
+    position: absolute; /* over the padding too: the mask, not the box, keeps it to the rim */
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;

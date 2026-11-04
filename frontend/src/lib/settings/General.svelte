@@ -4,7 +4,7 @@
   import { OmniAI, Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
   import HotkeyField from "./HotkeyField.svelte";
-  import { applyTheme, THEMES } from "../theme";
+  import { ACCENTS, applyLook, THEMES } from "../theme";
 
   let { view }: { view: View } = $props();
 
@@ -21,13 +21,15 @@
   let lift = $state(view.SelectionEffect);
   // svelte-ignore state_referenced_locally
   let theme = $state(view.Theme);
+  // svelte-ignore state_referenced_locally
+  let ring = $state(view.Ring);
+  // svelte-ignore state_referenced_locally
+  let accent = $state(view.Accent);
   let browsers = $state<string[]>([]);
   // The other hotkeys live on pages of their own services; they are shown here, beside the search bar's, and saved there.
   let clipboard = $state<ClipboardView | null>(null);
   let chat = $state<OmniAIView | null>(null);
   let notes = $state<NotesHotkeyView | null>(null);
-  let keysOpen = $state(false);
-  const keysSet = $derived([view.Hotkey, clipboard?.Hotkey, chat?.Hotkey, notes?.Hotkey].filter(Boolean).length);
   let error = $state("");
   let saved = $state(false);
   let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -102,11 +104,29 @@
   async function saveTheme(id: string) {
     const before = theme;
     theme = id;
-    applyTheme(id);
+    applyLook({ Theme: id });
     error = await Settings.SetTheme(id);
     if (error !== "") {
       theme = before;
-      applyTheme(before);
+      applyLook({ Theme: before });
+    } else flashSaved();
+  }
+
+  async function saveRing() {
+    applyLook({ Ring: ring });
+    error = await Settings.SetRing(ring);
+    if (error !== "") applyLook({ Ring: (ring = !ring) });
+    else flashSaved();
+  }
+
+  async function saveAccent(id: string) {
+    const before = accent;
+    accent = id;
+    applyLook({ Accent: id });
+    error = await Settings.SetAccent(id);
+    if (error !== "") {
+      accent = before;
+      applyLook({ Accent: before });
     } else flashSaved();
   }
 
@@ -117,168 +137,118 @@
   }
 </script>
 
-<h2>General</h2>
-<p class="lede">Hotkeys, and where web searches open. Changes apply at once.</p>
+<div class="head-row">
+  <h2>General</h2>
+  <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
+</div>
 
-<!-- Four hotkeys would fill the page: they are one list that opens from its heading. -->
-<div class="keys">
-  <button type="button" class="head" aria-expanded={keysOpen} aria-controls="hotkey-list" onclick={() => (keysOpen = !keysOpen)}>
-    <span class="chevron" class:open={keysOpen} aria-hidden="true"></span>Hotkeys
-    <span class="count">{keysSet} set</span>
-  </button>
-  {#if keysOpen}
-    <ul id="hotkey-list">
-      <li title="Opens the search bar from any app. A hotkey pressed again while its window is in front closes it.">
-        <span class="label" id="hotkey-label">Search bar</span>
-        <HotkeyField labelId="hotkey-label" value={view.Hotkey} defaultValue={view.DefaultHotkey} onsave={saveHotkey} />
-      </li>
-      {#if clipboard && chat && notes}
-        <li title={isMac ? "Opens the bar already listing what you copied." : "Opens the bar already listing what you copied. Windows keeps Win+V for its own history."}>
-          <span class="label" id="clip-hotkey-label">Clipboard history</span>
-          <HotkeyField labelId="clip-hotkey-label" value={clipboard.Hotkey} clearable onsave={saveClipboardKey} />
-        </li>
-        {#if clipboard.HotkeyError}<li class="error">{clipboard.HotkeyError}</li>{/if}
-        <li title="Opens the chat window.">
-          <span class="label" id="ai-hotkey-label">Omni AI</span>
-          <HotkeyField labelId="ai-hotkey-label" value={chat.Hotkey} clearable onsave={saveChatKey} />
-        </li>
-        {#if chat.HotkeyError}<li class="error">{chat.HotkeyError}</li>{/if}
-        <li title="Opens the notes window.">
-          <span class="label" id="notes-hotkey-label">Notes</span>
-          <HotkeyField labelId="notes-hotkey-label" value={notes.Hotkey} clearable onsave={saveNotesKey} />
-        </li>
-        {#if notes.Error}<li class="error">{notes.Error}</li>{/if}
-      {/if}
-    </ul>
-    {#if !isMac}<p class="help">Windows-key combinations cannot be recorded here; put them in config.toml.</p>{/if}
+<h3 class="group-title">Appearance</h3>
+<div class="group">
+  <div class="item stack">
+    <span class="name" id="theme-label">Theme</span>
+    <div class="themes" role="radiogroup" aria-labelledby="theme-label">
+      {#each THEMES as t (t.id)}
+        <button type="button" role="radio" aria-checked={theme === t.id} class:on={theme === t.id} onclick={() => saveTheme(t.id)}>
+          <span class="swatch" style:background={t.plate} style:color={t.text}>Aa</span>
+          {t.label}
+        </button>
+      {/each}
+    </div>
+  </div>
+  <div class="item stack">
+    <span class="name" id="accent-label">Accent</span>
+    <div class="themes" role="radiogroup" aria-labelledby="accent-label">
+      {#each ACCENTS as a (a.id)}
+        <button type="button" role="radio" aria-checked={accent === a.id} class:on={accent === a.id} onclick={() => saveAccent(a.id)}>
+          <span class="dot" style:background={a.swatch}></span>
+          {a.label}
+        </button>
+      {/each}
+    </div>
+  </div>
+  <label class="item">
+    <span class="text">
+      <span class="name">Metal ring</span>
+      <span class="sub">The flowing ring around the search bar and the Omni AI box</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
+  </label>
+  <label class="item">
+    <span class="text">
+      <span class="name">Lift the selected result</span>
+      <span class="sub">While moving through results with the arrow keys</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={lift} onchange={saveLift} />
+  </label>
+</div>
+
+<h3 class="group-title">Hotkeys</h3>
+<div class="group">
+  <div class="item">
+    <span class="name" id="hotkey-label">Search bar</span>
+    <HotkeyField labelId="hotkey-label" value={view.Hotkey} defaultValue={view.DefaultHotkey} onsave={saveHotkey} />
+  </div>
+  {#if clipboard && chat && notes}
+    <div class="item">
+      <span class="name" id="clip-hotkey-label">Clipboard history</span>
+      <HotkeyField labelId="clip-hotkey-label" value={clipboard.Hotkey} clearable onsave={saveClipboardKey} />
+    </div>
+    {#if clipboard.HotkeyError}<p class="item error">{clipboard.HotkeyError}</p>{/if}
+    <div class="item">
+      <span class="name" id="ai-hotkey-label">Omni AI</span>
+      <HotkeyField labelId="ai-hotkey-label" value={chat.Hotkey} clearable onsave={saveChatKey} />
+    </div>
+    {#if chat.HotkeyError}<p class="item error">{chat.HotkeyError}</p>{/if}
+    <div class="item">
+      <span class="name" id="notes-hotkey-label">Notes</span>
+      <HotkeyField labelId="notes-hotkey-label" value={notes.Hotkey} clearable onsave={saveNotesKey} />
+    </div>
+    {#if notes.Error}<p class="item error">{notes.Error}</p>{/if}
   {/if}
 </div>
+{#if !isMac}<p class="group-note">Windows-key combinations go in config.toml.</p>{/if}
 
-
-<div class="field">
-  <span class="label" id="theme-label">Theme</span>
-  <div class="themes" role="radiogroup" aria-labelledby="theme-label">
-    {#each THEMES as t (t.id)}
-      <button type="button" role="radio" aria-checked={theme === t.id} class:on={theme === t.id} onclick={() => saveTheme(t.id)}>
-        <span class="swatch" style:background={t.plate} style:color={t.text}>Aa</span>
-        {t.label}
-      </button>
-    {/each}
+<h3 class="group-title">Web</h3>
+<div class="group">
+  <div class="item">
+    <label class="name" for="browser">Browser</label>
+    <select id="browser" bind:value={browser} onchange={() => save()}>
+      <option value="">{words().defaultBrowser}</option>
+      {#each options as name (name)}
+        <option value={name}>{NAMES[name] ?? name}</option>
+      {/each}
+    </select>
   </div>
-  <p class="help">The colours of the search bar and of every window. They change at once.</p>
+  <div class="item">
+    <span class="text">
+      <label class="name" for="search-url">Search address</label>
+      <span class="sub">{QUERY} marks the words. Empty uses the browser's own engine, or DuckDuckGo.</span>
+    </span>
+    <input id="search-url" type="text" class="mono" placeholder={"https://duckduckgo.com/?q=" + QUERY} bind:value={searchURL} onchange={() => save()} spellcheck="false" />
+  </div>
 </div>
 
-<div class="field">
-  <label class="check"><input type="checkbox" bind:checked={startup} onchange={saveStartup} /> Start when I sign in</label>
-  <p class="help">The search bar is then ready as soon as {isMac ? "your Mac" : "Windows"} is. It starts quietly, with no window.</p>
-</div>
-
-<div class="field">
-  <label class="check"><input type="checkbox" bind:checked={lift} onchange={saveLift} /> Lift the selected result when I use the arrow keys</label>
-  <p class="help">The selected row rises a little and the others fade while you move through the list, then everything settles. Off keeps the list still.</p>
-</div>
-
-<div class="field">
-  <label class="label" for="browser">Browser for web searches and links</label>
-  <select id="browser" bind:value={browser} onchange={() => save()}>
-    <option value="">{words().defaultBrowser}</option>
-    {#each options as name (name)}
-      <option value={name}>{NAMES[name] ?? name}</option>
-    {/each}
-  </select>
-</div>
-
-<div class="field">
-  <label class="label" for="search-url">Web search address</label>
-  <input
-    id="search-url"
-    type="text"
-    class="mono"
-    placeholder={"https://duckduckgo.com/?q=" + QUERY}
-    bind:value={searchURL}
-    onchange={() => save()}
-    spellcheck="false"
-  />
-  <p class="help">Put {QUERY} where the words go. Empty uses the search engine set inside Firefox-based browsers, and DuckDuckGo otherwise.</p>
+<h3 class="group-title">System</h3>
+<div class="group">
+  <label class="item">
+    <span class="name">Start when I sign in</span>
+    <input type="checkbox" class="switch" bind:checked={startup} onchange={saveStartup} />
+  </label>
 </div>
 
 {#if error}<p class="error">{error}</p>{/if}
-<p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 
 <style>
-  .keys {
-    margin-bottom: 22px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 11px 14px;
-    border: 0;
-    background: none;
-    color: var(--text);
-    font: 560 13px/1.2 var(--sans);
-    text-align: left;
-    cursor: pointer;
-  }
-  .head:focus-visible {
-    outline: 1px solid var(--chrome);
-    outline-offset: -2px;
-    border-radius: 12px;
-  }
-  .chevron {
-    flex: none;
-    width: 6px;
-    height: 6px;
-    margin: 0 4px 0 2px;
-    border-right: 1.5px solid var(--text-3);
-    border-bottom: 1.5px solid var(--text-3);
-    transform: rotate(-45deg);
-    transition: transform 0.12s;
-  }
-  .chevron.open {
-    transform: rotate(45deg);
-  }
-  .count {
-    margin-left: auto;
-    color: var(--text-3);
-    font-weight: 450;
-    font-size: 12px;
-  }
-  ul {
-    margin: 0;
-    padding: 0 14px 4px;
-    list-style: none;
-  }
-  li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 0;
-    border-top: 1px solid var(--line);
-  }
-  li.error {
+  .item.error {
+    min-height: 0;
     padding-top: 0;
     border-top: 0;
-    color: var(--danger);
     font-size: 12px;
-  }
-  .label {
-    font: 560 13px/1.2 var(--sans);
-  }
-  .keys .help {
-    margin: 0;
-    padding: 0 14px 12px;
   }
   .themes {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 8px;
   }
   .themes button {
     display: flex;
@@ -299,6 +269,17 @@
     border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
     color: var(--text);
   }
+  .themes button:focus-visible {
+    outline: 1px solid var(--chrome);
+    outline-offset: 2px;
+  }
+  .dot {
+    width: 14px;
+    height: 14px;
+    margin: 6px 0 6px 6px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
+  }
   .swatch {
     display: grid;
     place-items: center;
@@ -308,9 +289,7 @@
     border-radius: 7px;
     font: 620 12px/1 var(--sans);
   }
-  @media (prefers-reduced-motion: reduce) {
-    .chevron {
-      transition: none;
-    }
+  label.item {
+    cursor: pointer;
   }
 </style>

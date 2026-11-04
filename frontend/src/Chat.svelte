@@ -11,12 +11,14 @@
   import RoundButton from "./lib/RoundButton.svelte";
   import Icon from "./lib/Icon.svelte";
   import PlusMenu from "./lib/chat/PlusMenu.svelte";
+  import Agenda from "./lib/chat/Agenda.svelte";
   import { ringsFor } from "./lib/palettes";
-  import { currentTheme, onTheme } from "./lib/theme";
+  import { currentLook, onLook } from "./lib/theme";
   import { escapeStep, lastQuestion, meter, sends, thoughtFor, unloadsIn, waiting, type Phase } from "./lib/chat/chat";
   import { copyable } from "./lib/chat/copy";
   import { when } from "./lib/format";
   import { render } from "./lib/markdown";
+  import "./lib/markdown.css";
 
   /** chat.Confirm, sent with the chat:confirm event (events carry no generated type). */
   type Confirm = { id: string; title: string; tool: string; input: string };
@@ -29,7 +31,8 @@
   let error = $state("");
   // The answer being written: it is shown from the events, and replaced by the finished message when the answer ends.
   let live = $state<{ text: string; thinking: string; phase: Phase; status: string } | null>(null);
-  let theme = $state(currentTheme()); // the composer's ring is the first ring of the theme
+  let theme = $state(currentLook().Theme); // the composer's ring is the first ring of the theme
+  let ring = $state(currentLook().Ring);
   let focused = $state(false); // the composer has the keyboard: its ring moves
   let historyOpen = $state(false);
   let menuOpen = $state(false); // the + menu above the composer
@@ -282,7 +285,7 @@
     follow().then(() => tick().then(() => box?.focus()));
 
     const offs = [
-      onTheme((id) => (theme = id)),
+      onLook((look) => ((theme = look.Theme), (ring = look.Ring))),
       Events.On("chat:model", (e) => {
         info = e.data as Info;
         now = Date.now(); // the countdown to the unload is read against this
@@ -410,6 +413,8 @@
             <div class="row user"><div class="bubble">{message.text}</div></div>
           {:else}
             {@const html = render(message.text)}
+            {@const events = message.sources?.filter((s) => s.event) ?? []}
+            {@const links = message.sources?.filter((s) => !s.event) ?? []}
             <div class="row ai">
               {#if message.thinking}
                 <button type="button" class="thought" aria-expanded={!!opened[i]} onclick={() => (opened[i] = !opened[i])}>
@@ -422,9 +427,10 @@
                 <div class="prose" use:copyable={html} onclick={onProseClick}>{@html html}</div>
               {/if}
               {#if message.stopped}<p class="stopped">Stopped</p>{/if}
-              {#if message.sources?.length}
+              {#if events.length}<Agenda {events} />{/if}
+              {#if links.length}
                 <div class="sources" aria-label="Sources">
-                  {#each message.sources as source (source.url || source.path)}
+                  {#each links as source (source.url || source.path)}
                     <button type="button" class="source" title="{source.title}: {source.url || source.path}" onclick={() => openSource(source)}>
                       {#if source.path}<Icon name="file" size={12} />{source.title}{:else}<Icon name="web" size={12} />{hostOf(source.url ?? "")}{/if}
                     </button>
@@ -471,13 +477,11 @@
       </div>
     {/if}
 
-    <div class="fade-top" aria-hidden="true"></div>
-    <div class="fade" aria-hidden="true"></div>
     <div class="dock">
       <!-- The composer floats over the end of the conversation. Its rim is the search card's ring; it moves only while the box
            has the keyboard or an answer is coming, and rests as a still metal edge otherwise. -->
       <form class="composer" onsubmit={(event) => { event.preventDefault(); submit(); }}>
-        <LiquidRing speed={busy ? 1.5 : 0.6} running={focused || busy} metal={ringsFor(theme)[0]} radius={27} />
+        {#if ring}<LiquidRing speed={busy ? 1.5 : 0.6} running={focused || busy} metal={ringsFor(theme)[0]} radius={27} />{/if}
         {#if info?.thinking || info?.web_search || toolsOn.length}
           <!-- What is switched on floats over the box's top edge, so it takes no room in the row: a click turns it off. -->
           <div class="pills">
@@ -582,6 +586,10 @@
     min-height: 0;
     padding: 12px max(24px, calc((100% - 640px) / 2)) 170px;
     overflow-y: auto;
+    /* Messages scroll under the header through a soft edge and fade out under the composer. A mask, not a band of the plate's
+       colour: the card is glass, and a painted band would show as a darker stripe. */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22px, #000 calc(100% - 150px), transparent calc(100% - 57px));
+    mask-image: linear-gradient(to bottom, transparent, #000 22px, #000 calc(100% - 150px), transparent calc(100% - 57px));
     user-select: text;
     cursor: auto;
   }
@@ -645,6 +653,9 @@
   .prose :global(h4) {
     margin: 14px 0 6px;
     font: 620 14.5px/1.3 var(--sans);
+  }
+  .prose :global(li > :is(p, pre, ul, ol, blockquote, .md-table)) {
+    margin: 4px 0;
   }
   .prose :global(ul),
   .prose :global(ol) {
@@ -827,28 +838,6 @@
     line-height: 1.55;
   }
 
-  /* Messages scroll up under the header through a soft edge, not a hard cut. */
-  .fade-top {
-    position: absolute;
-    top: 54px;
-    right: 0;
-    left: 0;
-    z-index: 1;
-    height: 22px;
-    background: linear-gradient(to bottom, var(--plate), color-mix(in srgb, var(--plate) 0%, transparent));
-    pointer-events: none;
-  }
-  /* The end of the conversation fades under the composer. Its corners follow the card's, or they would paint over the clear window. */
-  .fade {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 150px;
-    border-radius: 0 0 26px 26px;
-    background: linear-gradient(to bottom, color-mix(in srgb, var(--plate) 0%, transparent), var(--plate) 62%);
-    pointer-events: none;
-  }
   .dock {
     position: absolute;
     right: 0;
@@ -866,7 +855,7 @@
   }
   .composer {
     position: relative;
-    padding: 2.5px; /* the metal of the ring around the plate */
+    padding: var(--ring); /* the metal of the ring around the plate */
     border-radius: 29px;
   }
   .plate {
@@ -875,7 +864,10 @@
     flex-direction: column;
     padding: 6px;
     border-radius: 26.5px;
-    background: #0d0d0e;
+    background: var(--well);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--well-edge), transparent);
   }
   .line {
     display: flex;
@@ -1029,7 +1021,9 @@
     gap: 8px;
     padding: 6px 18px 14px;
     border-radius: 0 0 26px 26px;
-    background: var(--plate);
+    background: var(--glass-raised);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
   }
   .history ul {
     flex: 1;

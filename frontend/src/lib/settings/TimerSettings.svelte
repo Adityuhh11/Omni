@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac } from "../platform";
   import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { View } from "../../../bindings/omni/internal/settingsui";
 
@@ -17,6 +18,13 @@
   let auto = $state(view.Timer.AutoNext);
   // svelte-ignore state_referenced_locally
   let presets = $state((view.Timer.PresetMinutes ?? []).join(", "));
+  // svelte-ignore state_referenced_locally
+  let block = $state(view.Timer.Block);
+  // svelte-ignore state_referenced_locally
+  let sites = $state((view.Timer.BlockSites ?? []).join("\n"));
+  // svelte-ignore state_referenced_locally
+  let apps = $state((view.Timer.BlockApps ?? []).join("\n"));
+  const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
   let error = $state("");
   let saved = $state(false);
   let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -35,6 +43,9 @@
       Rounds: rounds,
       AutoNext: auto,
       PresetMinutes: minutes,
+      Block: block,
+      BlockSites: lines(sites),
+      BlockApps: lines(apps),
     });
     if (error === "") {
       saved = true;
@@ -44,49 +55,77 @@
   }
 </script>
 
-<h2>Timer</h2>
-<p class="lede">
-  Type <span class="mono">timer 25</span> in the launcher for a countdown, or <span class="mono">pomodoro</span> for focus periods with breaks. The timer sits at the
-  edge of the screen and keeps going when you close it.
+<div class="head-row">
+  <h2>Focus &amp; timer</h2>
+  <p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
+</div>
+
+<h3 class="group-title">Focus</h3>
+<div class="group">
+  <label class="item">
+    <span class="text">
+      <span class="name">Block distractions while I focus</span>
+      <span class="sub">During a focus period, a listed site or app is {isMac ? "hidden" : "minimized"} and the timer shows</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={block} onchange={save} />
+  </label>
+  <div class="item stack">
+    <label class="name" for="block-sites">Sites</label>
+    <textarea id="block-sites" rows="4" bind:value={sites} onchange={save} disabled={!block} spellcheck="false" placeholder={"youtube.com\nreddit.com\nx.com"}></textarea>
+  </div>
+  <div class="item stack">
+    <label class="name" for="block-apps">Apps</label>
+    <textarea id="block-apps" rows="3" bind:value={apps} onchange={save} disabled={!block} spellcheck="false" placeholder={isMac ? "Discord\nSteam" : "discord.exe\nsteam.exe"}></textarea>
+  </div>
+</div>
+<p class="group-note">
+  Type <span class="mono">focus</span> or <span class="mono">focus 50</span> in the bar; a pomodoro's focus periods block too.
+  {#if isMac}The first time, macOS asks whether Omni may read each browser's address. Firefox and Zen do not say which page they show, so for them only the apps list applies.{/if}
 </p>
 
-<div class="grid">
-  <label class="label" for="focus">Focus</label>
-  <span class="unit"><input id="focus" type="number" min="1" max="180" bind:value={focus} onchange={save} /> minutes</span>
-  <label class="label" for="short">Short break</label>
-  <span class="unit"><input id="short" type="number" min="1" max="60" bind:value={short} onchange={save} /> minutes</span>
-  <label class="label" for="long">Long break</label>
-  <span class="unit"><input id="long" type="number" min="1" max="120" bind:value={long} onchange={save} /> minutes</span>
-  <label class="label" for="rounds">Focus periods before the long break</label>
-  <span class="unit"><input id="rounds" type="number" min="1" max="12" bind:value={rounds} onchange={save} /></span>
+<h3 class="group-title">Pomodoro</h3>
+<div class="group">
+  <div class="item">
+    <label class="name" for="focus">Focus</label>
+    <span class="unit"><input id="focus" type="number" min="1" max="180" bind:value={focus} onchange={save} /> min</span>
+  </div>
+  <div class="item">
+    <label class="name" for="short">Short break</label>
+    <span class="unit"><input id="short" type="number" min="1" max="60" bind:value={short} onchange={save} /> min</span>
+  </div>
+  <div class="item">
+    <label class="name" for="long">Long break</label>
+    <span class="unit"><input id="long" type="number" min="1" max="120" bind:value={long} onchange={save} /> min</span>
+  </div>
+  <div class="item">
+    <label class="name" for="rounds">Focus periods before the long break</label>
+    <span class="unit"><input id="rounds" type="number" min="1" max="12" bind:value={rounds} onchange={save} /><span class="pad" aria-hidden="true">min</span></span>
+  </div>
+  <label class="item">
+    <span class="text">
+      <span class="name">Start the next period by itself</span>
+      <span class="sub">A sound plays when a period ends either way</span>
+    </span>
+    <input type="checkbox" class="switch" bind:checked={auto} onchange={save} />
+  </label>
 </div>
+<p class="group-note">Type <span class="mono">pomodoro</span> in the bar.</p>
 
-<div class="field">
-  <label class="label" for="presets">Quick timers</label>
-  <span class="unit"><input id="presets" type="text" class="presets" bind:value={presets} onchange={save} spellcheck="false" autocomplete="off" /> minutes</span>
-  <p class="help">
-    The lengths <span class="mono">timer</span> offers, separated by commas (at most 8, each up to 1440). Any other length is typed after the word:
-    <span class="mono">timer 17</span>, <span class="mono">timer 1h30</span>, <span class="mono">timer 90s tea</span>.
-  </p>
+<h3 class="group-title">Countdown</h3>
+<div class="group">
+  <div class="item">
+    <span class="text">
+      <label class="name" for="presets">Quick timers</label>
+      <span class="sub">Up to 8, separated by commas</span>
+    </span>
+    <span class="unit"><input id="presets" type="text" class="presets" bind:value={presets} onchange={save} spellcheck="false" autocomplete="off" /> min</span>
+  </div>
 </div>
-
-<div class="field">
-  <label class="check"><input type="checkbox" bind:checked={auto} onchange={save} /> Start the next period by itself</label>
-  <p class="help">Off, a finished period waits for you to start the next one. Either way a sound plays when a period ends.</p>
-</div>
+<p class="group-note">Any other length: <span class="mono">timer 17</span>, <span class="mono">timer 1h30</span>, <span class="mono">timer 90s tea</span>.</p>
 
 {#if error}<p class="error">{error}</p>{/if}
-<p class="ok" aria-live="polite">{saved ? "Saved" : ""}</p>
 
 <style>
-  .grid {
-    display: grid;
-    grid-template-columns: minmax(0, 250px) auto;
-    align-items: center;
-    gap: 12px 16px;
-    max-width: 420px;
-    margin-bottom: 22px;
-  }
   .unit {
     display: flex;
     align-items: center;
@@ -97,7 +136,34 @@
   input[type="number"] {
     width: 72px;
   }
-  input.presets {
-    width: 180px;
+  .pad {
+    visibility: hidden; /* keeps the field in line with the ones that have a unit */
+  }
+  .item input.presets {
+    width: 160px;
+  }
+  label.item {
+    cursor: pointer;
+  }
+  textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--tile);
+    color: var(--text);
+    font: 450 13px/1.5 var(--mono);
+    resize: vertical;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
+  }
+  textarea:disabled {
+    color: var(--text-3);
+  }
+  textarea::placeholder {
+    color: var(--text-3);
   }
 </style>

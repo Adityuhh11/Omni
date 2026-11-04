@@ -7,6 +7,7 @@
   import "./lib/settings/forms.css";
   import { when } from "./lib/format";
   import { render, toggleTask } from "./lib/markdown";
+  import "./lib/markdown.css";
   import Card from "./lib/Card.svelte";
   import RoundButton from "./lib/RoundButton.svelte";
   import { Window } from "@wailsio/runtime";
@@ -427,6 +428,9 @@
   .read :global(blockquote),
   .read :global(pre) {
     margin: 0 0 0.8em;
+  }
+  .read :global(li > :is(p, pre, ul, ol, blockquote, .md-table)) {
+    margin: 4px 0;
   }
   .read :global(ul),
   .read :global(ol) {

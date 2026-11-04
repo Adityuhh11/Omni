@@ -34,102 +34,102 @@
 </script>
 
 <h2>AI apps</h2>
-<p class="lede">
-  Let Claude Desktop, Cursor, VS Code and other apps that speak MCP search your files, notes and more through Omni. They ask, Omni answers from
-  what it keeps on this computer. Omni must be running.
-</p>
 
 {#if page}
-  <section class="block">
-    <div class="field">
-      <label class="check"><input type="checkbox" checked={page.Enabled} onchange={(e) => run(() => MCP.SetEnabled(e.currentTarget.checked))} /> Let AI apps on this computer reach Omni</label>
-      <p class="help">
-        Nothing is shared until you switch on a group below. What an app reads goes wherever that app sends it, which may be a server on the internet.
-        This is separate from Omni AI: a group on there is not on here.
-      </p>
-    </div>
-    {#if error}<p class="error">{error}</p>{/if}
-  </section>
+  <h3 class="group-title">MCP server</h3>
+  <div class="group">
+    <label class="item">
+      <span class="text">
+        <span class="name">Let AI apps on this computer reach Omni</span>
+        <span class="sub">Claude Desktop, Cursor, VS Code and others. What an app reads goes wherever that app sends it.</span>
+      </span>
+      <input type="checkbox" class="switch" checked={page.Enabled} onchange={(e) => run(() => MCP.SetEnabled(e.currentTarget.checked))} />
+    </label>
+  </div>
+  {#if error}<p class="error">{error}</p>{/if}
 
-  <section class="block">
-    <h3>What they may use</h3>
+  <h3 class="group-title">What they may read</h3>
+  <div class="group">
     {#each page.Groups ?? [] as group (group.Group)}
-      <div class="field">
-        <label class="check"><input type="checkbox" checked={group.On} disabled={!page.Enabled} onchange={(e) => run(() => MCP.SetTool(group.Group, e.currentTarget.checked))} /> {group.Title}</label>
-        {#each group.Tools ?? [] as tool (tool.Name)}
-          <details class="tool">
-            <summary><span class="mono">{tool.Name}</span></summary>
-            <p>{tool.Description}</p>
-          </details>
-        {/each}
+      <div class="item stack">
+        <label class="line">
+          <span class="name">{group.Title}</span>
+          <input type="checkbox" class="switch" checked={group.On} disabled={!page.Enabled} onchange={(e) => run(() => MCP.SetTool(group.Group, e.currentTarget.checked))} />
+        </label>
+        {#if (group.Tools ?? []).length}
+          <div class="tools">
+            {#each group.Tools ?? [] as tool (tool.Name)}
+              <details class="tool">
+                <summary><span class="mono">{tool.Name}</span></summary>
+                <p>{tool.Description}</p>
+              </details>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/each}
-    <p class="help">Click a tool to see what the other app is told about it. Only tools that read are offered. Tools that change something, such as adding a note or running a script, stay in Omni, where it can ask you first.</p>
-  </section>
+  </div>
+  <p class="group-note">Only tools that read are offered; tools that change something stay in Omni AI, where it can ask you first. Separate from Omni AI's own tools.</p>
 
   {#if page.Enabled}
-    <section class="block">
-      <h3>Connect an app</h3>
+    <h3 class="group-title">Connect an app</h3>
+    <div class="group">
       {#each page.Apps ?? [] as app (app.ID)}
-        <div class="app">
-          <div class="app-text">
-            <span class="app-name">{app.Name}</span>
-            <span class="help">
-              {#if app.State === "on"}Connected.
-              {:else if app.State === "other"}Set up for an Omni at another place.
+        <div class="item">
+          <span class="text">
+            <span class="name">{app.Name}</span>
+            <span class="sub">
+              {#if app.State === "on"}Connected
+              {:else if app.State === "other"}Set up for an Omni at another place
               {:else if app.State === "problem"}{app.Problem}
-              {:else}Not connected.{/if}
+              {:else}Not connected{/if}
             </span>
-          </div>
+          </span>
           {#if app.State === "on"}
             <button type="button" class="btn" onclick={() => run(() => MCP.Disconnect(app.ID))}>Disconnect</button>
           {:else if app.State !== "problem"}
             <button type="button" class="btn" onclick={() => run(() => MCP.Connect(app.ID))}>{app.State === "other" ? "Update" : "Connect"}</button>
           {/if}
         </div>
-      {/each}
-      {#if (page.Apps ?? []).length}
-        <p class="help">Adds Omni to that app's MCP settings and keeps what is already there; the first time, the old file is kept beside it as <span class="mono">.omni-backup</span>. Restart the app after.</p>
       {:else}
-        <p class="help">No supported app found here (Claude Desktop, Cursor, VS Code, Windsurf). Add this by hand instead.</p>
-      {/if}
-      <div class="field">
-        <span class="label">Any other app: add this to its MCP settings</span>
+        <p class="item sub">No supported app found (Claude Desktop, Cursor, VS Code, Windsurf).</p>
+      {/each}
+      <div class="item stack">
+        <span class="line">
+          <span class="name">Any other app</span>
+          <button type="button" class="btn" onclick={copyConfig}>{copied ? "Copied" : "Copy"}</button>
+        </span>
         <pre class="mono config">{page.Config}</pre>
-        <div><button type="button" class="btn" onclick={copyConfig}>{copied ? "Copied" : "Copy"}</button></div>
-        <p class="help">Claude Code: <span class="mono">claude mcp add omni -- "{page.Self}" mcp</span></p>
+        <span class="sub">Claude Code: <span class="mono">claude mcp add omni -- "{page.Self}" mcp</span></span>
       </div>
-    </section>
+    </div>
+    {#if (page.Apps ?? []).length}
+      <p class="group-note">Connect keeps the app's other servers, and the first time the old file as <span class="mono">.omni-backup</span>. Restart the app after.</p>
+    {/if}
   {/if}
 {/if}
 
 <style>
-  .block {
+  .line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+  }
+  .tools {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 22px 0;
-    border-top: 1px solid var(--line);
-  }
-  .block:first-of-type {
-    padding-top: 0;
-    border-top: 0;
-  }
-  .block h3 {
-    margin: 0;
-    font: 600 13.5px/1.3 var(--sans);
-  }
-  .block .field {
-    margin-bottom: 8px;
+    margin-top: -4px;
   }
   .tool {
-    margin: 2px 0 0 26px;
     color: var(--text-2);
     font: 12.5px/1.45 var(--sans);
   }
   .tool summary {
     width: fit-content;
     padding: 2px 0;
+    color: var(--text-3);
     cursor: pointer;
   }
   .tool summary:hover .mono {
@@ -137,21 +137,6 @@
   }
   .tool p {
     margin: 2px 0 6px;
-  }
-  .app {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .app-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .app-name {
-    font: 560 13px/1.3 var(--sans);
   }
   .config {
     margin: 0;
@@ -163,5 +148,8 @@
     white-space: pre-wrap;
     word-break: break-all;
     user-select: text;
+  }
+  label.item {
+    cursor: pointer;
   }
 </style>

@@ -26,4 +26,3 @@ It is a direction, not a promise; the [issues](https://github.com/Adityuhh11/Omn
 - Telemetry, accounts or cloud services of Omni's own.
 - A model catalog or model downloads from Hugging Face: choosing a local chat model is left to LM Studio and Ollama, which show what fits a
   given graphics card. Omni AI can ask a model they serve.
-- Shut down and restart commands in the bar.

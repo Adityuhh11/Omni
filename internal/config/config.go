@@ -50,6 +50,8 @@ type Config struct {
 	Notes Notes `toml:"notes"`
 	// Chat is the local language model and its chat window (internal/llm, internal/chat).
 	Chat Chat `toml:"chat"`
+	// Calendar is the calendars shown read-only in the calendar window and the bar (internal/calendar).
+	Calendar Calendar `toml:"calendar"`
 	// Snippets are texts kept to be pasted from the bar (internal/snippets).
 	Snippets []Snippet `toml:"snippet,omitempty"`
 	// Sidecar is the retired [sidecar] table (where the engine lived in the repository). Load reads
@@ -61,12 +63,32 @@ type Config struct {
 type UI struct {
 	// SelectionEffect lifts the selected result and dims the others while the arrow keys move through the list.
 	SelectionEffect bool `toml:"selection_effect"`
-	// Theme is the colours of every window: one of Themes.
+	// Theme is the colours of every window: one of Themes. "glass" is the frosted one (internal/glass).
 	Theme string `toml:"theme"`
+	// Ring draws the flowing metal ring around the bar and the chat's box; off, they have a plain hairline edge.
+	Ring bool `toml:"ring"`
+	// Accent colours what the bright chrome marks (focus, the caret, filled buttons, switches, the selected row): one of Accents,
+	// "none" for the chrome itself.
+	Accent string `toml:"accent"`
+}
+
+// Calendar lists the calendars that are shown. Their subscription addresses are secrets (anyone with one can read the
+// calendar), so they are in the system credential store under "calendar-<id>", never here.
+type Calendar struct {
+	Feeds []CalendarFeed `toml:"feed,omitempty"`
+}
+
+// CalendarFeed is one calendar: an id of Omni's own and the name the person gave it.
+type CalendarFeed struct {
+	ID   string `toml:"id"`
+	Name string `toml:"name"`
 }
 
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
-var Themes = []string{"black", "midnight", "forest", "cream", "blush", "coral"}
+var Themes = []string{"black", "midnight", "forest", "cream", "blush", "coral", "glass"}
+
+// Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
+var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}
 
 // Timer holds the lengths of a pomodoro and how it goes on.
 type Timer struct {
@@ -79,6 +101,11 @@ type Timer struct {
 	AutoNext bool `toml:"auto_next"`
 	// PresetMinutes are the quick countdowns the bar offers when only "timer" is typed. Any other length is typed after it.
 	PresetMinutes []int `toml:"preset_minutes"`
+	// Block keeps the sites in BlockSites ("youtube.com", which covers its subdomains) and the programs in BlockApps
+	// ("discord.exe" on Windows, "Discord" on a Mac) out of the way while a focus period runs (internal/focus).
+	Block      bool     `toml:"block"`
+	BlockSites []string `toml:"block_sites"`
+	BlockApps  []string `toml:"block_apps"`
 }
 
 // maxPresets keeps the bar's list of quick timers short enough to read at a glance.
@@ -281,6 +308,9 @@ func (c Config) Clone() Config {
 	c.Quicklinks = slices.Clone(c.Quicklinks)
 	c.Clipboard.Ignore = slices.Clone(c.Clipboard.Ignore)
 	c.Snippets = slices.Clone(c.Snippets)
+	c.Calendar.Feeds = slices.Clone(c.Calendar.Feeds)
+	c.Timer.BlockSites = slices.Clone(c.Timer.BlockSites)
+	c.Timer.BlockApps = slices.Clone(c.Timer.BlockApps)
 	return c
 }
 
@@ -328,6 +358,7 @@ func (c Config) Validate() error {
 		allowed     []string
 	}{
 		{"ui theme", c.UI.Theme, Themes},
+		{"ui accent", c.UI.Accent, Accents},
 		{"search pace", c.Search.Pace, Paces},
 		{"pdf_pages", c.Search.PDFPages, PDFPageModes},
 		{"photos", c.Search.Photos, PhotoModes},
@@ -358,6 +389,18 @@ func (c Config) Validate() error {
 		if minutes < 1 || minutes > 24*60 {
 			return fmt.Errorf("timer preset_minutes %d must be between 1 and %d", minutes, 24*60)
 		}
+	}
+	ids := map[string]bool{}
+	for _, feed := range c.Calendar.Feeds {
+		switch {
+		case feed.ID == "" || strings.ContainsAny(feed.ID, `/\. `):
+			return fmt.Errorf("calendar feed id %q must be a plain word", feed.ID)
+		case strings.TrimSpace(feed.Name) == "":
+			return fmt.Errorf("calendar feed %q needs a name", feed.ID)
+		case ids[feed.ID]:
+			return fmt.Errorf("calendar feed id %q is used twice", feed.ID)
+		}
+		ids[feed.ID] = true
 	}
 	for _, folder := range c.Exclude {
 		if !filepath.IsAbs(folder) {
