@@ -32,6 +32,7 @@ import (
 	"omni/internal/enginesetup"
 	"omni/internal/files"
 	"omni/internal/focus"
+	"omni/internal/glass"
 	"omni/internal/hotkey"
 	"omni/internal/indexing"
 	"omni/internal/llm"
@@ -484,6 +485,7 @@ func run(afterUpdate bool) error {
 	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, indexer.Rescan, togglePause)
 	for _, service := range []application.Service{
 		application.NewService(panel.NewService(bar)),
+		application.NewService(&glass.Service{}),
 		application.NewService(status.New(store.Get, bar.HotkeyError, engine.Status, indexer.Status)),
 		application.NewService(fileSearch),
 		application.NewService(opener),
