@@ -10,6 +10,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 // Windows' own acrylic covers the whole window rectangle with its own small corners, and a window region does not cut it (tried).
@@ -25,12 +26,14 @@ var (
 	coremessaging   = windows.NewLazySystemDLL("CoreMessaging.dll")
 	dwmapi          = windows.NewLazySystemDLL("dwmapi.dll")
 	user32          = windows.NewLazySystemDLL("user32.dll")
+	kernel32        = windows.NewLazySystemDLL("kernel32.dll")
 	procRoActivate  = combase.NewProc("RoActivateInstance")
 	procMakeString  = combase.NewProc("WindowsCreateString")
 	procFreeString  = combase.NewProc("WindowsDeleteString")
 	procQueue       = coremessaging.NewProc("CreateDispatcherQueueController")
 	procDwmSetAttr  = dwmapi.NewProc("DwmSetWindowAttribute")
 	procDpiOfWindow = user32.NewProc("GetDpiForWindow")
+	procPowerStatus = kernel32.NewProc("GetSystemPowerStatus")
 )
 
 var (
@@ -175,10 +178,38 @@ func forget(hwnd uintptr) {
 	})
 }
 
+// errNoBlur makes the page paint its plate opaque: the host backdrop is blurred only while Windows draws transparency, and over
+// the bare desktop a see-through plate is unreadable.
+var errNoBlur = errors.New("glass: Windows is not drawing transparency (Transparency effects off, or energy saver on)")
+
+// blurOff says whether the person or the system has turned Windows' transparency off. WebView2 does not report it to the page
+// (prefers-reduced-transparency stays "no-preference"), so the window asks.
+func blurOff() bool {
+	if k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, registry.QUERY_VALUE); err == nil {
+		v, _, err := k.GetIntegerValue("EnableTransparency")
+		k.Close()
+		if err == nil && v == 0 {
+			return true
+		}
+	}
+	var status struct {
+		acLine, batteryFlag, batteryPercent, systemStatus uint8
+		lifeTime, fullLifeTime                            uint32
+	}
+	ok, _, _ := procPowerStatus.Call(uintptr(unsafe.Pointer(&status)))
+	return ok != 0 && status.systemStatus&1 != 0 // energy saver turns transparency effects off
+}
+
 func shapeNow(hwnd uintptr, r Rect) error {
 	mu.Lock()
 	p := panes[hwnd]
 	mu.Unlock()
+	if r.W > 0 && r.H > 0 && blurOff() {
+		if p != nil {
+			_ = p.visual.call(slotPutIsVisible, boolArg(false)) // the error below is what the page acts on
+		}
+		return errNoBlur
+	}
 	if p == nil {
 		if r.W <= 0 || r.H <= 0 {
 			return nil

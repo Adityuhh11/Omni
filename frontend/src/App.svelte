@@ -17,12 +17,13 @@
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
   import { glass } from "./lib/glass";
+  import { showUnexpectedIn } from "./lib/oops";
   import Loader from "./lib/Loader.svelte";
   import { nextMetal, ringsFor } from "./lib/palettes";
   import { currentLook, onLook } from "./lib/theme";
   import ResultRow from "./lib/ResultRow.svelte";
   import { actionsFor, available, type Way } from "./lib/actions";
-  import { filePathOf, flatten, openLine, pathOf, pinIdOf, step, tagIdOf, timeOf, type Item } from "./lib/flatten";
+  import { filePathOf, flatten, keyOf, openLine, pathOf, pinIdOf, step, tagIdOf, timeOf, type Item } from "./lib/flatten";
   import { keyCommand } from "./lib/keys";
   import { asksForFiles, cycle, escapeStep, label, type Mode } from "./lib/modes";
   import { notesFor } from "./lib/notes";
@@ -508,10 +509,9 @@
   }
 
   const optionId = (index: number) => `option-${index}`;
-  const itemKey = (item: Item) =>
-    item.kind === "entry" ? item.entry.ID : item.kind === "row" ? item.row.Path : item.row.Path + "#" + item.match.Line;
 
   onMount(() => {
+    showUnexpectedIn((message) => (problem = message)); // inside the card, cleared by the next key like any failed action
     const stopTheme = onLook((look) => {
       if (look.Theme !== theme) (theme = look.Theme), (metal = 0);
       ring = look.Ring;
@@ -569,7 +569,7 @@
             {/each}
             {#if items.length > 0}
               <div class="results" class:stale={pending} class:keying id="results" role="listbox" aria-label="Results">
-                {#each items as item, index (itemKey(item))}
+                {#each items as item, index (keyOf(item))}
                   {#if showingPins && index === 0}<h3 class="section">Pinned</h3>{/if}
                   {#if sections && index === firstApp}<h3 class="section">Apps</h3>{/if}
                   {#if item.kind === "row" && item.heading}<h3 class="section">{item.heading}</h3>
