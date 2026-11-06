@@ -865,9 +865,11 @@
     padding: 6px;
     border-radius: 26.5px;
     background: var(--well);
-    -webkit-backdrop-filter: var(--glass-blur);
-    backdrop-filter: var(--glass-blur);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--well-edge), transparent);
+    -webkit-backdrop-filter: var(--well-blur, var(--glass-blur));
+    backdrop-filter: var(--well-blur, var(--glass-blur));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--well-edge), transparent),
+      var(--well-shine, 0 0 #0000);
   }
   .line {
     display: flex;
