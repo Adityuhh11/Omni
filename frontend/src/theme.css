@@ -215,9 +215,9 @@ html[data-theme="glass"] {
   --bar-edge: 8%;
   /* The chat's composer: a pane of frosted glass lying on the card, lit from above (a brighter top, a highlight on its top edge),
      rather than a dark slot cut in it; its own blur keeps the messages scrolling under it unreadable. */
-  --well: linear-gradient(180deg, color-mix(in srgb, var(--ink) 13%, transparent), color-mix(in srgb, var(--ink) 5%, transparent));
-  --well-blur: blur(30px) saturate(180%);
-  --well-shine: inset 0 1px 0 color-mix(in srgb, var(--ink) 24%, transparent), 0 10px 30px rgb(0 0 0 / 0.28);
+  --well: linear-gradient(180deg, color-mix(in srgb, var(--ink) 7%, transparent), color-mix(in srgb, var(--ink) 3%, transparent));
+  --well-blur: blur(26px) saturate(160%);
+  --well-shine: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 6px 18px rgb(0 0 0 / 0.16);
   --text: #f1f2f5;
   --text-2: #c4c6cc;
   --text-3: #a3a6ae; /* lighter than black's: the glass under it is lighter than #000 */
