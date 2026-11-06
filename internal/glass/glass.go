@@ -7,6 +7,7 @@ package glass
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -16,6 +17,7 @@ import (
 // Service is bound once and called by every page that draws a card; it acts on the window of the page that calls it.
 type Service struct {
 	watched sync.Map // windows whose closing releases their glass, by window id
+	logged  sync.Map // failures already in the log, by message: the page asks again on every resize
 }
 
 // Shape puts the glass behind the calling window's card: x, y, width, height and corner radius in CSS pixels from the window's
@@ -33,7 +35,13 @@ func (s *Service) Shape(ctx context.Context, x, y, width, height, radius float64
 			forget(hwnd)
 		})
 	}
-	return shape(hwnd, Rect{X: x, Y: y, W: width, H: height, R: radius}, dark)
+	err := shape(hwnd, Rect{X: x, Y: y, W: width, H: height, R: radius}, dark)
+	if err != nil {
+		if _, seen := s.logged.LoadOrStore(err.Error(), true); !seen {
+			log.Printf("%v; the cards are opaque", err)
+		}
+	}
+	return err
 }
 
 // Rect is a rounded rectangle in CSS pixels.
