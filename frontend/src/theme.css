@@ -213,7 +213,9 @@ html[data-theme="glass"] {
   --card-edge: 14%;
   --bar-rim: 22%;
   --bar-edge: 8%;
-  --well: var(--glass-raised);
+  /* The chat's composer: a lighter, thinner frost than a menu's, so the box reads as part of the card rather than a black slot
+     cut in it; its own blur keeps the messages scrolling under it unreadable. */
+  --well: color-mix(in srgb, #2a2d36 50%, transparent);
   --text: #f1f2f5;
   --text-2: #c4c6cc;
   --text-3: #a3a6ae; /* lighter than black's: the glass under it is lighter than #000 */
@@ -221,11 +223,13 @@ html[data-theme="glass"] {
 html[data-theme="glass"][data-glass="off"] {
   --glass: var(--plate);
   --glass-raised: var(--plate);
+  --well: var(--plate);
 }
 @media (prefers-reduced-transparency: reduce) {
   html[data-theme="glass"] {
     --glass: var(--plate);
     --glass-raised: var(--plate);
+    --well: var(--plate);
   }
 }
 
