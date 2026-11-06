@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/flatten.test.ts (Node strips the types itself)
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { filePathOf, flatten, moreCount, openLine, pathOf, pinIdOf, step, tagIdOf, timeOf } from "./flatten.ts";
+import { filePathOf, flatten, keyOf, moreCount, openLine, pathOf, pinIdOf, step, tagIdOf, timeOf } from "./flatten.ts";
 
 const match = (location, line) => ({ Location: location, Snippet: "", Line: line });
 const row = (path, matches, line = 0) => ({
@@ -129,4 +129,11 @@ test("a match in a recording has a moment, a file or a match in text has none", 
   assert.equal(timeOf({ kind: "match", row: talk, match: { Location: "at 0:15", Snippet: "", Line: 0, Timed: true, Seconds: 15 } }), 15);
   assert.equal(timeOf({ kind: "row", row: a }), null);
   assert.equal(timeOf({ kind: "match", row: a, match: match("lines 31-70", 31) }), null);
+});
+
+test("every line of the list has its own key, even matches with no line number (a PDF's pages)", () => {
+  const pdf = row("d.pdf", [match("page 1", 0), match("page 2", 0), match("page 3", 0)]);
+  const items = flatten([pdf, a], new Set(["d.pdf", "a.js"]), [entry("x")]);
+  const keys = items.map(keyOf);
+  assert.equal(new Set(keys).size, keys.length);
 });

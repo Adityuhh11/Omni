@@ -10,6 +10,18 @@ function describe(error: unknown): string {
   return String(error);
 }
 
+const MESSAGE = "Something went wrong. Try again; if it keeps happening, the details are in the log (Settings, About).";
+
+let place: ((message: string) => void) | null = null;
+
+/**
+ * A page whose window is more than its card (the search bar's is taller, for the shadow and for the results to grow into) says
+ * where the message goes: a note pinned to the window's bottom would float in the clear space under the card.
+ */
+export function showUnexpectedIn(show: (message: string) => void) {
+  place = show;
+}
+
 export function catchUnexpected() {
   let shown: HTMLElement | null = null;
 
@@ -18,6 +30,7 @@ export function catchUnexpected() {
     if (typeof error === "string" && error.startsWith("ResizeObserver loop")) return;
     console.error(error);
     Status.PageError(describe(error)).catch(() => {}); // the log is where the message says the details are
+    if (place) return place(MESSAGE);
     if (shown) return;
     const note = document.createElement("div");
     note.setAttribute("role", "alert");
@@ -26,7 +39,7 @@ export function catchUnexpected() {
       "border:1px solid var(--line);border-radius:10px;background:var(--plate);color:var(--danger);font:500 12.5px/1.4 var(--sans)";
     const text = document.createElement("span");
     text.style.flex = "1";
-    text.textContent = "Something went wrong. Try again; if it keeps happening, the details are in the log (Settings, About).";
+    text.textContent = MESSAGE;
     const dismiss = document.createElement("button");
     dismiss.type = "button";
     dismiss.textContent = "Dismiss";

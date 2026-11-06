@@ -38,6 +38,16 @@ export function flatten(rows: Row[], expanded: ReadonlySet<string>, entries: Ent
   return items;
 }
 
+/**
+ * The key a line of the list is told apart by. A match is keyed by its place among its file's matches: its line is 0 when the
+ * file has no lines (a PDF's pages, a recording's moments), so two of them would share a line.
+ */
+export function keyOf(item: Item): string {
+  if (item.kind === "entry") return item.entry.ID;
+  if (item.kind === "row") return item.row.Path;
+  return item.row.Path + "#" + matchesOf(item.row).indexOf(item.match);
+}
+
 /** The selection after moving by delta, wrapping round: holding Down runs to the last row and comes back to the first. */
 export function step(index: number, delta: number, count: number): number {
   if (count === 0) return 0;
