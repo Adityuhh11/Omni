@@ -34,6 +34,13 @@ const RINGS: Record<string, readonly Metal[]> = {
     { name: "fern", back: "#5a9a3c", tint: "#e8ffc9" },
     { name: "mist", back: "#7fa48f", tint: "#f2fff7" },
   ],
+  burgundy: [
+    { name: "garnet", back: "#9e1b32", tint: "#ffc9d2" },
+    { name: "ruby", back: "#c0283f", tint: "#ffd0d8" },
+    { name: "wine", back: "#7a2440", tint: "#f0c6d6" },
+    { name: "rose gold", back: "#b0705e", tint: "#ffe0d4" },
+    { name: "ember", back: "#b8321f", tint: "#ffd6a8" },
+  ],
   cream: [
     { name: "espresso", back: "#6b4a2f", tint: "#e9cfae" },
     { name: "terracotta", back: "#b5603a", tint: "#ffd9bd" },

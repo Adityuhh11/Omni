@@ -151,6 +151,7 @@ type View struct {
 	Theme           string
 	Ring            bool
 	Accent          string
+	Lights          bool
 	Timer           config.Timer
 	UpdateFound     string // the version of a newer release the last check saw, or ""
 	// UpdateInstallable says that release has a zip that can be checked, so the page can offer to install it.
@@ -166,7 +167,7 @@ func (s *Service) View() View {
 	return View{
 		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets,
 		Roots: c.Roots, FileSearch: c.Search.Enabled, Pace: c.Search.Pace,
-		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
+		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Lights: c.UI.Lights, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
 		ConfigPath: s.o.Store.Path(), LogDir: s.o.LogDir, Version: s.o.Version,
 	}
 }
@@ -222,6 +223,11 @@ func (s *Service) Look() config.UI { return s.o.Store.Get().UI }
 // SetTheme changes the colours of every window; a name that is not one of config.Themes is refused.
 func (s *Service) SetTheme(name string) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Theme = name }))
+}
+
+// SetLights turns the wandering lights inside the bar (Glass theme) on or off.
+func (s *Service) SetLights(on bool) string {
+	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Lights = on }))
 }
 
 // SetRing shows or hides the metal ring around the bar and the chat's box.

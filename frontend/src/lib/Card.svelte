@@ -40,6 +40,22 @@
       inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--card-edge), transparent);
     color: var(--text);
   }
+  /* Opening: each window is built fresh, so its page rises into the card as it loads. The card stays put (its glass is the
+     system's); fill only backwards, so no opacity or transform is left on the text afterwards. */
+  .card > :global(*) {
+    animation: rise 240ms var(--ease) backwards;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card > :global(*) {
+      animation: none;
+    }
+  }
   .grip {
     position: fixed;
     z-index: 100;

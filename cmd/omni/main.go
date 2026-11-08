@@ -617,7 +617,7 @@ func run(afterUpdate bool) error {
 	// first and only saves the change if that worked.
 	store.Subscribe(func(old, updated config.Config) {
 		browser.Update(updated.Browser, updated.SearchURL, updated.Quicklinks)
-		if old.UI.Theme != updated.UI.Theme || old.UI.Ring != updated.UI.Ring || old.UI.Accent != updated.UI.Accent {
+		if old.UI.Theme != updated.UI.Theme || old.UI.Ring != updated.UI.Ring || old.UI.Accent != updated.UI.Accent || old.UI.Lights != updated.UI.Lights {
 			app.Event.Emit("ui:look", updated.UI) // every open window repaints
 		}
 		if old.Search.Pace != updated.Search.Pace {

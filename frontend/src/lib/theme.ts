@@ -6,6 +6,7 @@ export const THEMES = [
   { id: "black", label: "Black", plate: "#000000", text: "#eceef2" },
   { id: "midnight", label: "Midnight", plate: "#0a0f1e", text: "#e6ebf7" },
   { id: "forest", label: "Forest", plate: "#09140f", text: "#e4efe8" },
+  { id: "burgundy", label: "Burgundy", plate: "#1a0609", text: "#f3e4e6" },
   { id: "cream", label: "Cream", plate: "#f6f0e2", text: "#2a2620" },
   { id: "blush", label: "Blush", plate: "#f8e8e6", text: "#33201f" },
   { id: "coral", label: "Coral", plate: "#f1c9c2", text: "#3a1512" },
@@ -23,10 +24,10 @@ export const ACCENTS = [
 ] as const;
 
 /** What every window wears; the launcher's config.UI. */
-export type Look = { Theme: string; Ring: boolean; Accent: string };
+export type Look = { Theme: string; Ring: boolean; Accent: string; Lights: boolean };
 
 const KEY = "omni.look";
-const DEFAULT: Look = { Theme: "black", Ring: true, Accent: "none" };
+const DEFAULT: Look = { Theme: "black", Ring: true, Accent: "none", Lights: false };
 
 const listeners = new Set<(look: Look) => void>();
 
@@ -39,7 +40,7 @@ export function onLook(fn: (look: Look) => void): () => void {
 /** The look the page wears now. */
 export function currentLook(): Look {
   const d = document.documentElement.dataset;
-  return { Theme: d.theme ?? DEFAULT.Theme, Ring: d.ring !== "off", Accent: d.accent ?? DEFAULT.Accent };
+  return { Theme: d.theme ?? DEFAULT.Theme, Ring: d.ring !== "off", Accent: d.accent ?? DEFAULT.Accent, Lights: d.lights === "on" };
 }
 
 /** Paints the page in a look and remembers it, so the next window starts in it without waiting for the launcher. Unknown names
@@ -50,12 +51,14 @@ export function applyLook(next: Partial<Look>) {
     Theme: THEMES.some((t) => t.id === next.Theme) ? next.Theme! : before.Theme,
     Ring: next.Ring ?? before.Ring,
     Accent: ACCENTS.some((a) => a.id === next.Accent) ? next.Accent! : before.Accent,
+    Lights: next.Lights ?? before.Lights,
   };
   const d = document.documentElement.dataset;
   d.theme = look.Theme;
   d.ring = look.Ring ? "on" : "off";
   d.accent = look.Accent;
-  if (look.Theme !== before.Theme || look.Ring !== before.Ring || look.Accent !== before.Accent) listeners.forEach((fn) => fn(look));
+  d.lights = look.Lights ? "on" : "off";
+  if (look.Theme !== before.Theme || look.Ring !== before.Ring || look.Accent !== before.Accent || look.Lights !== before.Lights) listeners.forEach((fn) => fn(look));
   try {
     localStorage.setItem(KEY, JSON.stringify(look));
   } catch {

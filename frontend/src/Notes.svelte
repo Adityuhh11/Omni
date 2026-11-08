@@ -407,17 +407,23 @@
     letter-spacing: -0.01em;
     line-height: 1.25;
   }
+  /* A clear step between levels, so a heading reads as one against 14 px text. */
   .read :global(h1) {
-    font-size: 20px;
+    font-size: 27px;
+    font-weight: 680;
+    letter-spacing: -0.02em;
   }
   .read :global(h2) {
+    font-size: 21px;
+    font-weight: 650;
+  }
+  .read :global(h3) {
     font-size: 17px;
   }
-  .read :global(h3),
   .read :global(h4),
   .read :global(h5),
   .read :global(h6) {
-    font-size: 14.5px;
+    font-size: 15px;
   }
   .read > :global(:first-child) {
     margin-top: 0;
