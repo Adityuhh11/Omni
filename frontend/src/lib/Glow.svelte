@@ -7,11 +7,11 @@
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   let lights: HTMLElement[] = $state([]);
 
-  /** Sends a light, over seconds, to a random place in the card and a random strength; says how long it takes. */
+  /** Sends a light, over seconds, to a random place in the card, size and strength. */
   function drift(light: HTMLElement, seconds: number) {
     light.style.transitionDuration = `${seconds}s`;
-    light.style.transform = `translate(${Math.random() * 100}cqw, ${Math.random() * 100}cqh)`;
-    light.style.opacity = String(0.45 + Math.random() * 0.55);
+    light.style.transform = `translate(${Math.random() * 100}cqw, ${Math.random() * 100}cqh) scale(${0.7 + Math.random() * 0.7})`;
+    light.style.opacity = String(0.55 + Math.random() * 0.45);
   }
 
   onMount(() => lights.forEach((light) => drift(light, 0))); // somewhere in the card from the start, not in its corner
@@ -21,7 +21,7 @@
     const timers = lights.map((light) => {
       let timer = 0;
       const next = () => {
-        const seconds = 9 + Math.random() * 9;
+        const seconds = 6 + Math.random() * 6;
         drift(light, seconds);
         timer = window.setTimeout(next, seconds * 1000);
       };
@@ -58,14 +58,16 @@
     display: none;
   }
   .light {
-    --size: 84px;
+    /* Wide, soft ovals: a band of light rather than a dot. */
+    --w: max(260px, 34cqw);
+    --h: 190px;
     position: absolute;
-    left: calc(var(--size) / -2);
-    top: calc(var(--size) / -2);
-    width: var(--size);
-    height: var(--size);
+    left: calc(var(--w) / -2);
+    top: calc(var(--h) / -2);
+    width: var(--w);
+    height: var(--h);
     border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in srgb, var(--chrome) 13%, transparent), transparent 70%);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--chrome) 24%, transparent), transparent);
     transition-property: transform, opacity;
     transition-timing-function: ease-in-out;
     will-change: transform;
