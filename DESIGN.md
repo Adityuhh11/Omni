@@ -15,10 +15,13 @@ Three choices in Settings, General change this, and every window follows at once
 
 - **Glass theme.** Frosted cards, chosen by the owner on 2026-11-04 from five studies (black plate, frosted, clear liquid glass,
   smoked, frosted with flowing liquid). The system blurs what is behind each card, cut to its exact rounded shape
-  (`internal/glass`; a page cannot blur what is behind its own window), and the plate (`#0b0c11`) at 55% tints it dark enough
-  to read over a white page (`--glass`). What floats inside a card is denser and blurs what it covers (`--glass-raised`,
+  (`internal/glass`; a page cannot blur what is behind its own window), and the plate (`#0b0c11`) at 40% tints it lightly
+  (`--glass`; 55% until 2026-11-08 read as Mica, not glass); a faint text shadow keeps the text readable over a white page. What floats inside a card is denser and blurs what it covers (`--glass-raised`,
   `--glass-blur`). Where the system cannot blur, or the person asked it for less transparency, the plate is opaque again. The
-  other themes are untouched: for them `--glass` is the plate.
+  other themes are untouched: for them `--glass` is the plate. **Floating lights** (a switch, off by default, `[ui] lights`): two
+  faint ovals in the accent's colour drift inside the bar at one slow constant pace with gentle turns (`lib/Glow.svelte`,
+  `lib/drift.ts`); only in the bar, only while it is open and the system blurs.
+- **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.
 - **An accent** (blue, violet, green, amber, rose) takes the place of the chrome where it marks something: focus, the caret,
   filled buttons, switches, the text selection, and a little of it in the selected row. A light shade on the dark themes, a deep
@@ -27,7 +30,11 @@ Three choices in Settings, General change this, and every window follows at once
 ## Shape and motion
 
 - **Capsule to card.** At rest the bar is a 680 x 65 capsule (radius 32.5 px, a perfect semicircle end). Results grow it
-  into a card of the same width and the same corner radius; only the height animates (240 ms, exponential ease-out).
+  into a card of the same width and the same corner radius; only the height animates (240 ms, exponential ease-out), and the
+  list fades in and drops 6 px as it appears (not on every keystroke). Opening, the card is there at once and its content rises
+  5 px into it (200 ms); the notes, chat, settings and calendar pages rise 6 px into their cards as they load (240 ms). Only the
+  content moves: the glass is the system's and cannot be animated. All of it fills backwards only, so no opacity or transform
+  stays on the text, and none of it with reduced motion.
   The window around it is clear and transparent (`BackgroundTypeTransparent`), 20 px wider on each side and 12 px above
   and 40 px below the card, for the shadow. The shadow (`--shadow`) must fit inside those margins (blur minus spread under
   the margin on every side); a larger one is cut off by the window edge as a hard straight line, which showed over white pages.
@@ -118,7 +125,8 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
 
 ## Rules
 
-- Nothing animated may run while the panel is closed; nothing visual may be added to the hotkey path.
+- Nothing animated may run while the panel is closed; nothing may delay the hotkey path (the opening rise starts once the panel
+  is shown and focused, and the input takes keys at once).
 - No accent color in the interface unless the person picks one, and then only where the chrome would be. Emphasis by weight and
   brightness; the ring is the one coloured thing.
 - The ring is real shader output, never a CSS imitation (the static gradient behind it is only the no-WebGL fallback). It is masked to
