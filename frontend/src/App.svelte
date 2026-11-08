@@ -152,6 +152,7 @@
   // text every time the window regains the keyboard, so typing replaces it.
   function takeFocus() {
     active = true;
+    shut = false;
     input.focus();
     if (performance.now() - filledAt < FILL_GRACE_MS) input.setSelectionRange(input.value.length, input.value.length);
     else input.select();
@@ -162,6 +163,8 @@
   // window gets several focus events while it opens, so for a second after the text arrives each of them leaves
   // it alone, with the cursor after it, instead of selecting it for the next keystroke to replace.
   const FILL_GRACE_MS = 1000;
+  // Closed (not just blurred while opening): the bar's content waits hidden and rises in at the next opening.
+  let shut = $state(false);
   let filledAt = -Infinity;
   $effect(() =>
     Events.On("panel:fill", (e) => {
@@ -190,6 +193,7 @@
   // The bar has closed: the next opening starts from everything, with the pinned things listed, and in the
   // next metal, chosen now, unseen.
   function closed() {
+    shut = true;
     mode = "all";
     effective = "all";
     query = "";
@@ -540,7 +544,7 @@
     {#if ring}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
       <Glow running={active} />
-      <div class="content" class:acting={target || picker} bind:this={content}>
+      <div class="content" class:acting={target || picker} class:shut bind:this={content}>
         <header class="bar">
           <span class="glass"><SearchGlyph size={22} busy={pending} /></span>
           <input
@@ -659,6 +663,20 @@
     position: relative;
     z-index: 1;
   }
+  /* Opening: the card is there at once (its glass is the system's and cannot be animated), the bar's content rises into it.
+     Fill only backwards: once it ends no opacity or transform is left on the text, which would draw it soft. */
+  .content.shut {
+    opacity: 0;
+  }
+  .content:not(.shut) {
+    animation: rise 200ms var(--ease) backwards;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+  }
   /* Room for the action panel above the footer, however few rows there are. */
   .content.acting {
     min-height: 270px;
@@ -725,6 +743,19 @@
     max-height: 440px;
     overflow-y: auto;
     padding: 8px 0;
+    animation: unfold 240ms var(--ease) backwards; /* when the list appears, not on every keystroke */
+  }
+  @keyframes unfold {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .content:not(.shut),
+    .results {
+      animation: none;
+    }
   }
   /* Rows are faded by the colour of their text, never by opacity or a transform: those make the browser draw the row as a
      picture that is then scaled or blended, which is what made it look soft. Dimmed text is the same glyphs in a fainter
