@@ -24,6 +24,8 @@
   // svelte-ignore state_referenced_locally
   let ring = $state(view.Ring);
   // svelte-ignore state_referenced_locally
+  let lights = $state(view.Lights);
+  // svelte-ignore state_referenced_locally
   let accent = $state(view.Accent);
   let browsers = $state<string[]>([]);
   // The other hotkeys live on pages of their own services; they are shown here, beside the search bar's, and saved there.
@@ -112,6 +114,12 @@
     } else flashSaved();
   }
 
+  async function saveLights() {
+    applyLook({ Lights: lights });
+    error = await Settings.SetLights(lights);
+    if (error !== "") applyLook({ Lights: (lights = !lights) });
+  }
+
   async function saveRing() {
     applyLook({ Ring: ring });
     error = await Settings.SetRing(ring);
@@ -154,6 +162,12 @@
         </button>
       {/each}
     </div>
+    {#if theme === "glass" && !isMac}
+      <span class="sub">
+        Windows pauses its blur while Energy saver is on: the cards show your wallpaper, blurred, instead of what is behind them
+        until it is off. With Transparency effects off (Personalization, Colors) they are solid.
+      </span>
+    {/if}
   </div>
   <div class="item stack">
     <span class="name" id="accent-label">Accent</span>
@@ -173,6 +187,15 @@
     </span>
     <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
   </label>
+  {#if theme === "glass"}
+    <label class="item">
+      <span class="text">
+        <span class="name">Floating lights</span>
+        <span class="sub">Two faint lights in the accent's colour drifting inside the search bar</span>
+      </span>
+      <input type="checkbox" class="switch" bind:checked={lights} onchange={saveLights} />
+    </label>
+  {/if}
   <label class="item">
     <span class="text">
       <span class="name">Lift the selected result</span>

@@ -18,6 +18,7 @@
      below and in the components is this colour at some strength, so a theme only has to set its few colours. */
   --ink: #fff;
   --lift: color-mix(in srgb, var(--ink) 7.5%, transparent);
+  --lift-keyed: color-mix(in srgb, var(--ink) 11.5%, transparent); /* the selected row while the arrow keys move */
   --tile: color-mix(in srgb, var(--ink) 5.5%, transparent);
   --line: color-mix(in srgb, var(--ink) 7%, transparent);
 
@@ -160,6 +161,17 @@ html[data-theme="forest"] {
   --chrome-hot: #effbf3;
   --on-chrome: #09140f;
 }
+html[data-theme="burgundy"] {
+  --ring-fallback: linear-gradient(135deg, #9e1b32, #ffc9d2 45%, #9e1b32 70%, #d06a7c);
+  --plate: #1a0609;
+  --text: #f3e4e6;
+  --text-2: #c4a3a8;
+  --text-3: #a07f85;
+  --chrome: #f0cdd3;
+  --chrome-hot: #fff1f3;
+  --on-chrome: #1a0609;
+  --danger: #ff9a8f;
+}
 html[data-theme="cream"] {
   --ring-fallback: linear-gradient(135deg, #6b4a2f, #e9cfae 45%, #6b4a2f 70%, #b08a63);
   --plate: #f6f0e2;
@@ -206,7 +218,7 @@ html[data-theme="coral"] {
 html[data-theme="glass"] {
   --ring-fallback: linear-gradient(135deg, #565963, #e4e8f0 45%, #565963 70%, #c9ced9);
   --plate: #0b0c11;
-  --glass: color-mix(in srgb, var(--plate) 55%, transparent);
+  --glass: color-mix(in srgb, var(--plate) 40%, transparent); /* a light frost: more of what is behind shows through */
   --glass-raised: color-mix(in srgb, var(--plate) 84%, transparent);
   --glass-blur: blur(24px) saturate(150%);
   --card-rim: 24%;
@@ -222,11 +234,21 @@ html[data-theme="glass"] {
   --text-2: #c4c6cc;
   --text-3: #a3a6ae; /* lighter than black's: the glass under it is lighter than #000 */
 }
+/* The light frost lets a bright page through: a faint shadow keeps the text readable on it. */
+html[data-theme="glass"]:not([data-glass="off"]) {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+}
 html[data-theme="glass"][data-glass="off"] {
   --glass: var(--plate);
   --glass-raised: var(--plate);
   --well: var(--plate);
   --well-shine: 0 0 #0000;
+}
+/* Windows' energy saver stops the system's blur: the plate stays a little see-through, without a blur, dark enough to read over
+   whatever is behind. The composer's frost and the menus' own blur blur only the page, so they stay. */
+html[data-theme="glass"][data-glass="tint"] {
+  --glass: color-mix(in srgb, var(--plate) 88%, transparent);
+  --glass-raised: color-mix(in srgb, var(--plate) 94%, transparent);
 }
 @media (prefers-reduced-transparency: reduce) {
   html[data-theme="glass"] {
@@ -252,4 +274,5 @@ html[data-accent="rose"]:is([data-theme="cream"], [data-theme="blush"], [data-th
 /* With an accent, the selected row carries a little of it. */
 html[data-accent]:not([data-accent="none"]) {
   --lift: color-mix(in srgb, var(--chrome) 14%, transparent);
+  --lift-keyed: color-mix(in srgb, var(--chrome) 20%, transparent);
 }

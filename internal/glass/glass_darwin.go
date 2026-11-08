@@ -11,16 +11,16 @@ import "errors"
 
 // shape puts a visual effect view, masked to the card, behind the page (glass_darwin.m). The window stays as it is around the
 // card, so the shadow the page draws still shows; a Mac's coordinates are points, which are CSS pixels.
-func shape(window uintptr, r Rect, dark bool) error {
+func shape(window uintptr, r Rect, dark bool) (Glass, error) {
 	if window == 0 {
-		return errors.New("glass: the window has no handle yet")
+		return Glass{}, errors.New("glass: the window has no handle yet")
 	}
 	d := 0
 	if dark {
 		d = 1
 	}
 	C.omniGlassShape(C.ulong(window), C.double(r.X), C.double(r.Y), C.double(r.W), C.double(r.H), C.double(r.R), C.int(d))
-	return nil
+	return Glass{Look: Blur}, nil // the Mac's own Reduce Transparency reaches the page as prefers-reduced-transparency
 }
 
 // forget has nothing to do on a Mac: the effect view belongs to its window and goes with it.
