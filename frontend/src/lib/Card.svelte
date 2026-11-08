@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import { onMount } from "svelte";
   import { glass } from "./glass";
+  import Glow from "./Glow.svelte";
 
   let { children }: { children: Snippet } = $props();
 
@@ -24,7 +25,7 @@
   close button is; the window stays resizable from its edges. The grips are clear strips around the edge that give the
   resize cursor wherever the pointer is on them: what is under them would otherwise choose the cursor.
 -->
-<div class="card" use:glass={26}>{@render children()}</div>
+<div class="card" use:glass={26}><Glow />{@render children()}</div>
 {#each EDGES as edge (edge)}<div class="grip {edge}" aria-hidden="true"></div>{/each}
 
 <style>
@@ -39,6 +40,7 @@
       inset 0 1px 0 color-mix(in srgb, var(--ink) var(--card-rim), transparent),
       inset 0 0 0 1px color-mix(in srgb, var(--ink) var(--card-edge), transparent);
     color: var(--text);
+    isolation: isolate; /* the glow lies over the plate, under the page */
   }
   .grip {
     position: fixed;

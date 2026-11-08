@@ -16,6 +16,7 @@
   import Hints from "./lib/Hints.svelte";
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
+  import Glow from "./lib/Glow.svelte";
   import { glass } from "./lib/glass";
   import { showUnexpectedIn } from "./lib/oops";
   import Loader from "./lib/Loader.svelte";
@@ -538,6 +539,7 @@
   <div class="card" style:height="{cardHeight}px" use:glass={30}>
     {#if ring}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
+      <Glow />
       <div class="content" class:acting={target || picker} bind:this={content}>
         <header class="bar">
           <span class="glass"><SearchGlyph size={22} busy={pending} /></span>
@@ -636,6 +638,7 @@
     inset: var(--ring);
     border-radius: calc(var(--radius) - var(--ring));
     background: var(--glass);
+    isolation: isolate; /* the glow lies over the plate, under the bar */
   }
   /* The wallpaper glass (lib/glass.ts) lays its own tint on the card under the surface: a second one would darken the bar. */
   :global(html[data-glass="wallpaper"]) .surface {
