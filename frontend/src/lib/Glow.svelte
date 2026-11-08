@@ -1,10 +1,46 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  /** running: the bar is open. Closed, the lights finish their drift and wait. */
+  let { running }: { running: boolean } = $props();
+
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  let lights: HTMLElement[] = $state([]);
+
+  /** Sends a light, over seconds, to a random place in the card and a random strength; says how long it takes. */
+  function drift(light: HTMLElement, seconds: number) {
+    light.style.transitionDuration = `${seconds}s`;
+    light.style.transform = `translate(${Math.random() * 100}cqw, ${Math.random() * 100}cqh)`;
+    light.style.opacity = String(0.45 + Math.random() * 0.55);
+  }
+
+  onMount(() => lights.forEach((light) => drift(light, 0))); // somewhere in the card from the start, not in its corner
+
+  $effect(() => {
+    if (!running || still.matches) return;
+    const timers = lights.map((light) => {
+      let timer = 0;
+      const next = () => {
+        const seconds = 9 + Math.random() * 9;
+        drift(light, seconds);
+        timer = window.setTimeout(next, seconds * 1000);
+      };
+      next();
+      return () => clearTimeout(timer);
+    });
+    return () => timers.forEach((stop) => stop());
+  });
+</script>
+
 <!--
-  Two soft lights drifting inside a glass card, in the accent's colour: they cross, run together into one brighter light and part
-  again. Only in the Glass theme, while the system blurs (data-glass unset); it stops while the bar is closed and holds still for
-  someone who asked for less motion. Two durations that never line up keep the paths from looking like a loop.
-  The parent isolates its stacking, so the lights lie over its plate and under its content.
+  Two faint lights in the accent's colour wandering inside the bar, each to a random place at its own pace: switched on in
+  Settings, in the Glass theme while the system blurs (data-glass unset). One style change every few seconds; the compositor
+  draws the drift. The parent isolates its stacking, so the lights lie over its plate and under its content.
 -->
-<div class="glow" aria-hidden="true"><span class="orb a"></span><span class="orb b"></span></div>
+<div class="glow" aria-hidden="true">
+  <span class="light" bind:this={lights[0]}></span>
+  <span class="light" bind:this={lights[1]}></span>
+</div>
 
 <style>
   .glow {
@@ -17,52 +53,21 @@
     container-type: size;
   }
   :global(html:not([data-theme="glass"])) .glow,
+  :global(html:not([data-lights="on"])) .glow,
   :global(html[data-glass]) .glow {
     display: none;
   }
-  .orb {
-    --size: max(200px, 40cqw);
+  .light {
+    --size: 84px;
     position: absolute;
-    left: calc(50% - var(--size) / 2);
-    top: calc(50% - var(--size) / 2);
+    left: calc(var(--size) / -2);
+    top: calc(var(--size) / -2);
     width: var(--size);
     height: var(--size);
     border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in srgb, var(--chrome) 30%, transparent), transparent 68%);
-    mix-blend-mode: screen; /* where they meet they add up: one bigger, brighter light */
+    background: radial-gradient(circle, color-mix(in srgb, var(--chrome) 13%, transparent), transparent 70%);
+    transition-property: transform, opacity;
+    transition-timing-function: ease-in-out;
     will-change: transform;
-    animation: a 27s ease-in-out infinite alternate;
-  }
-  .b {
-    animation-name: b;
-    animation-duration: 37s;
-  }
-  :global(html[data-active="false"]) .orb {
-    animation-play-state: paused;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .orb {
-      animation: none;
-    }
-    .a {
-      transform: translate(-22cqw, -10cqh);
-    }
-    .b {
-      transform: translate(24cqw, 12cqh);
-    }
-  }
-  @keyframes a {
-    0% { transform: translate(-32cqw, -22cqh) scale(1); }
-    22% { transform: translate(6cqw, 24cqh) scale(1.2); }
-    45% { transform: translate(30cqw, -12cqh) scale(0.9); }
-    70% { transform: translate(-4cqw, 6cqh) scale(1.3); }
-    100% { transform: translate(-28cqw, 26cqh) scale(1); }
-  }
-  @keyframes b {
-    0% { transform: translate(30cqw, 20cqh) scale(1.1); }
-    30% { transform: translate(-10cqw, -24cqh) scale(0.9); }
-    55% { transform: translate(2cqw, 8cqh) scale(1.3); }
-    80% { transform: translate(-30cqw, 18cqh) scale(1); }
-    100% { transform: translate(26cqw, -20cqh) scale(1.15); }
   }
 </style>

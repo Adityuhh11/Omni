@@ -539,7 +539,7 @@
   <div class="card" style:height="{cardHeight}px" use:glass={30}>
     {#if ring}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
-      <Glow />
+      <Glow running={active} />
       <div class="content" class:acting={target || picker} bind:this={content}>
         <header class="bar">
           <span class="glass"><SearchGlyph size={22} busy={pending} /></span>

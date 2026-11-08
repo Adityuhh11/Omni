@@ -70,6 +70,8 @@ type UI struct {
 	// Accent colours what the bright chrome marks (focus, the caret, filled buttons, switches, the selected row): one of Accents,
 	// "none" for the chrome itself.
 	Accent string `toml:"accent"`
+	// Lights sets two faint lights in the accent's colour wandering inside the bar, in the Glass theme.
+	Lights bool `toml:"lights"`
 }
 
 // Calendar lists the calendars that are shown. Their subscription addresses are secrets (anyone with one can read the
