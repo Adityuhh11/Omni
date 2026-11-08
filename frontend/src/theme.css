@@ -217,7 +217,7 @@ html[data-theme="coral"] {
 html[data-theme="glass"] {
   --ring-fallback: linear-gradient(135deg, #565963, #e4e8f0 45%, #565963 70%, #c9ced9);
   --plate: #0b0c11;
-  --glass: color-mix(in srgb, var(--plate) 55%, transparent);
+  --glass: color-mix(in srgb, var(--plate) 40%, transparent); /* a light frost: more of what is behind shows through */
   --glass-raised: color-mix(in srgb, var(--plate) 84%, transparent);
   --glass-blur: blur(24px) saturate(150%);
   --card-rim: 24%;
