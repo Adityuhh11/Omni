@@ -222,8 +222,13 @@ func shapeNow(hwnd uintptr, r Rect, lk string) error {
 	p := panes[hwnd]
 	mu.Unlock()
 	if lk != Blur {
+		// Released, not hidden: a backdrop that lived through Windows turning its blur off draws black once the blur is back, so
+		// the next Blur builds a fresh pane. The bar's window lives for the whole run and would otherwise stay black.
 		if p != nil {
-			return p.visual.call(slotPutIsVisible, boolArg(false)) // an unblurred backdrop is only the bare desktop
+			mu.Lock()
+			delete(panes, hwnd)
+			mu.Unlock()
+			p.release()
 		}
 		return nil
 	}
