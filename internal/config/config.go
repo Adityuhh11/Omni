@@ -85,7 +85,7 @@ type CalendarFeed struct {
 }
 
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
-var Themes = []string{"black", "midnight", "forest", "cream", "blush", "coral", "glass"}
+var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass"}
 
 // Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
 var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}

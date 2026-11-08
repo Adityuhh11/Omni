@@ -6,6 +6,7 @@ export const THEMES = [
   { id: "black", label: "Black", plate: "#000000", text: "#eceef2" },
   { id: "midnight", label: "Midnight", plate: "#0a0f1e", text: "#e6ebf7" },
   { id: "forest", label: "Forest", plate: "#09140f", text: "#e4efe8" },
+  { id: "burgundy", label: "Burgundy", plate: "#1a0609", text: "#f3e4e6" },
   { id: "cream", label: "Cream", plate: "#f6f0e2", text: "#2a2620" },
   { id: "blush", label: "Blush", plate: "#f8e8e6", text: "#33201f" },
   { id: "coral", label: "Coral", plate: "#f1c9c2", text: "#3a1512" },

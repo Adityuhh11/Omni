@@ -160,6 +160,17 @@ html[data-theme="forest"] {
   --chrome-hot: #effbf3;
   --on-chrome: #09140f;
 }
+html[data-theme="burgundy"] {
+  --ring-fallback: linear-gradient(135deg, #9e1b32, #ffc9d2 45%, #9e1b32 70%, #d06a7c);
+  --plate: #1a0609;
+  --text: #f3e4e6;
+  --text-2: #c4a3a8;
+  --text-3: #a07f85;
+  --chrome: #f0cdd3;
+  --chrome-hot: #fff1f3;
+  --on-chrome: #1a0609;
+  --danger: #ff9a8f;
+}
 html[data-theme="cream"] {
   --ring-fallback: linear-gradient(135deg, #6b4a2f, #e9cfae 45%, #6b4a2f 70%, #b08a63);
   --plate: #f6f0e2;

@@ -27,7 +27,7 @@ test("every metal is two hex colours", () => {
 });
 
 test("every theme has its own rings, the next one is chosen among that theme's, and an unknown theme wears the metals", () => {
-  for (const theme of ["black", "midnight", "forest", "cream", "blush", "coral"]) {
+  for (const theme of ["black", "midnight", "forest", "burgundy", "cream", "blush", "coral"]) {
     const rings = ringsFor(theme);
     assert.ok(rings.length >= 2, theme);
     for (const ring of rings) assert.match(`${ring.back}${ring.tint}`, /^(#[0-9a-f]{6}){2}$/i);
