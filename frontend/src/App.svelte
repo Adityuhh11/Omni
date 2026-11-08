@@ -637,6 +637,10 @@
     border-radius: calc(var(--radius) - var(--ring));
     background: var(--glass);
   }
+  /* The wallpaper glass (lib/glass.ts) lays its own tint on the card under the surface: a second one would darken the bar. */
+  :global(html[data-glass="wallpaper"]) .surface {
+    background: none;
+  }
   .surface::after {
     content: "";
     position: absolute;
