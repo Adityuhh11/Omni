@@ -1,29 +1,35 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { nextDrift, type Drift } from "./drift";
 
-  /** running: the bar is open. Closed, the lights finish their drift and wait. */
+  /** running: the bar is open. Closed, the lights finish their stretch and wait. */
   let { running }: { running: boolean } = $props();
 
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   let lights: HTMLElement[] = $state([]);
 
-  /** Sends a light, over seconds, to a random place in the card, size and strength. */
-  function drift(light: HTMLElement, seconds: number) {
+  /** Puts a light at a point, getting there in seconds at a constant pace, a little larger or smaller and brighter or fainter. */
+  function place(light: HTMLElement, at: Drift, seconds: number) {
     light.style.transitionDuration = `${seconds}s`;
-    light.style.transform = `translate(${Math.random() * 100}cqw, ${Math.random() * 100}cqh) scale(${0.7 + Math.random() * 0.7})`;
-    light.style.opacity = String(0.55 + Math.random() * 0.45);
+    light.style.transform = `translate(${at.x}px, ${at.y}px) scale(${0.8 + Math.random() * 0.4})`;
+    light.style.opacity = String(0.6 + Math.random() * 0.4);
   }
 
-  onMount(() => lights.forEach((light) => drift(light, 0))); // somewhere in the card from the start, not in its corner
-
   $effect(() => {
+    const box = lights[0]?.parentElement;
+    if (!box) return;
+    const paths = lights.map((light) => {
+      const at: Drift = { x: Math.random() * box.clientWidth, y: Math.random() * box.clientHeight, heading: Math.random() * 2 * Math.PI };
+      place(light, at, 0);
+      return at;
+    });
     if (!running || still.matches) return;
-    const timers = lights.map((light) => {
+    const timers = lights.map((light, i) => {
       let timer = 0;
       const next = () => {
-        const seconds = 6 + Math.random() * 6;
-        drift(light, seconds);
-        timer = window.setTimeout(next, seconds * 1000);
+        const step = nextDrift(paths[i], box.clientWidth, box.clientHeight);
+        paths[i] = step;
+        place(light, step, step.seconds);
+        timer = window.setTimeout(next, step.seconds * 1000);
       };
       next();
       return () => clearTimeout(timer);
@@ -33,7 +39,7 @@
 </script>
 
 <!--
-  Two faint lights in the accent's colour wandering inside the bar, each to a random place at its own pace: switched on in
+  Two faint lights in the accent's colour drifting inside the bar like a slow current, at one constant pace (lib/drift.ts): switched on in
   Settings, in the Glass theme while the system blurs (data-glass unset). One style change every few seconds; the compositor
   draws the drift. The parent isolates its stacking, so the lights lie over its plate and under its content.
 -->
@@ -69,7 +75,7 @@
     border-radius: 50%;
     background: radial-gradient(closest-side, color-mix(in srgb, var(--chrome) 24%, transparent), transparent);
     transition-property: transform, opacity;
-    transition-timing-function: ease-in-out;
+    transition-timing-function: linear;
     will-change: transform;
   }
 </style>
