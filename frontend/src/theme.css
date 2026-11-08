@@ -228,6 +228,12 @@ html[data-theme="glass"][data-glass="off"] {
   --well: var(--plate);
   --well-shine: 0 0 #0000;
 }
+/* Windows' energy saver stops the system's blur: the plate stays a little see-through, without a blur, dark enough to read over
+   whatever is behind. The composer's frost and the menus' own blur blur only the page, so they stay. */
+html[data-theme="glass"][data-glass="tint"] {
+  --glass: color-mix(in srgb, var(--plate) 88%, transparent);
+  --glass-raised: color-mix(in srgb, var(--plate) 94%, transparent);
+}
 @media (prefers-reduced-transparency: reduce) {
   html[data-theme="glass"] {
     --glass: var(--plate);

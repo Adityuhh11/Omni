@@ -147,10 +147,11 @@ var (
 	mu         sync.Mutex // the map; the compositor is only touched inside InvokeSync
 )
 
-func shape(hwnd uintptr, r Rect, _ bool) error {
+func shape(hwnd uintptr, r Rect, _ bool) (string, error) {
 	if hwnd == 0 {
-		return errors.New("glass: the window has no handle yet")
+		return "", errors.New("glass: the window has no handle yet")
 	}
+	lk := look()
 	var err error
 	application.InvokeSync(func() {
 		// A panic here would leave InvokeSync waiting for ever (Wails recovers it without finishing the call).
@@ -159,9 +160,9 @@ func shape(hwnd uintptr, r Rect, _ bool) error {
 				err = fmt.Errorf("glass: %v", v)
 			}
 		}()
-		err = shapeNow(hwnd, r)
+		err = shapeNow(hwnd, r, lk)
 	})
-	return err
+	return lk, err
 }
 
 // forget releases a window's glass when the window closes: Windows gives a later window the same handle, which must get a pane
@@ -178,37 +179,35 @@ func forget(hwnd uintptr) {
 	})
 }
 
-// errNoBlur makes the page paint its plate opaque: the host backdrop is blurred only while Windows draws transparency, and over
-// the bare desktop a see-through plate is unreadable.
-var errNoBlur = errors.New("glass: Windows is not drawing transparency (Transparency effects off, or energy saver on)")
-
-// blurOff says whether the person or the system has turned Windows' transparency off. WebView2 does not report it to the page
-// (prefers-reduced-transparency stays "no-preference"), so the window asks.
-func blurOff() bool {
+// look says what Windows lets the glass be. The host backdrop is blurred only while Windows draws transparency, and WebView2
+// does not tell the page when it stops (prefers-reduced-transparency stays "no-preference"), so the window asks.
+func look() string {
 	if k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, registry.QUERY_VALUE); err == nil {
 		v, _, err := k.GetIntegerValue("EnableTransparency")
 		k.Close()
 		if err == nil && v == 0 {
-			return true
+			return Off // the person turned transparency off: they get none
 		}
 	}
 	var status struct {
 		acLine, batteryFlag, batteryPercent, systemStatus uint8
 		lifeTime, fullLifeTime                            uint32
 	}
-	ok, _, _ := procPowerStatus.Call(uintptr(unsafe.Pointer(&status)))
-	return ok != 0 && status.systemStatus&1 != 0 // energy saver turns transparency effects off
+	if ok, _, _ := procPowerStatus.Call(uintptr(unsafe.Pointer(&status))); ok != 0 && status.systemStatus&1 != 0 {
+		return Tint // energy saver stops the blur, not the person's wish for glass
+	}
+	return Blur
 }
 
-func shapeNow(hwnd uintptr, r Rect) error {
+func shapeNow(hwnd uintptr, r Rect, lk string) error {
 	mu.Lock()
 	p := panes[hwnd]
 	mu.Unlock()
-	if r.W > 0 && r.H > 0 && blurOff() {
+	if lk != Blur {
 		if p != nil {
-			_ = p.visual.call(slotPutIsVisible, boolArg(false)) // the error below is what the page acts on
+			return p.visual.call(slotPutIsVisible, boolArg(false)) // an unblurred backdrop is only the bare desktop
 		}
-		return errNoBlur
+		return nil
 	}
 	if p == nil {
 		if r.W <= 0 || r.H <= 0 {

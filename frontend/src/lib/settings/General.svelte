@@ -154,6 +154,12 @@
         </button>
       {/each}
     </div>
+    {#if theme === "glass" && !isMac}
+      <span class="sub">
+        Windows pauses the blur while Energy saver is on: the cards turn tinted until it is off. With Transparency effects off
+        (Personalization, Colors) they are solid.
+      </span>
+    {/if}
   </div>
   <div class="item stack">
     <span class="name" id="accent-label">Accent</span>
