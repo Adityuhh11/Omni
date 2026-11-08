@@ -18,6 +18,7 @@
      below and in the components is this colour at some strength, so a theme only has to set its few colours. */
   --ink: #fff;
   --lift: color-mix(in srgb, var(--ink) 7.5%, transparent);
+  --lift-keyed: color-mix(in srgb, var(--ink) 11.5%, transparent); /* the selected row while the arrow keys move */
   --tile: color-mix(in srgb, var(--ink) 5.5%, transparent);
   --line: color-mix(in srgb, var(--ink) 7%, transparent);
 
@@ -273,4 +274,5 @@ html[data-accent="rose"]:is([data-theme="cream"], [data-theme="blush"], [data-th
 /* With an accent, the selected row carries a little of it. */
 html[data-accent]:not([data-accent="none"]) {
   --lift: color-mix(in srgb, var(--chrome) 14%, transparent);
+  --lift-keyed: color-mix(in srgb, var(--chrome) 20%, transparent);
 }

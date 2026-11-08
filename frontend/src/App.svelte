@@ -810,7 +810,7 @@
   .results.keying :global(.item.selected) {
     position: relative;
     z-index: 1;
-    background-color: color-mix(in srgb, var(--ink) 11.5%, transparent);
+    background-color: var(--lift-keyed);
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, var(--ink) 20%, transparent),
       0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent),
