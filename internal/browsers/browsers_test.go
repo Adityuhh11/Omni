@@ -11,7 +11,9 @@ import (
 
 func num(n int64) string { return strconv.FormatInt(n, 10) }
 
-var now = time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+// now is the real time, to the second: search's "last n days" counts back from the clock, so a fixed date falls out of the
+// window a few days after it was written.
+var now = time.Now().Truncate(time.Second)
 
 func exec(t *testing.T, file string, stmts ...string) {
 	t.Helper()
