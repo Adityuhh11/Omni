@@ -20,13 +20,20 @@ type Service struct {
 	logged  sync.Map // failures already in the log, by message: the page asks again on every resize
 }
 
+// What the glass behind a card is, as Shape reports it to the page, which paints its plate to match.
+const (
+	Blur = "blur" // the system blurs what is behind the card; the plate is part see-through
+	Tint = "tint" // the system draws no blur for now (Windows' energy saver); the plate is nearly opaque, without a blur
+	Off  = "off"  // the person asked the system for no transparency; the plate is opaque
+)
+
 // Shape puts the glass behind the calling window's card: x, y, width, height and corner radius in CSS pixels from the window's
 // top left. A width of 0 takes it away. dark says whether the page's theme is dark, which picks the Mac's material; Windows'
-// blur has no colour of its own.
-func (s *Service) Shape(ctx context.Context, x, y, width, height, radius float64, dark bool) error {
+// blur has no colour of its own. It says what the glass is (Blur, Tint or Off).
+func (s *Service) Shape(ctx context.Context, x, y, width, height, radius float64, dark bool) (string, error) {
 	win, ok := ctx.Value(application.WindowKey).(application.Window)
 	if !ok || win == nil {
-		return errors.New("glass: the call came from no window")
+		return "", errors.New("glass: the call came from no window")
 	}
 	hwnd := uintptr(win.NativeWindow())
 	if _, seen := s.watched.LoadOrStore(win.ID(), true); !seen {
@@ -35,13 +42,13 @@ func (s *Service) Shape(ctx context.Context, x, y, width, height, radius float64
 			forget(hwnd)
 		})
 	}
-	err := shape(hwnd, Rect{X: x, Y: y, W: width, H: height, R: radius}, dark)
+	look, err := shape(hwnd, Rect{X: x, Y: y, W: width, H: height, R: radius}, dark)
 	if err != nil {
 		if _, seen := s.logged.LoadOrStore(err.Error(), true); !seen {
 			log.Printf("%v; the cards are opaque", err)
 		}
 	}
-	return err
+	return look, err
 }
 
 // Rect is a rounded rectangle in CSS pixels.

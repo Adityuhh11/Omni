@@ -1,8 +1,9 @@
 import { Service as Glass } from "../../bindings/omni/internal/glass";
 
 // The frosted glass behind a card, while the Glass theme is chosen. A page cannot blur what is behind its own window, so it tells the window where its card is
-// (internal/glass) and the system blurs the desktop there; the page paints the tint (--glass) on top. Someone who asked the
-// system for less transparency, or a system that cannot do it, gets the plate opaque (html[data-glass="off"] in theme.css).
+// (internal/glass) and the system blurs the desktop there; the page paints the tint (--glass) on top. The window says what the
+// glass is: while Windows' energy saver stops the blur the plate is nearly opaque, without one (html[data-glass="tint"]); someone
+// who asked the system for less transparency, or a system that cannot do it, gets the plate opaque (html[data-glass="off"]).
 
 const reduced = matchMedia("(prefers-reduced-transparency: reduce)");
 
@@ -30,7 +31,10 @@ export function glass(node: HTMLElement, radius: number) {
     last = key;
     Glass.Shape(box.left, box.top, box.width, box.height, radius, dark).then(
       // A call that failed earlier (the window had no handle yet) does not keep the card opaque once one works.
-      () => delete document.documentElement.dataset.glass,
+      (look) => {
+        if (look === "blur") delete document.documentElement.dataset.glass;
+        else document.documentElement.dataset.glass = look;
+      },
       (err) => {
         console.warn("glass:", err);
         off();
@@ -46,6 +50,12 @@ export function glass(node: HTMLElement, radius: number) {
   const themes = new MutationObserver(soon);
   themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("resize", soon);
+  // Energy saver and the transparency setting change while the window is hidden: ask again whenever it is shown.
+  const shown = () => {
+    if (last !== "none") last = "";
+    soon();
+  };
+  addEventListener("focus", shown);
   const changed = () => {
     // Turning it on takes the blur away (send sees what was shown); turning it off shows it again (the key no longer matches).
     if (!reduced.matches) delete document.documentElement.dataset.glass;
@@ -62,6 +72,7 @@ export function glass(node: HTMLElement, radius: number) {
       observer.disconnect();
       themes.disconnect();
       removeEventListener("resize", soon);
+      removeEventListener("focus", shown);
       reduced.removeEventListener("change", changed);
       cancelAnimationFrame(frame);
       // The card is gone: no glass left behind on an empty window.
