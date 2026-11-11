@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Service as Atlas } from "../../../bindings/omni/internal/atlas";
   import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { SearchView, View } from "../../../bindings/omni/internal/settingsui";
   import { changes, effects, type Choices, type Kind } from "../indexingPlan";
@@ -186,6 +187,13 @@
             {search.Paused ? "Resume" : "Pause"}
           </button>
         {/if}
+      </div>
+      <div class="item">
+        <span class="text">
+          <span class="name">Map</span>
+          <span class="sub">Every piece of your files as a dot, near others that mean something alike.</span>
+        </span>
+        <button type="button" class="btn" onclick={() => Atlas.Show()}>Open the map</button>
       </div>
       {#if search.IndexState === "indexing" && search.IndexTotal > 0}
         <div class="item thin">

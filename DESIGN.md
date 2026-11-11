@@ -121,6 +121,14 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
   An event opens a panel at the bottom right: the title beside a 3 px bar of its colour, then time (with "in 12 min" or "Now"),
   place and calendar as icon rows, a wide Join button tinted with the event's colour that names the service (Zoom, Google Meet,
   Teams, Webex), and the notes rendered as markdown (HTML from Google or Outlook is turned into markdown first).
+- **Map window:** night (`#0e0f12`) whatever the look, because the dots glow by adding onto the dark. Each chunk is a soft dot
+  coloured by its folder: the eight categorical hues of the dark data palette in a fixed order (validated on the night for
+  colour-blind separation and contrast), grey for a ninth folder on and for one no longer searched; the legend (bottom left,
+  a folder hides on a click) and the hover card name the folder, so colour never carries it alone. Dots thin out as there
+  are more of them, so dense regions glow without burning white. The camera eases toward where input puts it (never jumps),
+  turns slowly by itself after 4 s untouched in 3D, and draws no frames when nothing moves. 3D and 2D are one camera: 2D
+  squeezes the third axis to nothing and looks straight down it, animated. A query lands as a white pulsing ring among its
+  hits, which grow and light up while the rest dim. Reduced motion: no turning, no easing, no pulse.
 - **Browser surfaces:** themed selection, caret and scrollbar; no focus ring on rows (selection is the focus).
 
 ## Rules

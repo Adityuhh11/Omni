@@ -155,6 +155,7 @@ def _lay_out(vectors: np.ndarray) -> np.ndarray:
     try:
         # The optional extra, imported by name so the type check passes where it is not
         # installed; importing it costs seconds.
+        importlib.invalidate_caches()  # the launcher may have installed it a moment ago
         umap = importlib.import_module("umap.umap_")
     except ImportError as error:
         raise _Missing("the map's layout library is not installed") from error

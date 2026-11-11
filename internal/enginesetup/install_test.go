@@ -388,3 +388,18 @@ func TestTheFolderCanChangeOnlyBeforeThereIsAnythingInIt(t *testing.T) {
 		t.Fatalf("an installed engine cannot be moved: %v", err)
 	}
 }
+
+func TestAnExtraIsSyncedIntoTheSameEnvironment(t *testing.T) {
+	r := newRig(t)
+	if err := r.InstallExtra(t.Context(), "map", func(Progress) {}); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(r.uvCalls[len(r.uvCalls)-1], " ")
+	if want := "sync --frozen --no-dev --python " + PythonVersion + " --extra map"; got != want {
+		t.Errorf("uv %s, want uv %s", got, want)
+	}
+	r.uvFail = errors.New("exit status 1")
+	if err := r.InstallExtra(t.Context(), "map", func(Progress) {}); err == nil || !strings.Contains(err.Error(), "map extra") {
+		t.Errorf("a failed sync: %v", err)
+	}
+}
