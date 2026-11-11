@@ -75,10 +75,12 @@ func (s *Service) Recent(ctx context.Context, since time.Time, limit int) ([]Cha
 	}
 	roots := s.roots()
 	var out []Changed
+	listed := map[string]bool{} // nested searched folders index a file twice
 	for _, f := range files {
 		root, ok := roots[f.SourceID]
 		path := filepath.Join(root, filepath.FromSlash(f.URI))
-		if ok && s.exists(path) && len(out) < limit {
+		if ok && !listed[path] && s.exists(path) && len(out) < limit {
+			listed[path] = true
 			out = append(out, Changed{Path: path, Modified: time.Unix(0, f.MtimeNS)})
 		}
 	}
@@ -221,8 +223,10 @@ func (s *Service) find(ctx context.Context, query string, req sidecar.SearchFile
 		return Results{State: StateError, Message: sidecar.Explain(err)}
 	}
 	out.Confident = resp.Confident
+	listed := map[string]bool{} // a folder inside another searched folder is indexed under both; the engine's best-first order keeps the better copy
 	for _, file := range resp.Files {
-		if row, ok := s.row(file); ok && s.exists(row.Path) {
+		if row, ok := s.row(file); ok && !listed[row.Path] && s.exists(row.Path) {
+			listed[row.Path] = true
 			out.Rows = append(out.Rows, row)
 		}
 	}
