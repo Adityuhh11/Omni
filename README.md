@@ -153,8 +153,9 @@ mistyped key is reported rather than ignored.
 
 ```toml
 hotkey  = 'Alt+Shift+Space'
-roots   = ['C:\Users\you\Documents', 'C:\dev']      # folders file search indexes
+roots   = ['C:\Users\you\Documents', 'C:\dev']      # folders file search indexes (one inside another is refused)
 exclude = ['C:\dev\big-generated-folder']           # inside a root, left out
+off     = ['C:\dev']                                # still indexed, left out of results (the switch in Settings)
 browser = 'firefox'                                 # empty = the system default
 
 [[quicklink]]

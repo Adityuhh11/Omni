@@ -18,6 +18,7 @@
   let removingAll = $state(false);
   let optionsOpen = $state(false);
   const roots = $derived(view.Roots ?? []);
+  const off = $derived(new Set(view.Off ?? []));
 
   const folderText = $derived(Object.fromEntries((search?.Folders ?? []).map((f) => [f.Root, f.Text])));
   const refused = $derived(new Set((search?.Folders ?? []).filter((f) => f.Blocked).map((f) => f.Root)));
@@ -84,6 +85,11 @@
 
   async function add() {
     error = await Settings.AddFolder();
+    await reload();
+  }
+
+  async function switchFolder(folder: string, on: boolean) {
+    error = await Settings.SetFolderOn(folder, on);
     await reload();
   }
 
@@ -215,8 +221,17 @@
         <span class="path mono" title={root}>{root}</span>
         {#if folderText[root]}<span class="sub">{folderText[root]}</span>{/if}
         {#if holds[root]}<span class="sub">{holds[root]}</span>{/if}
+        {#if off.has(root)}<span class="sub">Off: still indexed, left out of results</span>{/if}
       </span>
       <span class="end">
+        <input
+          type="checkbox"
+          class="switch"
+          aria-label="Search {root}"
+          title={off.has(root) ? "Left out of results" : "In results"}
+          checked={!off.has(root)}
+          onchange={(e) => switchFolder(root, e.currentTarget.checked)}
+        />
         {#if refused.has(root)}
           <button type="button" class="btn quiet" onclick={() => Settings.OpenFileAccessSettings()}>Open System Settings</button>
         {/if}

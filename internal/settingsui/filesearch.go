@@ -3,6 +3,7 @@ package settingsui
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"omni/internal/config"
@@ -191,7 +192,12 @@ func (s *Service) AddFolder() string {
 		return ""
 	}
 	folder = filepath.Clean(folder)
-	msg := reason(s.o.Store.Update(func(c *config.Config) { c.Roots = append(c.Roots, folder) }))
+	for _, root := range s.o.Store.Get().Roots {
+		if config.Inside(folder, root) {
+			return fmt.Sprintf("%s is already searched as part of %s", folder, root)
+		}
+	}
+	msg := reason(s.o.Store.Update(func(c *config.Config) { c.UseRoots(append(c.Roots, folder)) }))
 	if msg == "" {
 		s.ask([]string{folder})
 	}
@@ -215,20 +221,17 @@ func (s *Service) ask(folders []string) {
 func (s *Service) RemoveFolder(folder string) string {
 	return reason(s.o.Store.Update(func(c *config.Config) {
 		id := config.SourceID(folder)
-		kept := c.Roots[:0:0]
-		for _, root := range c.Roots {
-			if config.SourceID(root) != id {
-				kept = append(kept, root)
-			}
+		c.UseRoots(slices.DeleteFunc(slices.Clone(c.Roots), func(root string) bool { return config.SourceID(root) == id }))
+	}))
+}
+
+// SetFolderOn switches a searched folder in or out of the results. Its index is kept either way, so switching back is instant.
+func (s *Service) SetFolderOn(folder string, on bool) string {
+	return reason(s.o.Store.Update(func(c *config.Config) {
+		c.Off = slices.DeleteFunc(slices.Clone(c.Off), func(f string) bool { return f == folder })
+		if !on {
+			c.Off = append(c.Off, folder)
 		}
-		c.Roots = kept
-		var exclude []string
-		for _, skipped := range c.Exclude {
-			if len(config.ExcludedUnder(folder, []string{skipped})) == 0 {
-				exclude = append(exclude, skipped)
-			}
-		}
-		c.Exclude = exclude
 	}))
 }
 

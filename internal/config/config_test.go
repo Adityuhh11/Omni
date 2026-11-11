@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -114,6 +115,7 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 		{"snippet keyword that is a quicklink trigger", "[[quicklink]]\ntrigger = 'gh'\ntitle = 'GitHub'\nurl = 'https://x/?q={q}'\n[[snippet]]\nname = 'A'\nkeyword = 'GH'\ntext = 'a'\n", "quicklink trigger"},
 		{"clipboard hotkey that is the main hotkey", "hotkey = 'Alt+Shift+Space'\n[clipboard]\nhotkey = 'alt + shift + space'\n", "launcher's own hotkey"},
 		{"clipboard ignore with an empty program name", "[clipboard]\nignore = ['Notepad', ' ']\n", "program name must not be empty"},
+		{"off for a folder that is not searched", "roots = ['" + testpath.P(`C:\Docs`) + "']\noff = ['" + testpath.P(`C:\Other`) + "']\n", "not a searched folder"},
 		{"exclude that is a root", "roots = ['" + testpath.P(`C:\Docs`) + "']\nexclude = ['" + testpath.P(`C:\Docs`) + "']\n", "not inside any root"},
 		{"unknown pdf mode", "[search]\npace = 'fast'\npdf_pages = 'some'\n", "pdf_pages"},
 		{"unknown photo mode", "[search]\npace = 'fast'\nphotos = 'pixels'\n", "photos"},
@@ -527,6 +529,41 @@ func TestACustomModelNeedsAnHTTPAddressAndAName(t *testing.T) {
 		cfg.Chat.Custom, cfg.Chat.CustomURL, cfg.Chat.CustomModel = c.on, c.url, c.mdl
 		if err := cfg.Validate(); (err == nil) != c.wantValid {
 			t.Errorf("%s: Validate = %v", c.name, err)
+		}
+	}
+}
+
+func TestAFolderInsideAnotherSearchedFolderIsDroppedOnLoadAndItsSwitchWithIt(t *testing.T) {
+	docs, demo, pics := testpath.P(`C:\Docs`), testpath.P(`C:\Docs\Demo`), testpath.P(`C:\Pics`)
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFile(t, path, "roots = ['"+demo+"', '"+docs+"', '"+pics+"']\noff = ['"+demo+"', '"+pics+"']\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(cfg.Roots, []string{docs, pics}) || !slices.Equal(cfg.Off, []string{pics}) {
+		t.Fatalf("roots %v, off %v", cfg.Roots, cfg.Off)
+	}
+	cfg.Roots = append(cfg.Roots, demo)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "inside") {
+		t.Fatalf("a nested root passed validation: %v", err)
+	}
+}
+
+func TestInside(t *testing.T) {
+	docs := testpath.P(`C:\Docs`)
+	for _, tt := range []struct {
+		folder string
+		want   bool
+	}{
+		{testpath.P(`C:\Docs\Demo`), true},
+		{testpath.P(`c:\docs\demo`), true},
+		{docs, false},
+		{testpath.P(`C:\Docs2`), false},
+		{testpath.P(`C:\`), false},
+	} {
+		if got := Inside(tt.folder, docs); got != tt.want {
+			t.Errorf("Inside(%s) = %v, want %v", tt.folder, got, tt.want)
 		}
 	}
 }
