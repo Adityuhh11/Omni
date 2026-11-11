@@ -70,7 +70,12 @@ Three choices in Settings, General change this, and every window follows at once
 - **Loader.** A turning chrome orb and the words under way, each letter breathing a beat after the last (90 ms stagger,
   1.8 s). Used for "Warming up" and "Indexing". Everything animated pauses via `html[data-active="false"]`.
 - **Content.** The list fades in 60 ms after the card starts growing; old results dim to 55% while a new search is in
-  flight; the window grows at once and shrinks 280 ms after the card.
+  flight; the window grows at once and shrinks 280 ms after the card. A list that has just appeared brings its first rows
+  in 25 ms apart (never on a keystroke). The card itself does not overshoot: the window is already its final height, so
+  an overshoot would cut the shadow.
+- **Selection and press.** One highlight lies under the selected row and slides to the next (220 ms, `--spring`, a small
+  overshoot); a new answer places it at once. Pressing a row darkens the highlight and sinks the icon tile to 90%, which
+  springs back on release. Only the tile scales, never text. None of it with reduced motion.
 
 ## Color
 
