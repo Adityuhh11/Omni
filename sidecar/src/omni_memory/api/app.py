@@ -16,7 +16,9 @@ from fastapi import Depends, FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from omni_memory.api.deps import Engine, token_guard
+from omni_memory.api.map_routes import router as map_router
 from omni_memory.api.routes import router
+from omni_memory.atlas import Atlas
 from omni_memory.config import Settings
 from omni_memory.embedding.base import Embedder
 from omni_memory.embedding.serialized import SerializedEmbedder
@@ -85,6 +87,7 @@ def create_app(settings: Settings, token: str, make_embedder: Callable[[], Embed
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         store = FlatStore(settings.index_dir, model_id=settings.model_id, dim=settings.dim)
         app.state.store = store
+        app.state.atlas = Atlas(store, settings.index_dir)
         threading.Thread(
             target=_load_engine,
             args=(app, store, settings, make_embedder),
@@ -107,6 +110,7 @@ def create_app(settings: Settings, token: str, make_embedder: Callable[[], Embed
     app.state.engine = None
     app.state.load_error = None
     app.include_router(router, dependencies=[Depends(token_guard(token))])
+    app.include_router(map_router, dependencies=[Depends(token_guard(token))])
     # Added last, so it runs first: a foreign Host is refused before the token is even read.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
     return app

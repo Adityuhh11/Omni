@@ -426,6 +426,14 @@ class FlatStore:
         with self._lock:
             return {i: self._vectors.read(row) for i, row in self._rows_for(list(ids)).items()}
 
+    def every_vector(self) -> tuple[list[str], list[str], np.ndarray]:
+        """Every chunk's id and source with its vector (a copy), in one consistent read: the map."""
+        with self._lock:
+            found = self._db.execute("SELECT vec_row, id, source_id FROM chunks").fetchall()
+            rows = np.fromiter((row for row, _, _ in found), dtype=np.intp, count=len(found))
+            vectors = self._vectors.take(rows)
+        return [id_ for _, id_, _ in found], [source for *_, source in found], vectors
+
     def touch_file(self, record: FileRecord) -> None:
         """Update a file's remembered size/mtime/hash when its content is known to be unchanged."""
         with self._lock:

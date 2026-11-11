@@ -252,6 +252,25 @@ submitted to `POST /sources`.
 
 - `422` invalid body. `503` model not ready. `confident` has the same meaning as for `/search`.
 
+### The map: `GET /map/status`, `POST /map/build`, `GET /map`, `GET /map/points/{index}`, `POST /map/locate`
+
+Every chunk laid out in 3D by UMAP (`omni_memory/atlas.py`), for the map window. UMAP is the optional `map` extra; the
+layout is built in the background (about 45 s for 50k chunks, most of it the first run's compiling) and kept as
+`atlas.npz` beside the index.
+
+- `GET /map/status` → `{"state": "none" | "building" | "ready" | "failed" | "missing", "message": "...", "count": 49558,
+  "stale": false}`. `missing`: the extra is not installed. `stale`: the index holds a different number of chunks than the
+  map; the old map is still served until it is rebuilt. Works before the model is ready.
+- `POST /map/build` → `202` with the status; a build already under way is not started twice.
+- `GET /map` → `{"coords": "<base64>", "source": "<base64>", "roots": ["C:\\Users\\me\\Documents"]}`: point *i* is at
+  `coords[3i..3i+3]` (float32, little-endian, inside the unit ball, a few outliers just past it) and belongs to
+  `roots[source[i]]` (uint16; `""` for a folder no longer searched). `404` before the first map.
+- `GET /map/points/{index}` → `{"uri", "root", "kind", "locator", "text"}` (the first 600 characters). `404` for a point the
+  index no longer has.
+- `POST /map/locate` with `{"query": "..."}` → `{"at": [x, y, z], "points": [12, 40, ...]}`: where the query lands (the
+  middle of its best hits, pulled toward the closest) and those hits, best first. `404` when none of them is on the map,
+  `503` before the model is ready.
+
 ## Semantics worth knowing
 
 - One index job at a time. A search issued while indexing is served normally: the job and the search take turns on
