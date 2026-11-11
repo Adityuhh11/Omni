@@ -142,6 +142,7 @@ type View struct {
 	Quicklinks    []config.Quicklink
 	Snippets      []config.Snippet
 	Roots         []string
+	Off           []string // roots switched out of the results, still indexed
 	FileSearch    bool
 	Pace          string
 	Autostart     bool
@@ -166,7 +167,7 @@ func (s *Service) View() View {
 	c := s.o.Store.Get()
 	return View{
 		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets,
-		Roots: c.Roots, FileSearch: c.Search.Enabled, Pace: c.Search.Pace,
+		Roots: c.Roots, Off: c.Off, FileSearch: c.Search.Enabled, Pace: c.Search.Pace,
 		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Lights: c.UI.Lights, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
 		ConfigPath: s.o.Store.Path(), LogDir: s.o.LogDir, Version: s.o.Version,
 	}

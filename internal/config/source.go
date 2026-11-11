@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -27,4 +28,22 @@ func ExcludedUnder(root string, exclude []string) []string {
 func SourceID(root string) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(root))))
 	return "root-" + hex.EncodeToString(sum[:])[:10]
+}
+
+// Inside reports whether folder lies inside root (not root itself).
+func Inside(folder, root string) bool { return len(ExcludedUnder(root, []string{folder})) > 0 }
+
+// UseRoots makes roots the searched folders. A folder inside another one is dropped, as the outer folder already indexes
+// it (kept, its files would be indexed twice), and a switch or exclusion left without its folder goes with it.
+func (c *Config) UseRoots(roots []string) {
+	c.Roots = slices.DeleteFunc(slices.Clone(roots), func(folder string) bool {
+		return slices.ContainsFunc(roots, func(root string) bool { return Inside(folder, root) })
+	})
+	searched := func(folder string) bool {
+		return slices.ContainsFunc(c.Roots, func(root string) bool { return SourceID(root) == SourceID(folder) })
+	}
+	c.Off = slices.DeleteFunc(slices.Clone(c.Off), func(folder string) bool { return !searched(folder) })
+	c.Exclude = slices.DeleteFunc(slices.Clone(c.Exclude), func(folder string) bool {
+		return !slices.ContainsFunc(c.Roots, func(root string) bool { return Inside(folder, root) })
+	})
 }

@@ -16,3 +16,9 @@ func TestExcludedUnderIgnoresTheCaseOfAWindowsPath(t *testing.T) {
 		t.Fatalf("ExcludedUnder = %v: Windows paths do not care about case", got)
 	}
 }
+
+func TestInsideIgnoresCaseAsWindowsPathsDo(t *testing.T) {
+	if !Inside(`c:\docs\demo`, `C:\Docs`) {
+		t.Error(`c:\docs\demo is not inside C:\Docs`)
+	}
+}
