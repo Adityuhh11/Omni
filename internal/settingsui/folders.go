@@ -80,8 +80,8 @@ func suggestFolders(known func(name string) (string, error), isDir func(path str
 	return out
 }
 
-// SetRoots makes these the folders that are searched. A folder left out inside a folder that is no longer searched is
-// forgotten with it.
+// SetRoots makes these the folders that are searched (config.UseRoots: a folder inside another one is dropped). A folder
+// left out inside a folder that is no longer searched is forgotten with it.
 func (s *Service) SetRoots(roots []string) string {
 	cleaned := make([]string, 0, len(roots))
 	for _, root := range roots {
@@ -93,17 +93,7 @@ func (s *Service) SetRoots(roots []string) string {
 			added = append(added, root)
 		}
 	}
-	msg := reason(s.o.Store.Update(func(c *config.Config) {
-		c.Roots = cleaned
-		c.Exclude = slices.DeleteFunc(slices.Clone(c.Exclude), func(folder string) bool {
-			for _, root := range cleaned {
-				if len(config.ExcludedUnder(root, []string{folder})) > 0 {
-					return false
-				}
-			}
-			return true
-		})
-	}))
+	msg := reason(s.o.Store.Update(func(c *config.Config) { c.UseRoots(cleaned) }))
 	if msg == "" { // a folder that was not added is not asked about
 		s.ask(added)
 	}

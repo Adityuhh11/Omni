@@ -190,10 +190,15 @@ func run(afterUpdate bool) error {
 	// Everything below that needs the indexed folders asks the store when it needs them, so folders
 	// added in the settings count at once.
 	roots := func() []string { return store.Get().Roots }
+	// A folder switched off in the settings is left out here, so search drops its files.
+	// ponytail: filtered after the engine answers, so many hits in an off folder thin the list; an engine filter on several sources fixes that.
 	sourceRoots := func() map[string]string {
+		cfg := store.Get()
 		byID := map[string]string{}
-		for _, root := range roots() {
-			byID[config.SourceID(root)] = root
+		for _, root := range cfg.Roots {
+			if !slices.Contains(cfg.Off, root) {
+				byID[config.SourceID(root)] = root
+			}
 		}
 		return byID
 	}

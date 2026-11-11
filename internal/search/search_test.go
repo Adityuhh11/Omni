@@ -364,6 +364,21 @@ func TestFilesDeletedSinceTheLastSyncAreLeftOutAndTheListStaysFull(t *testing.T)
 	}
 }
 
+func TestAFileInTwoNestedFoldersIsListedOnce(t *testing.T) {
+	outer := testpath.P(`C:\Docs`)
+	engine := &fakeEngine{respond: func(context.Context, sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error) {
+		return sidecar.SearchFilesResponse{Files: []sidecar.File{
+			{SourceID: "outer", URI: "Demo/a.txt", Kind: "text", Score: 0.9},
+			{SourceID: "inner", URI: "a.txt", Kind: "text", Score: 0.8},
+		}}, nil
+	}}
+	svc := newTest(engine, map[string]string{"outer": outer, "inner": filepath.Join(outer, "Demo")}, ready)
+	got := svc.Search("a", 1)
+	if len(got.Rows) != 1 || got.Rows[0].Score != 0.9 {
+		t.Fatalf("got %+v, want the one file once, at its better score", got.Rows)
+	}
+}
+
 func TestFileExists(t *testing.T) {
 	dir := t.TempDir()
 	present := filepath.Join(dir, "here.txt")

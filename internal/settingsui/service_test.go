@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -254,6 +255,44 @@ func TestFoldersAreAddedFromThePickerAndRemovedWithTheirExclusions(t *testing.T)
 	}
 	if got := h.store.Get(); len(got.Roots) != 0 || len(got.Exclude) != 0 {
 		t.Fatalf("after removing: %+v", got)
+	}
+}
+
+func TestAFolderInsideASearchedOneIsRefusedAndAnOuterOneTakesOverTheInnerOnes(t *testing.T) {
+	h := newHarness(t)
+	docs, demo := testpath.P(`C:\Docs`), testpath.P(`C:\Docs\Demo`)
+	h.picked = demo
+	if msg := h.svc.AddFolder(); msg != "" {
+		t.Fatal(msg)
+	}
+	if msg := h.svc.SetFolderOn(demo, false); msg != "" {
+		t.Fatal(msg)
+	}
+	h.picked = docs
+	if msg := h.svc.AddFolder(); msg != "" {
+		t.Fatal(msg)
+	}
+	if got := h.store.Get(); !slices.Equal(got.Roots, []string{docs}) || len(got.Off) != 0 {
+		t.Fatalf("after adding the outer folder: roots %v, off %v", got.Roots, got.Off)
+	}
+	h.picked = demo
+	if msg := h.svc.AddFolder(); !strings.Contains(msg, "already searched as part of") {
+		t.Fatalf("adding a folder inside a searched one: %q", msg)
+	}
+}
+
+func TestAFolderSwitchedOffStaysSearchedAndComesBackOn(t *testing.T) {
+	h := newHarness(t)
+	docs := testpath.P(`C:\Docs`)
+	h.picked = docs
+	if msg := h.svc.AddFolder(); msg != "" {
+		t.Fatal(msg)
+	}
+	if msg := h.svc.SetFolderOn(docs, false); msg != "" || !slices.Equal(h.svc.View().Off, []string{docs}) || len(h.store.Get().Roots) != 1 {
+		t.Fatalf("switching off: %q, %+v", msg, h.store.Get())
+	}
+	if msg := h.svc.SetFolderOn(docs, true); msg != "" || len(h.store.Get().Off) != 0 {
+		t.Fatalf("switching on: %q, %+v", msg, h.store.Get())
 	}
 }
 

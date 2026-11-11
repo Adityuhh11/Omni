@@ -28,6 +28,9 @@ type Config struct {
 	// Exclude are folders inside a root to leave out, as absolute paths. What they held is dropped
 	// from the index at the next sync.
 	Exclude []string `toml:"exclude,omitempty"`
+	// Off are roots switched off in the settings: they stay indexed but are left out of search results, so switching one
+	// back on is instant.
+	Off []string `toml:"off,omitempty"`
 	// Browser is the browser web searches open in: a name Windows knows it by ("zen", "firefox",
 	// "chrome") or the path of its program. Empty means the Windows default browser.
 	Browser string `toml:"browser,omitempty"`
@@ -278,6 +281,11 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	cfg.Sidecar = nil
+	if slices.ContainsFunc(cfg.Roots, func(folder string) bool {
+		return slices.ContainsFunc(cfg.Roots, func(root string) bool { return Inside(folder, root) })
+	}) {
+		cfg.UseRoots(cfg.Roots) // a file from before a folder inside a searched one was refused
+	}
 	if cfg.Search.Enabled && !bytes.Contains(data, []byte("in_launcher")) {
 		cfg.Search.InLauncher = true
 	}
@@ -307,6 +315,7 @@ func (c Config) Save(path string) error {
 func (c Config) Clone() Config {
 	c.Roots = slices.Clone(c.Roots)
 	c.Exclude = slices.Clone(c.Exclude)
+	c.Off = slices.Clone(c.Off)
 	c.Quicklinks = slices.Clone(c.Quicklinks)
 	c.Clipboard.Ignore = slices.Clone(c.Clipboard.Ignore)
 	c.Snippets = slices.Clone(c.Snippets)
@@ -331,6 +340,16 @@ func (c Config) Validate() error {
 			return fmt.Errorf("root %q repeats %q", root, other)
 		}
 		seen[id] = root
+		for _, outer := range c.Roots {
+			if Inside(root, outer) {
+				return fmt.Errorf("root %q is inside %q, which already searches it", root, outer)
+			}
+		}
+	}
+	for _, folder := range c.Off {
+		if _, ok := seen[SourceID(folder)]; !ok {
+			return fmt.Errorf("off %q is not a searched folder", folder)
+		}
 	}
 	if c.Search.DataDir != "" && (!filepath.IsAbs(c.Search.DataDir) || strings.HasPrefix(filepath.VolumeName(c.Search.DataDir), `\\`)) {
 		return fmt.Errorf("data_dir %q must be an absolute path on a local drive", c.Search.DataDir)
