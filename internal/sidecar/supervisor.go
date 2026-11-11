@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -181,9 +182,11 @@ func (s *Supervisor) Run(ctx context.Context) {
 			s.set(StateStopped, "")
 			return
 		case outcomeFatal:
+			log.Printf("engine: gave up: %s", outcome.message)
 			s.set(StateFailed, outcome.message)
 			return
 		}
+		log.Printf("engine: restarting: %s", outcome.message)
 		s.set(StateRestarting, outcome.message)
 		if outcome.wasReady {
 			attempt = 0

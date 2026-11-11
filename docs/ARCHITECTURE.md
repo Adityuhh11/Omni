@@ -88,7 +88,8 @@ Index directory `%LOCALAPPDATA%\Omni\memory\` (tests and tools use `OMNI_MEMORY_
 
 Write order for a batch: vectors are written and flushed, then one SQLite transaction commits the metadata. A
 vector row with no `chunks` entry is garbage and is ignored by search. All store methods hold one lock, because
-growing the file remaps it. Search is one float32 matrix multiply on the CPU (4.3 ms at 100k, 47 ms at 1M measured), ties broken by chunk id. Crash safety is tested by killing a real process during an upsert, both
+growing the file remaps it; the one exception is `live_count`, the total `/health` reports, so a health check never
+waits behind an indexing batch (that wait got a busy engine restarted). Search is one float32 matrix multiply on the CPU (4.3 ms at 100k, 47 ms at 1M measured), ties broken by chunk id. Crash safety is tested by killing a real process during an upsert, both
 before the metadata commit and inside the vector flush (`tests/test_flat_crash.py`).
 
 Opening is strict about the vector file. If chunks are indexed and `vectors.f32` is missing, unreadable, or too short

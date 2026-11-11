@@ -99,7 +99,12 @@ func (c *Calendar) Sync(ctx context.Context) {
 	for _, f := range feeds {
 		data, err := c.fetch(ctx, f.ID)
 		if err != nil {
-			c.Logf("calendar %q: %v", f.Name, err)
+			c.mu.Lock()
+			before := c.status[f.ID].Error
+			c.mu.Unlock()
+			if err.Error() != before { // a feed that stays down is logged once, not every quarter hour
+				c.Logf("calendar %q: %v", f.Name, err)
+			}
 			c.keep(f, nil, time.Time{}, err.Error())
 			continue
 		}

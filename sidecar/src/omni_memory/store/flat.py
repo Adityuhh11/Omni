@@ -7,8 +7,8 @@ Invariants (mirrored in docs/ARCHITECTURE.md):
    without a `chunks` entry are garbage and may be overwritten.
 2. Vectors are flushed to disk before the SQLite transaction that references them commits,
    so a committed chunk always points at a durable vector.
-3. Every public method holds `self._lock`; the vector file is remapped when it grows, so no
-   reader may overlap a writer.
+3. Every public method but `live_count` holds `self._lock`; the vector file is remapped when
+   it grows, so no reader may overlap a writer.
 4. Ranked output is ordered by (-score, id), so ties never depend on row placement.
 """
 
@@ -315,6 +315,15 @@ class FlatStore:
             query = f"SELECT COUNT(*) FROM chunks WHERE kind IN ({marks})"
             (total,) = self._db.execute(query, [kind.value for kind in kinds]).fetchone()
             return total
+
+    def live_count(self) -> int:
+        """All chunks stored, read without the lock (the one exception to invariant 3).
+
+        `/health` uses it: behind the lock it waits for a whole indexing batch, and a health
+        check that times out gets a busy engine restarted. `_live` changes only after a commit,
+        so the number is at worst one batch behind.
+        """
+        return int(np.count_nonzero(self._live))
 
     # --- sources and files: change detection for incremental indexing ------------------
 
