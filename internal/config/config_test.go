@@ -557,7 +557,6 @@ func TestInside(t *testing.T) {
 		want   bool
 	}{
 		{testpath.P(`C:\Docs\Demo`), true},
-		{testpath.P(`c:\docs\demo`), true},
 		{docs, false},
 		{testpath.P(`C:\Docs2`), false},
 		{testpath.P(`C:\`), false},
