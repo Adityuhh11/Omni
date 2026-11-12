@@ -28,6 +28,10 @@
   const HOME: Camera = { yaw: 0.6, pitch: 0.35, distance: 2.6, target: [0, 0, 0], flat: 0 };
   const IDLE_MS = 4000; // after this long untouched, the 3D map turns slowly by itself
   const SPIN = 0.06; // radians per second
+  const KEY_PAN = 520; // pixels per second the map slides while W, A, S or D is held
+  // [sideways, upwards] per key, in the same pixel terms as a drag (see pan).
+  const PAN_KEYS: Record<string, [number, number]> = { w: [0, 1], s: [0, -1], a: [1, 0], d: [-1, 0] };
+  const held = new Set<string>();
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let view = $state<View | null>(null);
@@ -161,8 +165,19 @@
     last = time;
     const idle = !reduced && !flatView && time - lastInput > IDLE_MS && !hover;
     if (idle) goal.yaw += SPIN * dt;
-    const rate = reduced ? 1000 : 9;
     let moving = idle;
+    if (held.size) {
+      let dx = 0;
+      let dy = 0;
+      for (const key of held) {
+        dx += PAN_KEYS[key][0];
+        dy += PAN_KEYS[key][1];
+      }
+      pan(dx * KEY_PAN * dt, dy * KEY_PAN * dt);
+      lastInput = time;
+      moving = true;
+    }
+    const rate = reduced ? 1000 : 9;
     for (const key of ["yaw", "pitch", "distance", "flat"] as const) {
       now[key] = approach(now[key], goal[key], dt, rate);
       moving ||= now[key] !== goal[key];
@@ -403,6 +418,10 @@
     touched();
   }
 
+  function onkeyup(e: KeyboardEvent) {
+    held.delete(e.key.toLowerCase());
+  }
+
   function onkeydown(e: KeyboardEvent) {
     if ((e.target as HTMLElement).tagName === "INPUT") {
       if (e.key === "Escape") {
@@ -418,6 +437,10 @@
     else if (e.key === "l" || e.key === "L") toggleLabels();
     else if (e.key === "2") setFlat(true);
     else if (e.key === "3") setFlat(false);
+    else if (!e.ctrlKey && !e.metaKey && !e.altKey && PAN_KEYS[e.key.toLowerCase()]) {
+      held.add(e.key.toLowerCase());
+      kick();
+    }
   }
 
   onMount(() => {
@@ -449,7 +472,7 @@
   ];
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onkeyup} onblur={() => held.clear()} />
 
 <main>
   <canvas
@@ -502,7 +525,7 @@
     <Legend label={mode === "type" ? "File types" : mode === "age" ? "Age" : "Folders"} {entries}
       hidden={mode === "age" ? new Set() : hiddenBy[mode]} cuts={mode === "age" ? cuts : null} {total} ontoggle={toggleGroup} />
 
-    <p class="help">Drag to turn · right-drag to move · scroll to zoom · click a dot for its whole file · double-click to fly in · L for labels · F to come back</p>
+    <p class="help">Drag to turn · right-drag to move · scroll to zoom · click a dot for its whole file · double-click to fly in · W A S D to move · L for labels · F to come back</p>
   {/if}
 
   {#if hover?.point}
