@@ -345,7 +345,7 @@ func run(afterUpdate bool) error {
 			return setup.RemoveExtras(ctx)
 		},
 		Open: opener.Open,
-		Show:    mapWindow.Open,
+		Show: mapWindow.Open,
 	})
 	// Calendars, read only: a feed's subscription address is a secret, so it is in the credential store, not config.toml.
 	calendarAddress := func(id string) string { return "calendar-" + id }
