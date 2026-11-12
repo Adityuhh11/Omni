@@ -23,6 +23,7 @@ import (
 	"omni"
 	"omni/internal/aitools"
 	"omni/internal/apps"
+	"omni/internal/atlas"
 	"omni/internal/autostart"
 	"omni/internal/browsers"
 	"omni/internal/calendar"
@@ -329,6 +330,23 @@ func run(afterUpdate bool) error {
 	notesWindow := settingsui.NewNotesWindow(app)
 	timerWindow := settingsui.NewTimerWindow(app)
 	calendarWindow := settingsui.NewCalendarWindow(app)
+	mapWindow := settingsui.NewMapWindow(app)
+	indexMap := atlas.New(atlas.Options{
+		Engine: engine.Client(),
+		Running: func() bool {
+			state := engine.Status().State
+			return state == sidecar.StateReady || state == sidecar.StateWarming
+		},
+		Install: func(ctx context.Context) error { return setup.InstallExtra(ctx, "map") },
+		// Only offered while the engine runs, so it is started again whatever happened.
+		Uninstall: func(ctx context.Context) error {
+			engineSwitch.Off()
+			defer engineSwitch.On()
+			return setup.RemoveExtras(ctx)
+		},
+		Open: opener.Open,
+		Show: mapWindow.Open,
+	})
 	// Calendars, read only: a feed's subscription address is a secret, so it is in the credential store, not config.toml.
 	calendarAddress := func(id string) string { return "calendar-" + id }
 	calendars := calendar.New(filepath.Join(dataDir, "calendar"), func() []config.CalendarFeed { return store.Get().Calendar.Feeds },
@@ -493,6 +511,7 @@ func run(afterUpdate bool) error {
 		application.NewService(&glass.Service{}),
 		application.NewService(status.New(store.Get, bar.HotkeyError, engine.Status, indexer.Status)),
 		application.NewService(fileSearch),
+		application.NewService(indexMap),
 		application.NewService(opener),
 		application.NewService(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
 			Copy: func(text string) error {

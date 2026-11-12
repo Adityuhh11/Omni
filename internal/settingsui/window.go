@@ -34,7 +34,9 @@ var (
 	chatSpec  = windowSpec{name: "chat", title: "Omni AI", route: "chat", width: 720, height: 540, minWidth: 520, minHeight: 380, onTop: true, card: true}
 	// The calendar shows a week: seven columns want more width than the notes.
 	calendarSpec = windowSpec{name: "calendar", title: "Omni Calendar", route: "calendar", width: 980, height: 660, minWidth: 720, minHeight: 460, card: true}
-	timerSpec    = windowSpec{name: "timer", title: "Omni Timer", route: "timer", width: 264, height: 92, onTop: true, overlay: true}
+	// The map of the index: a framed window whose page is one canvas, larger than the calendar (more room, more map).
+	mapSpec   = windowSpec{name: "map", title: "Omni Map", route: "map", width: 1100, height: 760, minWidth: 640, minHeight: 440}
+	timerSpec = windowSpec{name: "timer", title: "Omni Timer", route: "timer", width: 264, height: 92, onTop: true, overlay: true}
 )
 
 // overlayMargin is the gap between the timer and the right edge of the screen, and its top is a fifth of the way down.
@@ -72,6 +74,9 @@ func NewChatWindow(app *application.App, onTop func() bool) *Window {
 
 // NewCalendarWindow returns the Window of the calendar.
 func NewCalendarWindow(app *application.App) *Window { return &Window{app: app, spec: calendarSpec} }
+
+// NewMapWindow returns the Window of the map of the index.
+func NewMapWindow(app *application.App) *Window { return &Window{app: app, spec: mapSpec} }
 
 // NewTimerWindow returns the Window of the timer overlay.
 func NewTimerWindow(app *application.App) *Window { return &Window{app: app, spec: timerSpec} }

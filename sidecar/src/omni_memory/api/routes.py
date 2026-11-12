@@ -52,7 +52,7 @@ def health(request: Request) -> HealthOut:
         ready=engine is not None,
         model=state.settings.model_id,
         device=None if engine is None else engine.embedder.device,
-        embedded_items=state.store.count(),
+        embedded_items=state.store.live_count(),
         version=_VERSION,
         error=state.load_error,
         duty=None if engine is None else engine.pacer.duty,

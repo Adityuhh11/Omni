@@ -212,6 +212,29 @@ func (i *Installer) models(ctx context.Context, report func(Progress)) error {
 // version is pinned and uv is told to use only its own, so the install does not depend on, or disturb,
 // whatever Python the person has.
 func (i *Installer) syncPython(ctx context.Context, report func(Progress)) error {
+	return i.sync(ctx, report)
+}
+
+// InstallExtra adds one of the engine's optional extras (the map's "map") to the installed environment; the engine running
+// from it can import the new libraries at once. A later full install leaves the extra out again, and the feature that wanted
+// it asks for it again.
+func (i *Installer) InstallExtra(ctx context.Context, name string, report func(Progress)) error {
+	if err := i.sync(ctx, report, "--extra", name); err != nil {
+		return fmt.Errorf("install the engine's %s extra: %w", name, err)
+	}
+	return nil
+}
+
+// RemoveExtras takes the optional extras out of the installed environment again (uv sync removes what the lock does not
+// ask for). The engine must not be running: Windows keeps a running engine's libraries locked.
+func (i *Installer) RemoveExtras(ctx context.Context, report func(Progress)) error {
+	if err := i.sync(ctx, report); err != nil {
+		return fmt.Errorf("remove the engine's extras: %w", err)
+	}
+	return nil
+}
+
+func (i *Installer) sync(ctx context.Context, report func(Progress), extra ...string) error {
 	l := i.Layout
 	cache := filepath.Join(l.Root, "uv-cache")
 	env := append(os.Environ(),
@@ -226,7 +249,7 @@ func (i *Installer) syncPython(ctx context.Context, report func(Progress)) error
 	if run == nil {
 		run = i.defaultUV
 	}
-	if err := run(ctx, l.App(), env, []string{"sync", "--frozen", "--no-dev", "--python", PythonVersion}, out); err != nil {
+	if err := run(ctx, l.App(), env, append([]string{"sync", "--frozen", "--no-dev", "--python", PythonVersion}, extra...), out); err != nil {
 		tail := out.tail()
 		if advice := adviceAfterFailure(tail); advice != "" {
 			return fmt.Errorf("%w\n%s\n%s", err, tail, advice)
@@ -392,6 +415,36 @@ func (m *Manager) Move(to Layout) error {
 	}
 	m.installer.Layout = to
 	return nil
+}
+
+// InstallExtra adds an optional extra of the engine to the installed engine (see Installer.InstallExtra) and waits for it.
+// ponytail: a full install started while an extra installs is not held back; both run uv on the same folder, and uv's own
+// lock makes the second wait. Hold Start back if that ever goes wrong.
+func (m *Manager) InstallExtra(ctx context.Context, name string) error {
+	m.mu.Lock()
+	running, installer := m.running, *m.installer
+	m.mu.Unlock()
+	switch {
+	case running:
+		return errors.New("file search is being installed; try again when it has finished")
+	case !installer.Layout.Installed():
+		return errors.New("file search is not installed")
+	}
+	return installer.InstallExtra(ctx, name, func(Progress) {})
+}
+
+// RemoveExtras takes the engine's optional extras out again (see Installer.RemoveExtras) and waits for it.
+func (m *Manager) RemoveExtras(ctx context.Context) error {
+	m.mu.Lock()
+	running, installer := m.running, *m.installer
+	m.mu.Unlock()
+	switch {
+	case running:
+		return errors.New("file search is being installed; try again when it has finished")
+	case !installer.Layout.Installed():
+		return nil
+	}
+	return installer.RemoveExtras(ctx, func(Progress) {})
 }
 
 // Start begins an install (or a repair or update, which is the same thing) in the background.

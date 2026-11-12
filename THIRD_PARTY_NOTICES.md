@@ -83,6 +83,21 @@ Two things in that list deserve a plain statement:
 - **`pathspec`** is MPL-2.0, a file-level copyleft: if you change `pathspec` itself and distribute it, you must share those changes. Using it
   as Omni does places no condition on Omni's own code.
 
+Installed only the first time you open the map of your index (the engine's `map` extra), the same way:
+
+| Component | Version | License | Home |
+|---|---|---|---|
+| umap-learn | 0.6.0 | BSD-3-Clause | https://github.com/lmcinnes/umap |
+| pynndescent | 0.7.0 | BSD-2-Clause | https://github.com/lmcinnes/pynndescent |
+| numba | 0.68.1 | BSD-2-Clause | https://numba.pydata.org |
+| llvmlite | 0.50.0 | BSD-2-Clause AND Apache-2.0 WITH LLVM-exception | https://github.com/numba/llvmlite |
+| scikit-learn | 1.9.1 | BSD-3-Clause | https://scikit-learn.org |
+| scipy | 1.18.1 | BSD-3-Clause (and the licenses of the libraries it bundles) | https://scipy.org |
+| joblib | 1.6.0 | BSD-3-Clause | https://github.com/joblib/joblib |
+| cloudpickle | 3.1.2 | BSD-3-Clause | https://github.com/cloudpipe/cloudpickle |
+| narwhals | 2.28.0 | MIT | https://github.com/narwhals-dev/narwhals |
+| tqdm | 4.70.1 | MPL-2.0 AND MIT | https://tqdm.github.io |
+
 ## 3. Models (downloaded on request, under their publishers' terms)
 
 Omni does not contain or redistribute these. Switching on the feature downloads the file from Hugging Face; the license that governs it is the
