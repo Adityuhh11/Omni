@@ -718,8 +718,10 @@
     display: flex;
     align-items: center;
     gap: 14px;
+    box-sizing: border-box;
     height: 60px;
-    padding: 0 24px 0 24px;
+    /* The display font sits its letters high in the line, so the content is eased down to look centred. */
+    padding: 3px 24px 0 24px;
     /* The bar is moved by holding it anywhere but the text field; the panel remembers where it was left. */
     --wails-draggable: drag;
   }
