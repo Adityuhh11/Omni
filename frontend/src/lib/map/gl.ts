@@ -1,7 +1,8 @@
 /**
  * Draws the map's points with WebGL2: one solid round dot per chunk with a thin dark rim, smaller with distance. Dots are
  * opaque and depth-tested, so a near dot covers a far one instead of their light adding up into a haze. Points a query
- * landed among are "lit": larger, with a white core, drawn in front; the rest fade toward the background.
+ * landed among, or the pieces of a clicked file, are "lit": larger, with a white core, drawn in front; the rest fade
+ * toward the background. A file's pieces are joined by a thin line in reading order.
  */
 
 const VERTEX = `#version 300 es
@@ -43,10 +44,28 @@ void main() {
   color = vec4(mix(rgb, rgb * 0.35, rim), edge);
 }`;
 
+// The path through a file's pieces: as far forward as the lit dots, so dimmed ones do not cut it.
+const LINE_VERTEX = `#version 300 es
+in vec3 a_pos;
+uniform mat4 u_matrix;
+uniform float u_flat;
+void main() {
+  gl_Position = u_matrix * vec4(a_pos.xy, a_pos.z * (1.0 - u_flat), 1.0);
+  gl_Position.z -= 0.01 * gl_Position.w;
+}`;
+
+const LINE_FRAGMENT = `#version 300 es
+precision mediump float;
+out vec4 color;
+void main() {
+  color = vec4(1.0, 1.0, 1.0, 0.5);
+}`;
+
 export interface Renderer {
   setPoints(coords: Float32Array, colors: Float32Array): void;
   setColors(colors: Float32Array): void;
   setLit(lit: Float32Array): void;
+  setPath(points: Uint32Array): void;
   draw(matrix: Float32Array, flat: number, dim: number, size: number): void;
 }
 
@@ -72,6 +91,19 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
   const lights = buffer("a_lit", 1);
   let count = 0;
 
+  const line = link(gl, LINE_VERTEX, LINE_FRAGMENT);
+  const lineUniforms = { matrix: gl.getUniformLocation(line, "u_matrix"), flat: gl.getUniformLocation(line, "u_flat") };
+  const lineVao = gl.createVertexArray();
+  gl.bindVertexArray(lineVao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, positions);
+  const linePos = gl.getAttribLocation(line, "a_pos");
+  gl.enableVertexAttribArray(linePos);
+  gl.vertexAttribPointer(linePos, 3, gl.FLOAT, false, 0, 0);
+  const path = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, path); // kept by lineVao
+  gl.bindVertexArray(null);
+  let pathLength = 0;
+
   const upload = (b: WebGLBuffer | null, data: Float32Array) => {
     gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
@@ -86,6 +118,12 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     },
     setColors: (colors) => upload(colours, colors),
     setLit: (lit) => upload(lights, lit),
+    setPath(points) {
+      gl.bindVertexArray(lineVao);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, points, gl.STATIC_DRAW);
+      gl.bindVertexArray(null);
+      pathLength = points.length;
+    },
     draw(matrix, flat, dim, size) {
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(0.055, 0.059, 0.071, 1); // the map's night (#0e0f12), whatever the system's look
@@ -94,6 +132,13 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
       gl.depthFunc(gl.LEQUAL);
       gl.enable(gl.BLEND); // only the one-pixel edge is see-through
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      if (pathLength > 1) {
+        gl.useProgram(line);
+        gl.uniformMatrix4fv(lineUniforms.matrix, false, matrix);
+        gl.uniform1f(lineUniforms.flat, flat);
+        gl.bindVertexArray(lineVao);
+        gl.drawElements(gl.LINE_STRIP, pathLength, gl.UNSIGNED_INT, 0);
+      }
       gl.useProgram(program);
       gl.uniformMatrix4fv(uniforms.matrix, false, matrix);
       gl.uniform1f(uniforms.flat, flat);
