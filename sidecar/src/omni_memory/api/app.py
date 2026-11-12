@@ -16,7 +16,9 @@ from fastapi import Depends, FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from omni_memory.api.deps import Engine, token_guard
+from omni_memory.api.map_routes import router as map_router
 from omni_memory.api.routes import router
+from omni_memory.atlas import Atlas
 from omni_memory.config import Settings
 from omni_memory.embedding.base import Embedder
 from omni_memory.embedding.serialized import SerializedEmbedder
@@ -35,13 +37,15 @@ MIN_TOKEN_CHARS = 16
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 
-def _calibrate(searcher: Searcher) -> None:
+def _calibrate(searcher: Searcher, last: list[str]) -> None:
     ceiling = searcher.calibrate()
-    progress.info(
-        "confidence threshold: %s%s",
+    line = "confidence threshold: {}{}".format(
         f"{ceiling:.3f} (measured on this index)" if ceiling else "default (index too small)",
         f", audio shifted by {searcher.audio_offset:+.3f}" if searcher.audio_offset else "",
     )
+    if last != [line]:  # it runs after every indexing job; the log only needs the changes
+        progress.info("%s", line)
+        last[:] = [line]
 
 
 def _load_engine(
@@ -56,7 +60,9 @@ def _load_engine(
                 f"{settings.model_id} dim {settings.dim}"
             )
         searcher = Searcher(store, embedder)
-        _calibrate(searcher)  # before the engine is announced, so no search sees the default
+        logged: list[str] = []
+        # before the engine is announced, so no search sees the default
+        _calibrate(searcher, logged)
         pacer = Pacer()
         app.state.engine = Engine(
             embedder=embedder,
@@ -65,7 +71,7 @@ def _load_engine(
             # Only indexing is paced; searches use the embedder directly and never wait.
             jobs=JobManager(
                 Indexer(store, PacedEmbedder(embedder, pacer), settings),
-                on_done=lambda: _calibrate(searcher),
+                on_done=lambda: _calibrate(searcher, logged),
             ),
         )
     except Exception as error:  # report through /health instead of killing the process
@@ -81,6 +87,7 @@ def create_app(settings: Settings, token: str, make_embedder: Callable[[], Embed
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         store = FlatStore(settings.index_dir, model_id=settings.model_id, dim=settings.dim)
         app.state.store = store
+        app.state.atlas = Atlas(store, settings.index_dir)
         threading.Thread(
             target=_load_engine,
             args=(app, store, settings, make_embedder),
@@ -103,6 +110,7 @@ def create_app(settings: Settings, token: str, make_embedder: Callable[[], Embed
     app.state.engine = None
     app.state.load_error = None
     app.include_router(router, dependencies=[Depends(token_guard(token))])
+    app.include_router(map_router, dependencies=[Depends(token_guard(token))])
     # Added last, so it runs first: a foreign Host is refused before the token is even read.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
     return app

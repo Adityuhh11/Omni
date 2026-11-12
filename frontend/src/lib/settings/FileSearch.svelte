@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Service as Atlas } from "../../../bindings/omni/internal/atlas";
   import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { SearchView, View } from "../../../bindings/omni/internal/settingsui";
+  import type { View as MapView } from "../../../bindings/omni/internal/atlas";
   import { changes, effects, type Choices, type Kind } from "../indexingPlan";
   import { CHOICES, SPEEDS } from "./choices";
   import { choiceHints, paceHints, surveyLine } from "./hints";
@@ -16,6 +18,8 @@
   let confirming = $state("");
   let removingFiles = $state(false);
   let removingAll = $state(false);
+  let map = $state<MapView | null>(null);
+  let removingMap = $state<"" | "asking" | "removing">("");
   let optionsOpen = $state(false);
   const roots = $derived(view.Roots ?? []);
   const off = $derived(new Set(view.Off ?? []));
@@ -121,6 +125,24 @@
     return search.Enabled ? "On" : "Off";
   });
 
+  // Asked once (it is an engine call, not part of the every-second refresh) and again when the engine comes up.
+  $effect(() => {
+    if (running) Atlas.State().then((v) => (map = v), () => (map = null));
+  });
+
+  async function removeMap() {
+    removingMap = "removing";
+    try {
+      await Atlas.Remove();
+      error = "";
+    } catch (e) {
+      error = String(e);
+    }
+    removingMap = "";
+    map = null;
+    await refresh();
+  }
+
   async function removeFiles() {
     removingFiles = false;
     await run(() => Settings.RemoveFiles());
@@ -186,6 +208,17 @@
             {search.Paused ? "Resume" : "Pause"}
           </button>
         {/if}
+      </div>
+      <div class="item">
+        <span class="text">
+          <span class="name">Map of your index</span>
+          <span class="sub">
+            A picture of what file search knows: every piece of every file is a dot, and pieces that mean something alike sit
+            together. Turn it in 3D, hover a dot to read it, click to open its file. The first time, it downloads a layout
+            library (about 150 MB).
+          </span>
+        </span>
+        <button type="button" class="btn" onclick={() => Atlas.Show()}>Open the map</button>
       </div>
       {#if search.IndexState === "indexing" && search.IndexTotal > 0}
         <div class="item thin">
@@ -316,6 +349,26 @@
 {#if search && !search.Installing}
   <h3 class="group-title">Storage</h3>
   <div class="group">
+    {#if (running && (map?.Installed || map?.State === "ready")) || removingMap === "removing"}
+      <div class="item">
+        <span class="text">
+          <span class="name">Remove the map</span>
+          <span class="sub">
+            {removingMap === "removing"
+              ? "Removing. File search restarts and is back in a few seconds."
+              : "The map of your index and its layout library (about 150 MB). File search restarts to let go of it; search is back in a few seconds. Opening the map later offers to install it again."}
+          </span>
+        </span>
+        <span class="end">
+          {#if removingMap === "asking"}
+            <button type="button" class="btn danger" onclick={removeMap}>Remove and restart</button>
+            <button type="button" class="btn quiet" onclick={() => (removingMap = "")}>Keep</button>
+          {:else}
+            <button type="button" class="btn" disabled={removingMap === "removing"} onclick={() => (removingMap = "asking")}>Remove…</button>
+          {/if}
+        </span>
+      </div>
+    {/if}
     {#if search.Installed}
       <div class="item">
         <span class="text">

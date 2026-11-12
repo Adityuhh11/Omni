@@ -7,8 +7,8 @@ Invariants (mirrored in docs/ARCHITECTURE.md):
    without a `chunks` entry are garbage and may be overwritten.
 2. Vectors are flushed to disk before the SQLite transaction that references them commits,
    so a committed chunk always points at a durable vector.
-3. Every public method holds `self._lock`; the vector file is remapped when it grows, so no
-   reader may overlap a writer.
+3. Every public method but `live_count` holds `self._lock`; the vector file is remapped when
+   it grows, so no reader may overlap a writer.
 4. Ranked output is ordered by (-score, id), so ties never depend on row placement.
 """
 
@@ -316,6 +316,15 @@ class FlatStore:
             (total,) = self._db.execute(query, [kind.value for kind in kinds]).fetchone()
             return total
 
+    def live_count(self) -> int:
+        """All chunks stored, read without the lock (the one exception to invariant 3).
+
+        `/health` uses it: behind the lock it waits for a whole indexing batch, and a health
+        check that times out gets a busy engine restarted. `_live` changes only after a commit,
+        so the number is at worst one batch behind.
+        """
+        return int(np.count_nonzero(self._live))
+
     # --- sources and files: change detection for incremental indexing ------------------
 
     def register_source(self, source_id: str, root: str) -> None:
@@ -416,6 +425,22 @@ class FlatStore:
         _reject_bare_string(ids)
         with self._lock:
             return {i: self._vectors.read(row) for i, row in self._rows_for(list(ids)).items()}
+
+    def every_vector(self) -> tuple[list[str], list[str], np.ndarray]:
+        """Every chunk's id and source with its vector (a copy), in one consistent read: the map."""
+        with self._lock:
+            found = self._db.execute("SELECT vec_row, id, source_id FROM chunks").fetchall()
+            rows = np.fromiter((row for row, _, _ in found), dtype=np.intp, count=len(found))
+            vectors = self._vectors.take(rows)
+        return [id_ for _, id_, _ in found], [source for *_, source in found], vectors
+
+    def every_fact(self) -> dict[str, tuple[str, str, str, int]]:
+        """Every chunk's (source id, uri, locator, mtime_ns) by id, without text: for the map."""
+        with self._lock:
+            found = self._db.execute(
+                "SELECT id, source_id, uri, locator, mtime_ns FROM chunks"
+            ).fetchall()
+        return {id_: (source, uri, locator, mtime) for id_, source, uri, locator, mtime in found}
 
     def touch_file(self, record: FileRecord) -> None:
         """Update a file's remembered size/mtime/hash when its content is known to be unchanged."""

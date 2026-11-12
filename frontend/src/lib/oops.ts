@@ -55,4 +55,18 @@ export function catchUnexpected() {
 
   window.addEventListener("error", (e) => show(e.error ?? e.message));
   window.addEventListener("unhandledrejection", (e) => show(e.reason));
+  watchStalls();
+}
+
+/** The page's own thread busy this long is a freeze someone feels; the log is the only place that can say when it happened. */
+const STALL_MS = 200;
+
+function watchStalls() {
+  if (!PerformanceObserver.supportedEntryTypes?.includes("longtask")) return; // WebKit (the Mac) has no long tasks
+  new PerformanceObserver((list) => {
+    for (const task of list.getEntries()) {
+      if (task.duration < STALL_MS) continue;
+      Status.PageError(`stalled ${Math.round(task.duration)} ms (${location.pathname}${location.hash})`).catch(() => {});
+    }
+  }).observe({ type: "longtask" });
 }

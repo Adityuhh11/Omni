@@ -1,5 +1,6 @@
 import shutil
 import sqlite3
+import threading
 
 import numpy as np
 import pytest
@@ -163,3 +164,15 @@ def test_warming_an_index_changes_nothing_a_search_can_see(store):
     store.warm()
     assert store.search_vectors(unit_vectors(2)[0], 2)[0].id == a.id
     assert store.count() == 2
+
+
+def test_live_count_answers_while_a_writer_holds_the_lock(store):
+    # /health reads it; waiting behind an indexing batch made the launcher kill a busy engine.
+    a, b = make_chunk("a"), make_chunk("b")
+    store.upsert([a, b], unit_vectors(2))
+    store.delete([a.id])
+    done = threading.Event()
+    with store._lock:
+        threading.Thread(target=lambda: (store.live_count(), done.set())).start()
+        assert done.wait(2), "live_count waited for the store lock"
+    assert store.live_count() == store.count() == 1

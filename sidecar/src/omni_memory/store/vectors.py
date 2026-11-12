@@ -140,6 +140,10 @@ class VectorFile:
         """A copy of one row."""
         return self._rows[row].copy()
 
+    def take(self, rows: np.ndarray) -> np.ndarray:
+        """A copy of the given rows, in that order."""
+        return self._rows[rows]
+
     def scores(self, query: np.ndarray, upto: int) -> np.ndarray:
         """Dot products of `query` with rows `[0, upto)`: a fresh array, safe to keep."""
         return self._rows[:upto] @ query

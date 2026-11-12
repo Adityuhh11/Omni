@@ -148,6 +148,30 @@
     document.documentElement.dataset.active = String(active);
   });
 
+  // One highlight under the selected row that slides when the selection moves, instead of each row lighting up on its own.
+  // A new answer puts it in place at once: sliding from where the old list's row was would point at nothing.
+  let highlight = $state({ x: 0, y: 0, width: 0, height: 0, slide: false, shown: false });
+  let highlighted: Item[] | null = null;
+  $effect(() => {
+    void expanded; // an expanded row is taller
+    const list = items;
+    const row = document.getElementById(optionId(selected));
+    const slide = list === highlighted;
+    highlighted = list;
+    if (!row) {
+      highlight.shown = false;
+      return;
+    }
+    highlight = { x: row.offsetLeft, y: row.offsetTop, width: row.offsetWidth, height: row.offsetHeight, slide, shown: true };
+  });
+
+  // The first rows of a list that has just appeared come in one after another; later answers replace them without it.
+  function settling(node: HTMLElement) {
+    node.classList.add("settling");
+    const timer = setTimeout(() => node.classList.remove("settling"), 400);
+    return { destroy: () => clearTimeout(timer) };
+  }
+
   // The panel is only cloaked when closed, so the page keeps running: refocus and select the old
   // text every time the window regains the keyboard, so typing replaces it.
   function takeFocus() {
@@ -574,7 +598,16 @@
               <p class="note" class:problem={note.problem}>{note.text}</p>
             {/each}
             {#if items.length > 0}
-              <div class="results" class:stale={pending} class:keying id="results" role="listbox" aria-label="Results">
+              <div class="results" class:stale={pending} class:keying id="results" role="listbox" aria-label="Results" use:settling>
+                <div
+                  class="highlight"
+                  class:slide={highlight.slide}
+                  hidden={!highlight.shown}
+                  aria-hidden="true"
+                  style:transform="translate({highlight.x}px, {highlight.y}px)"
+                  style:width="{highlight.width}px"
+                  style:height="{highlight.height}px"
+                ></div>
                 {#each items as item, index (keyOf(item))}
                   {#if showingPins && index === 0}<h3 class="section">Pinned</h3>{/if}
                   {#if sections && index === firstApp}<h3 class="section">Apps</h3>{/if}
@@ -807,14 +840,87 @@
   .results.keying :global(.item:not(.selected) .tile) {
     opacity: 0.5; /* the tile holds no text: only an icon */
   }
-  .results.keying :global(.item.selected) {
+  /* The rows lie over the one highlight (it carries what a selected row used to paint itself). */
+  .results {
     position: relative;
-    z-index: 1;
+  }
+  .results :global(.item) {
+    position: relative;
+  }
+  .results :global(.item.selected) {
+    background: none;
+    box-shadow: none;
+  }
+  .highlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 16px;
+    background: var(--lift);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
+    pointer-events: none;
+    transition:
+      background-color 200ms var(--ease),
+      box-shadow 240ms var(--ease);
+  }
+  .highlight.slide {
+    transition:
+      transform 220ms var(--spring),
+      height 220ms var(--spring),
+      background-color 200ms var(--ease),
+      box-shadow 240ms var(--ease);
+  }
+  .results.keying .highlight {
     background-color: var(--lift-keyed);
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, var(--ink) 20%, transparent),
       0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent),
       0 8px 16px -8px rgba(0, 0, 0, 0.95);
+  }
+  /* Pressing a row: the highlight darkens and the icon sinks, then springs back on release. Only the tile moves (it holds no
+     text, so nothing is drawn soft). */
+  .results:active .highlight {
+    background-color: var(--lift-keyed);
+    transition-duration: 60ms;
+  }
+  .results :global(.item .tile) {
+    transition: transform 280ms var(--spring);
+  }
+  .results :global(.item:active .tile) {
+    transform: scale(0.9);
+    transition-duration: 80ms;
+  }
+  /* A list that has just appeared: its first rows come in 25 ms apart (only then, never on a keystroke). */
+  .results:global(.settling) > :global(*:not(.highlight)) {
+    animation: rowin 240ms var(--ease) backwards;
+  }
+  .results:global(.settling) > :global(:nth-child(3)) {
+    animation-delay: 25ms;
+  }
+  .results:global(.settling) > :global(:nth-child(4)) {
+    animation-delay: 50ms;
+  }
+  .results:global(.settling) > :global(:nth-child(5)) {
+    animation-delay: 75ms;
+  }
+  .results:global(.settling) > :global(:nth-child(n + 6)) {
+    animation-delay: 100ms;
+  }
+  @keyframes rowin {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .highlight,
+    .highlight.slide,
+    .results :global(.item .tile) {
+      transition: none;
+    }
+    .results:global(.settling) > :global(*) {
+      animation: none;
+    }
   }
   .section {
     margin: 4px 24px 2px;
@@ -823,7 +929,7 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
-  .section:not(:first-child) {
+  .section:not(.highlight + .section) {
     margin-top: 10px;
   }
   .results::-webkit-scrollbar {

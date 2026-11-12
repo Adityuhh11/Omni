@@ -227,3 +227,17 @@ func TestAFailureAfterARedirectDoesNotLogTheAddress(t *testing.T) {
 		t.Errorf("status %q, log %v", st.Error, logged)
 	}
 }
+
+// A feed that stays down is logged once, not every quarter hour, until what goes wrong changes.
+func TestAFeedThatStaysDownIsLoggedOnce(t *testing.T) {
+	var logged []string
+	c := New(t.TempDir(), func() []config.CalendarFeed { return []config.CalendarFeed{{ID: "a", Name: "A"}} },
+		func(string) (string, error) { return "http://127.0.0.1:1/x", nil },
+		func(format string, args ...any) { logged = append(logged, fmt.Sprintf(format, args...)) })
+	for range 3 {
+		c.Sync(context.Background())
+	}
+	if len(logged) != 1 {
+		t.Errorf("logged %d times: %q", len(logged), logged)
+	}
+}
