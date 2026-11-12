@@ -225,6 +225,15 @@ func (i *Installer) InstallExtra(ctx context.Context, name string, report func(P
 	return nil
 }
 
+// RemoveExtras takes the optional extras out of the installed environment again (uv sync removes what the lock does not
+// ask for). The engine must not be running: Windows keeps a running engine's libraries locked.
+func (i *Installer) RemoveExtras(ctx context.Context, report func(Progress)) error {
+	if err := i.sync(ctx, report); err != nil {
+		return fmt.Errorf("remove the engine's extras: %w", err)
+	}
+	return nil
+}
+
 func (i *Installer) sync(ctx context.Context, report func(Progress), extra ...string) error {
 	l := i.Layout
 	cache := filepath.Join(l.Root, "uv-cache")
@@ -422,6 +431,20 @@ func (m *Manager) InstallExtra(ctx context.Context, name string) error {
 		return errors.New("file search is not installed")
 	}
 	return installer.InstallExtra(ctx, name, func(Progress) {})
+}
+
+// RemoveExtras takes the engine's optional extras out again (see Installer.RemoveExtras) and waits for it.
+func (m *Manager) RemoveExtras(ctx context.Context) error {
+	m.mu.Lock()
+	running, installer := m.running, *m.installer
+	m.mu.Unlock()
+	switch {
+	case running:
+		return errors.New("file search is being installed; try again when it has finished")
+	case !installer.Layout.Installed():
+		return nil
+	}
+	return installer.RemoveExtras(ctx, func(Progress) {})
 }
 
 // Start begins an install (or a repair or update, which is the same thing) in the background.

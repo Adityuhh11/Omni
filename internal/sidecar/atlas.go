@@ -12,14 +12,31 @@ type MapStatus struct {
 	Message string `json:"message"`
 	Count   int    `json:"count"`
 	Stale   bool   `json:"stale"`
+	// Installed says the map's layout library is installed, whether or not a map has been built.
+	Installed bool `json:"installed"`
 }
 
 // MapPoints is the whole map: point i is at Coords[12i:12i+12] (three little-endian float32) and belongs to
-// Roots[Source[2i:2i+2]] (a little-endian uint16). The engine sends both as base64, which is what []byte decodes from.
+// Roots[Source[2i:2i+2]] (a little-endian uint16). The other per-point fields are little-endian numbers too: File and
+// Rank uint32 (points of one file share a File; Rank is the reading order within it), Type uint16 (into Types) and
+// Modified uint32 (seconds since 1970). The engine sends them as base64, which is what []byte decodes from.
 type MapPoints struct {
-	Coords []byte   `json:"coords"`
-	Source []byte   `json:"source"`
-	Roots  []string `json:"roots"`
+	Coords   []byte     `json:"coords"`
+	Source   []byte     `json:"source"`
+	Roots    []string   `json:"roots"`
+	File     []byte     `json:"file"`
+	Rank     []byte     `json:"rank"`
+	Type     []byte     `json:"type"`
+	Types    []string   `json:"types"`
+	Modified []byte     `json:"modified"`
+	Topics   []MapTopic `json:"topics"`
+}
+
+// MapTopic is a named region of the map.
+type MapTopic struct {
+	Label string    `json:"label"`
+	At    []float64 `json:"at"`
+	Count int       `json:"count"`
 }
 
 // MapPoint is the chunk behind one point.
@@ -49,6 +66,11 @@ func (c *Client) BuildMap(ctx context.Context) (MapStatus, error) {
 	var out MapStatus
 	err := c.do(ctx, http.MethodPost, "/map/build", nil, &out)
 	return out, err
+}
+
+// RemoveMap forgets the map and deletes its file (the launcher then removes the layout library).
+func (c *Client) RemoveMap(ctx context.Context) error {
+	return c.do(ctx, http.MethodDelete, "/map", nil, nil)
 }
 
 // Map returns every point of the last built map.
