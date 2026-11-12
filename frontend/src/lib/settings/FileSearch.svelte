@@ -190,8 +190,12 @@
       </div>
       <div class="item">
         <span class="text">
-          <span class="name">Map</span>
-          <span class="sub">Every piece of your files as a dot, near others that mean something alike.</span>
+          <span class="name">Map of your index</span>
+          <span class="sub">
+            A picture of what file search knows: every piece of every file is a dot, and pieces that mean something alike sit
+            together. Turn it in 3D, hover a dot to read it, click to open its file. The first time, it downloads a layout
+            library (about 150 MB).
+          </span>
         </span>
         <button type="button" class="btn" onclick={() => Atlas.Show()}>Open the map</button>
       </div>
