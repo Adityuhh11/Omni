@@ -252,19 +252,28 @@ submitted to `POST /sources`.
 
 - `422` invalid body. `503` model not ready. `confident` has the same meaning as for `/search`.
 
-### The map: `GET /map/status`, `POST /map/build`, `GET /map`, `GET /map/points/{index}`, `POST /map/locate`
+### The map: `GET /map/status`, `POST /map/build`, `GET /map`, `DELETE /map`, `GET /map/points/{index}`, `POST /map/locate`
 
 Every chunk laid out in 3D by UMAP (`omni_memory/atlas.py`), for the map window. UMAP is the optional `map` extra; the
-layout is built in the background (about 45 s for 50k chunks, most of it the first run's compiling) and kept as
-`atlas.npz` beside the index.
+layout is built in the background (about 45 s for 50k chunks, most of it the first run's compiling, then about 5 s to name
+its regions, `omni_memory/atlas_topics.py`) and kept as `atlas.npz` beside the index.
 
 - `GET /map/status` → `{"state": "none" | "building" | "ready" | "failed" | "missing", "message": "...", "count": 49558,
-  "stale": false}`. `missing`: the extra is not installed. `stale`: the index holds a different number of chunks than the
-  map; the old map is still served until it is rebuilt. Works before the model is ready.
+  "stale": false, "installed": true}`. `missing`: a build found the extra not installed; `installed` says whether it is now.
+  `stale`: the index holds a different number of chunks than the map; the old map is still served until it is rebuilt.
+  Works before the model is ready.
 - `POST /map/build` → `202` with the status; a build already under way is not started twice.
-- `GET /map` → `{"coords": "<base64>", "source": "<base64>", "roots": ["C:\\Users\\me\\Documents"]}`: point *i* is at
+- `GET /map` → `{"coords": "<base64>", "source": "<base64>", "roots": ["C:\\Users\\me\\Documents"], "file", "rank", "type",
+  "types", "modified", "topics"}`: point *i* is at
   `coords[3i..3i+3]` (float32, little-endian, inside the unit ball, a few outliers just past it) and belongs to
-  `roots[source[i]]` (uint16; `""` for a folder no longer searched). `404` before the first map.
+  `roots[source[i]]` (uint16; `""` for a folder no longer searched). The other per-point arrays are base64 of
+  little-endian numbers, one per point, read from the index each time (`omni_memory/atlas_facts.py`): `file` (uint32;
+  points of one file share it), `rank` (uint32; its place in reading order in that file, by first line, page or second),
+  `type` (uint16 into `types`: the eight commonest extensions, then `"other"`) and `modified` (uint32; the file's last
+  change in seconds since 1970). `topics` is `[{"label": "invoice · payment · vat", "at": [x, y, z], "count": 2100}]`,
+  largest first: k-means regions of the layout named by a class-based TF-IDF of their chunks. `404` before the first map.
+- `DELETE /map` → `204`: forgets the map and deletes `atlas.npz` (the launcher then stops the engine and removes the extra).
+  `409` while a map is being built.
 - `GET /map/points/{index}` → `{"uri", "root", "kind", "locator", "text"}` (the first 600 characters). `404` for a point the
   index no longer has.
 - `POST /map/locate` with `{"query": "..."}` → `{"at": [x, y, z], "points": [12, 40, ...]}`: where the query lands (the

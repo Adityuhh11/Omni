@@ -37,6 +37,9 @@ def test_the_map_lays_every_chunk_out_and_answers_hover_and_locate(api, many):
     source = np.frombuffer(base64.b64decode(body["source"]), dtype="<u2")
     assert coords.shape == (24, 3) and np.isfinite(coords).all()
     assert set(source) == {0} and body["roots"] == [str(many)]
+    file = np.frombuffer(base64.b64decode(body["file"]), dtype="<u4")
+    assert len(set(file)) == 24 and body["types"] == ["md"]
+    assert all(t["label"] and len(t["at"]) == 3 for t in body["topics"]), body["topics"]
 
     point = api.get("/map/points/0").json()
     assert point["root"] == str(many) and point["text"]
@@ -57,6 +60,7 @@ def test_a_saved_map_comes_back_and_is_stale_once_the_index_changes(tmp_path, ma
             "message": "",
             "count": 24,
             "stale": False,
+            "installed": True,
         }
         index(api, many)
         assert api.get("/map/status").json()["stale"] is True
@@ -66,3 +70,13 @@ def test_too_small_an_index_is_refused_with_a_reason(api, folder):
     index(api, folder)
     status = built(api)
     assert status["state"] == "failed" and "needs" in status["message"]
+
+
+def test_removing_the_map_forgets_it_and_its_file(tmp_path, many):
+    with running_app(tmp_path / "idx") as api:
+        index(api, many)
+        built(api)
+        assert api.delete("/map").status_code == 204
+        assert api.get("/map/status").json()["state"] == "none"
+        assert api.get("/map").status_code == 404
+    assert not (tmp_path / "idx" / "atlas.npz").exists()
