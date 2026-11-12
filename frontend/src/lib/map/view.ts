@@ -31,6 +31,10 @@ export function decodeUint16(base64: string): Uint16Array {
   return new Uint16Array(bytesOf(base64).buffer);
 }
 
+export function decodeUint32(base64: string): Uint32Array {
+  return new Uint32Array(bytesOf(base64).buffer);
+}
+
 function bytesOf(base64: string): Uint8Array {
   const text = atob(base64);
   const bytes = new Uint8Array(text.length);

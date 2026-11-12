@@ -338,7 +338,13 @@ func run(afterUpdate bool) error {
 			return state == sidecar.StateReady || state == sidecar.StateWarming
 		},
 		Install: func(ctx context.Context) error { return setup.InstallExtra(ctx, "map") },
-		Open:    opener.Open,
+		// Only offered while the engine runs, so it is started again whatever happened.
+		Uninstall: func(ctx context.Context) error {
+			engineSwitch.Off()
+			defer engineSwitch.On()
+			return setup.RemoveExtras(ctx)
+		},
+		Open: opener.Open,
 		Show:    mapWindow.Open,
 	})
 	// Calendars, read only: a feed's subscription address is a secret, so it is in the credential store, not config.toml.

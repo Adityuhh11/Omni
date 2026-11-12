@@ -127,10 +127,15 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
   place and calendar as icon rows, a wide Join button tinted with the event's colour that names the service (Zoom, Google Meet,
   Teams, Webex), and the notes rendered as markdown (HTML from Google or Outlook is turned into markdown first).
 - **Map window:** night (`#0e0f12`) whatever the look, so every hue reads the same. Each chunk is a solid dot with a thin dark rim,
-  coloured by its folder: the eight categorical hues of the dark data palette in a fixed order (validated on the night for
-  colour-blind separation and contrast), grey for a ninth folder on and for one no longer searched; the legend (bottom left,
-  a folder hides on a click) and the hover card name the folder, so colour never carries it alone. Dots are opaque and
-  depth-tested: a near dot covers a far one, so a dense region stays a crowd of dots, not a haze of light. The camera eases toward where input puts it (never jumps),
+  coloured by its folder or its file type: the eight categorical hues of the dark data palette in a fixed order (validated
+  on the night for colour-blind separation and contrast), grey for a ninth group on, "other" and a folder no longer
+  searched; the legend (bottom left, a group hides on a click) and the hover card name it, so colour never carries it
+  alone. By age it is the upper part of viridis from the oldest file to the newest, placed by rank so a few old files do not
+  flatten the rest, with the dates under the ramp. Named regions float over the map in the ink with a night halo, larger for
+  a larger region, fading toward the far side; L or the Labels button hides them. Clicking a dot lights every piece of its
+  file and joins them with a thin white line in reading order; a card at the top right names the file and opens it. Dots are opaque and
+  depth-tested: a near dot covers a far one, so a dense region stays a crowd of dots, not a haze of light. The camera eases
+  toward where input puts it (never jumps),
   turns slowly by itself after 4 s untouched in 3D, and draws no frames when nothing moves. 3D and 2D are one camera: 2D
   squeezes the third axis to nothing and looks straight down it, animated. A query lands as a white pulsing ring among its
   hits, which grow and light up while the rest dim. Reduced motion: no turning, no easing, no pulse.

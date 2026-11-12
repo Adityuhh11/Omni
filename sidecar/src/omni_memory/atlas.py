@@ -10,6 +10,7 @@ holds a different number of chunks.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import logging
 import os
 import threading
@@ -19,6 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
+from omni_memory.atlas_topics import Topic, topics
 from omni_memory.store import FlatStore
 from omni_memory.types import SearchHit
 
@@ -36,6 +38,7 @@ class Layout:
     ids: list[str]
     sources: list[str]
     coords: np.ndarray  # (n, 3) float32
+    topics: list[Topic]  # its regions, named
 
 
 class Atlas:
@@ -53,6 +56,7 @@ class Atlas:
         self._load()
 
     def status(self) -> dict[str, object]:
+        extra = installed()
         with self._lock:
             count = 0 if self._layout is None else len(self._layout.ids)
             return {
@@ -60,6 +64,7 @@ class Atlas:
                 "message": self._message,
                 "count": count,
                 "stale": self._layout is not None and count != self._store.live_count(),
+                "installed": extra,
             }
 
     def layout(self) -> Layout | None:
@@ -73,6 +78,15 @@ class Atlas:
                 return
             self._state, self._message = "building", ""
         threading.Thread(target=self._build, name="atlas", daemon=True).start()
+
+    def forget(self) -> bool:
+        """Drop the map and its file (removing the map); False while one is being built."""
+        with self._lock:
+            if self._state == "building":
+                return False
+            self._path.unlink(missing_ok=True)
+            self._layout, self._index, self._state, self._message = None, {}, "none", ""
+            return True
 
     def point(self, index: int) -> str | None:
         """The chunk id of point `index`, or None when there is no such point."""
@@ -110,9 +124,26 @@ class Atlas:
                 raise _Refused(f"the index holds {len(ids)} chunks; a map needs {MIN_POINTS}")
             started = time.monotonic()
             coords = _lay_out(vectors)
-            progress.info("map: %d chunks laid out in %.1f s", len(ids), time.monotonic() - started)
-            layout = Layout(ids=ids, sources=sources, coords=coords)
-            np.savez(self._path, ids=np.array(ids), sources=np.array(sources), coords=coords)
+            laid_out = time.monotonic()
+            chunks = self._store.get(ids)
+            named = topics(coords, [c.text if (c := chunks.get(i)) else "" for i in ids])
+            progress.info(
+                "map: %d chunks laid out in %.1f s, %d regions named in %.1f s",
+                len(ids),
+                laid_out - started,
+                len(named),
+                time.monotonic() - laid_out,
+            )
+            layout = Layout(ids=ids, sources=sources, coords=coords, topics=named)
+            np.savez(
+                self._path,
+                ids=np.array(ids),
+                sources=np.array(sources),
+                coords=coords,
+                topic_labels=np.array([t.label for t in named], dtype=str),
+                topic_at=np.array([t.at for t in named], dtype=np.float32).reshape(-1, 3),
+                topic_counts=np.array([t.count for t in named], dtype=np.int64),
+            )
             self._keep(layout, "ready", "")
         except _Missing as error:
             self._keep(self._layout, "missing", str(error))
@@ -136,6 +167,15 @@ class Atlas:
                     ids=[str(i) for i in saved["ids"]],
                     sources=[str(s) for s in saved["sources"]],
                     coords=saved["coords"].astype(np.float32),
+                    topics=[
+                        Topic(str(label), (float(at[0]), float(at[1]), float(at[2])), int(count))
+                        for label, at, count in zip(
+                            saved["topic_labels"],
+                            saved["topic_at"],
+                            saved["topic_counts"],
+                            strict=True,
+                        )
+                    ],
                 )
         except Exception:
             logger.exception("the saved map cannot be read; it will be built again")
@@ -149,6 +189,12 @@ class _Missing(Exception):
 
 class _Refused(Exception):
     """The index cannot be mapped (too small); says why."""
+
+
+def installed() -> bool:
+    """Whether the map's extra is installed (found, not imported: importing it costs seconds)."""
+    importlib.invalidate_caches()
+    return importlib.util.find_spec("umap") is not None
 
 
 def _lay_out(vectors: np.ndarray) -> np.ndarray:

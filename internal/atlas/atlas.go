@@ -1,6 +1,6 @@
 // Package atlas is the map of the index for its window: every chunk as a point in 3D, laid out by the engine. It installs the
-// engine's optional map extra the first time the map is built, and relays the map's points, a point's chunk and where a query
-// lands.
+// engine's optional map extra the first time the map is built (and removes it on request), and relays the map's points, a
+// point's chunk and where a query lands.
 package atlas
 
 import (
@@ -22,23 +22,26 @@ type Engine interface {
 	Map(ctx context.Context) (sidecar.MapPoints, error)
 	MapPoint(ctx context.Context, index int) (sidecar.MapPoint, error)
 	Locate(ctx context.Context, query string) (sidecar.Located, error)
+	RemoveMap(ctx context.Context) error
 }
 
 // Options are what the service is built from.
 type Options struct {
-	Engine  Engine
-	Running func() bool                       // the engine answers (it may still be loading its model)
-	Install func(ctx context.Context) error   // adds the engine's map extra
-	Open    func(path string, line int) error // opens a file, at a line when it has one
-	Show    func()                            // brings the map's window up
+	Engine    Engine
+	Running   func() bool                       // the engine answers (it may still be loading its model)
+	Install   func(ctx context.Context) error   // adds the engine's map extra
+	Uninstall func(ctx context.Context) error   // stops the engine, takes the extra out and starts the engine again
+	Open      func(path string, line int) error // opens a file, at a line when it has one
+	Show      func()                            // brings the map's window up
 }
 
 // View is how far the map is, for its window.
 type View struct {
-	State   string // off, none, installing, building, ready, failed, missing
-	Message string
-	Count   int
-	Stale   bool // the index has changed since the map was built
+	State     string // off, none, installing, building, removing, ready, failed, missing
+	Message   string
+	Count     int
+	Stale     bool // the index has changed since the map was built
+	Installed bool // the layout library is installed: there is something to remove
 }
 
 const (
@@ -52,8 +55,9 @@ type Service struct {
 	o Options
 
 	mu         sync.Mutex
-	busy       bool   // a Build is under way
-	installing bool   // and it is installing the extra
+	busy       bool   // a Build or Remove is under way
+	installing bool   // the Build is installing the extra
+	removing   bool   // a Remove is under way
 	problem    string // why the last Build failed
 }
 
@@ -69,10 +73,13 @@ func (s *Service) State() View {
 		return View{State: "off", Message: "File search is not running. Turn it on in Settings to see the map."}
 	}
 	s.mu.Lock()
-	installing, problem := s.installing, s.problem
+	installing, removing, problem := s.installing, s.removing, s.problem
 	s.mu.Unlock()
 	if installing {
 		return View{State: "installing", Message: "Installing the map's layout library (about 150 MB)."}
+	}
+	if removing {
+		return View{State: "removing", Message: "Removing the map. File search restarts."}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
 	defer cancel()
@@ -83,7 +90,7 @@ func (s *Service) State() View {
 	if problem != "" && st.State != "building" && st.State != "ready" {
 		return View{State: "failed", Message: problem}
 	}
-	return View{State: st.State, Message: st.Message, Count: st.Count, Stale: st.Stale}
+	return View{State: st.State, Message: st.Message, Count: st.Count, Stale: st.Stale, Installed: st.Installed}
 }
 
 // Build lays the index out again, first installing the map's extra if the engine lacks it. It returns at once; State follows it.
@@ -121,6 +128,33 @@ func (s *Service) build() {
 		return
 	}
 	finish("")
+}
+
+// Remove deletes the map and its layout library. The engine has the library loaded once a map was built, and Windows
+// keeps loaded files locked, so file search stops while the library goes and starts again after (a few seconds). It
+// waits for all of that.
+func (s *Service) Remove() error {
+	s.mu.Lock()
+	if s.busy {
+		s.mu.Unlock()
+		return errors.New("the map is being built; try again when it has finished")
+	}
+	s.busy, s.removing, s.problem = true, true, ""
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.busy, s.removing = false, false
+		s.mu.Unlock()
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), installTimeout)
+	defer cancel()
+	if err := s.o.Engine.RemoveMap(ctx); err != nil {
+		return fmt.Errorf("remove the map: %w", err)
+	}
+	if err := s.o.Uninstall(ctx); err != nil {
+		return fmt.Errorf("remove the map's layout library: %w", err)
+	}
+	return nil
 }
 
 // Points returns the whole map.

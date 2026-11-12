@@ -403,3 +403,14 @@ func TestAnExtraIsSyncedIntoTheSameEnvironment(t *testing.T) {
 		t.Errorf("a failed sync: %v", err)
 	}
 }
+
+func TestRemovingTheExtrasSyncsWithoutThem(t *testing.T) {
+	r := newRig(t)
+	if err := r.RemoveExtras(t.Context(), func(Progress) {}); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(r.uvCalls[len(r.uvCalls)-1], " ")
+	if want := "sync --frozen --no-dev --python " + PythonVersion; got != want {
+		t.Errorf("uv %s, want uv %s", got, want)
+	}
+}

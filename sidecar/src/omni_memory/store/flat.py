@@ -434,6 +434,14 @@ class FlatStore:
             vectors = self._vectors.take(rows)
         return [id_ for _, id_, _ in found], [source for *_, source in found], vectors
 
+    def every_fact(self) -> dict[str, tuple[str, str, str, int]]:
+        """Every chunk's (source id, uri, locator, mtime_ns) by id, without text: for the map."""
+        with self._lock:
+            found = self._db.execute(
+                "SELECT id, source_id, uri, locator, mtime_ns FROM chunks"
+            ).fetchall()
+        return {id_: (source, uri, locator, mtime) for id_, source, uri, locator, mtime in found}
+
     def touch_file(self, record: FileRecord) -> None:
         """Update a file's remembered size/mtime/hash when its content is known to be unchanged."""
         with self._lock:

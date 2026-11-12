@@ -2,15 +2,18 @@
   import { onMount } from "svelte";
   import { Service as Atlas } from "../bindings/omni/internal/atlas";
   import type { View } from "../bindings/omni/internal/atlas";
-  import type { MapPoint } from "../bindings/omni/internal/sidecar";
+  import type { MapPoint, MapTopic } from "../bindings/omni/internal/sidecar";
   import Loader from "./lib/Loader.svelte";
   import { createRenderer, type Renderer } from "./lib/map/gl";
-  import { colorsFor, folderName, SLOTS } from "./lib/map/folders";
+  import { ageColors, colorsFor, folderName, slotColor } from "./lib/map/folders";
+  import { piecesOf } from "./lib/map/files";
+  import Legend from "./lib/map/Legend.svelte";
   import {
     approach,
     clamp,
     decodeFloats,
     decodeUint16,
+    decodeUint32,
     FOV,
     MAX_DISTANCE,
     MAX_PITCH,
@@ -19,6 +22,7 @@
     toScreen,
     viewProjection,
     type Camera,
+    type Mat4,
   } from "./lib/map/view";
 
   const HOME: Camera = { yaw: 0.6, pitch: 0.35, distance: 2.6, target: [0, 0, 0], flat: 0 };
@@ -32,12 +36,26 @@
   let renderer: Renderer | null = null;
   let noWebGL = $state(false);
 
-  // The map itself.
+  // The map itself, and what is known of each point.
+  type Mode = "folder" | "type" | "age";
   let coords: Float32Array | null = null;
   let source: Uint16Array | null = null;
+  let fileOf: Uint32Array | null = null;
+  let rankOf: Uint32Array | null = null;
+  let typeOf: Uint16Array | null = null;
+  let modified: Uint32Array | null = null;
   let roots = $state<string[]>([]);
   let counts = $state<number[]>([]);
-  let hidden = $state(new Set<number>());
+  let types = $state<string[]>([]);
+  let typeCounts = $state<number[]>([]);
+  let topics = $state<MapTopic[]>([]);
+
+  // How it is coloured; a group hidden from the legend stays hidden only while its colouring is on.
+  let mode = $state<Mode>("folder");
+  let hiddenBy = $state({ folder: new Set<number>(), type: new Set<number>() });
+  let cuts = $state<[number, number, number] | null>(null);
+  let showLabels = $state(true);
+  let labels = $state<{ text: string; x: number; y: number; size: number; fade: number }[]>([]);
 
   // The camera eases toward the goal every frame; input moves the goal.
   const now: Camera = structuredClone(HOME);
@@ -49,6 +67,8 @@
   let hover = $state<{ index: number; x: number; y: number; point: MapPoint | null } | null>(null);
   let query = $state("");
   let located = $state<{ at: [number, number, number]; points: number[] } | null>(null);
+  // A clicked dot: every piece of its file lights up, joined in reading order.
+  let selected = $state<{ index: number; pieces: number; point: MapPoint | null } | null>(null);
   let marker = $state<{ x: number; y: number } | null>(null);
   let dim = 1;
   let searching = $state(false);
@@ -71,20 +91,47 @@
       const points = await Atlas.Points();
       coords = decodeFloats(points.coords ?? "");
       source = decodeUint16(points.source ?? "");
+      fileOf = decodeUint32(points.file ?? "");
+      rankOf = decodeUint32(points.rank ?? "");
+      typeOf = decodeUint16(points.type ?? "");
+      modified = decodeUint32(points.modified ?? "");
       roots = points.roots ?? [];
-      const tally = roots.map(() => 0);
-      for (const s of source) tally[s]++;
-      counts = tally;
-      renderer?.setPoints(coords, colorsFor(source, roots, hidden));
+      types = points.types ?? [];
+      topics = points.topics ?? [];
+      counts = tally(source, roots.length);
+      typeCounts = tally(typeOf, types.length);
+      renderer?.setPoints(coords, colors());
       kick();
     } catch (error) {
       problem = "The map could not be read: " + String(error);
     }
   }
 
+  function tally(group: Uint16Array, size: number): number[] {
+    const out = new Array<number>(size).fill(0);
+    for (const g of group) out[g]++;
+    return out;
+  }
+
+  function colors(): Float32Array {
+    if (mode === "age") {
+      const age = ageColors(modified!);
+      cuts = age.cuts;
+      return age.colors;
+    }
+    return mode === "type" ? colorsFor(typeOf!, types, hiddenBy.type) : colorsFor(source!, roots, hiddenBy.folder);
+  }
+
+  function visible(i: number): boolean {
+    if (mode === "folder") return !hiddenBy.folder.has(source![i]);
+    if (mode === "type") return !hiddenBy.type.has(typeOf![i]);
+    return true;
+  }
+
   async function build() {
     coords = null;
     located = null;
+    selected = null;
     await Atlas.Build();
     await refresh();
   }
@@ -124,7 +171,7 @@
       now.target[i] = approach(now.target[i], goal.target[i], dt, rate);
       moving ||= now.target[i] !== goal.target[i];
     }
-    const dimGoal = located ? 0.22 : 1;
+    const dimGoal = located || selected ? 0.22 : 1;
     dim = approach(dim, dimGoal, dt, rate);
     moving ||= dim !== dimGoal;
     draw();
@@ -144,6 +191,19 @@
       const at = toScreen(m, located.at[0], located.at[1], located.at[2] * (1 - now.flat), canvas.width, canvas.height);
       marker = at && { x: at[0] / dpr, y: at[1] / dpr };
     } else marker = null;
+    labels = showLabels ? placeLabels(m, dpr) : [];
+  }
+
+  // A region's name sits over its middle, larger for a larger region, fading out toward the far side of the map.
+  function placeLabels(m: Mat4, dpr: number) {
+    const biggest = topics[0]?.count ?? 1;
+    return topics.flatMap((t) => {
+      const [x, y, z] = t.at ?? [0, 0, 0];
+      const at = toScreen(m, x, y, z * (1 - now.flat), canvas.width, canvas.height);
+      if (!at) return [];
+      const fade = clamp((now.distance / at[2] - 0.55) / 0.35, 0, 1);
+      return fade > 0 ? [{ text: t.label, x: at[0] / dpr, y: at[1] / dpr, size: 11 + 4 * Math.sqrt(t.count / biggest), fade }] : [];
+    });
   }
 
   function resize() {
@@ -190,7 +250,41 @@
   function onpointerup() {
     const clicked = drag && !drag.moved;
     drag = null;
-    if (clicked && hover) Atlas.Open(hover.index).catch((error) => (problem = String(error)));
+    if (!clicked) return;
+    if (hover) select(hover.index);
+    else clearSelection();
+  }
+
+  function light(points: ArrayLike<number>) {
+    if (!coords) return;
+    const lit = new Float32Array(coords.length / 3);
+    for (let i = 0; i < points.length; i++) lit[points[i]] = 1;
+    renderer?.setLit(lit);
+  }
+
+  function select(index: number) {
+    if (!fileOf || !rankOf) return;
+    const pieces = piecesOf(fileOf, rankOf, fileOf[index]);
+    located = null;
+    light(pieces);
+    renderer?.setPath(pieces);
+    selected = { index, pieces: pieces.length, point: hover?.index === index ? hover.point : null };
+    if (!selected.point) {
+      Atlas.Point(index)
+        .then((point) => {
+          if (selected?.index === index) selected = { ...selected, point };
+        })
+        .catch(() => {});
+    }
+    touched();
+  }
+
+  function clearSelection() {
+    if (!selected) return;
+    selected = null;
+    renderer?.setPath(new Uint32Array());
+    light(located?.points ?? []);
+    touched();
   }
 
   function pan(dx: number, dy: number) {
@@ -220,7 +314,7 @@
     if (!coords) return;
     const rect = canvas.getBoundingClientRect();
     const dpr = devicePixelRatio || 1;
-    const index = pick(matrix(), coords, now.flat, (i) => !hidden.has(source![i]), (clientX - rect.left) * dpr,
+    const index = pick(matrix(), coords, now.flat, visible, (clientX - rect.left) * dpr,
       (clientY - rect.top) * dpr, canvas.width, canvas.height, 10 * dpr);
     if (index < 0) {
       hover = null;
@@ -258,11 +352,24 @@
     touched();
   }
 
-  function toggleFolder(index: number) {
-    const next = new Set(hidden);
+  function toggleGroup(index: number) {
+    if (mode === "age") return;
+    const next = new Set(hiddenBy[mode]);
     if (!next.delete(index)) next.add(index);
-    hidden = next;
-    if (coords && source) renderer?.setColors(colorsFor(source, roots, hidden));
+    hiddenBy = { ...hiddenBy, [mode]: next };
+    if (coords) renderer?.setColors(colors());
+    kick();
+  }
+
+  function setMode(next: Mode) {
+    mode = next;
+    if (coords) renderer?.setColors(colors());
+    hover = null;
+    kick();
+  }
+
+  function toggleLabels() {
+    showLabels = !showLabels;
     kick();
   }
 
@@ -274,10 +381,10 @@
     try {
       const found = await Atlas.Locate(text);
       const at = found.at as [number, number, number];
+      selected = null;
+      renderer?.setPath(new Uint32Array());
       located = { at, points: found.points ?? [] };
-      const lit = new Float32Array(coords.length / 3);
-      for (const i of located.points) lit[i] = 1;
-      renderer?.setLit(lit);
+      light(located.points);
       goal.target = [at[0], at[1], at[2] * (1 - goal.flat)];
       goal.distance = Math.min(goal.distance, 1.1);
       problem = "";
@@ -290,8 +397,9 @@
   }
 
   function clearQuery() {
+    if (!located) return;
     located = null;
-    if (coords) renderer?.setLit(new Float32Array(coords.length / 3));
+    light([]);
     touched();
   }
 
@@ -303,8 +411,11 @@
       }
       return;
     }
-    if (e.key === "Escape") clearQuery();
-    else if (e.key === "f" || e.key === "F") home();
+    if (e.key === "Escape") {
+      clearQuery();
+      clearSelection();
+    } else if (e.key === "f" || e.key === "F") home();
+    else if (e.key === "l" || e.key === "L") toggleLabels();
     else if (e.key === "2") setFlat(true);
     else if (e.key === "3") setFlat(false);
   }
@@ -326,6 +437,16 @@
 
   const ready = $derived(view?.State === "ready" && counts.length > 0);
   const total = $derived(counts.reduce((a, b) => a + b, 0));
+  const entries = $derived(
+    mode === "type"
+      ? types.map((t, i) => ({ name: t === "other" ? "Other types" : t, title: t, color: slotColor(i, t), count: typeCounts[i] ?? 0 }))
+      : roots.map((r, i) => ({ name: folderName(r), title: r || "A folder no longer searched", color: slotColor(i, r), count: counts[i] ?? 0 })),
+  );
+  const MODES: [Mode, string][] = [
+    ["folder", "Folder"],
+    ["type", "Type"],
+    ["age", "Age"],
+  ];
 </script>
 
 <svelte:window {onkeydown} />
@@ -344,6 +465,11 @@
     aria-label="A map of the index: every dot is a piece of one of your files, near others that mean something alike"
   ></canvas>
 
+  {#each labels as label (label.text)}
+    <span class="topic" style:left="{label.x}px" style:top="{label.y}px" style:font-size="{label.size}px"
+      style:opacity={label.fade * (located || selected ? 0.35 : 1)} aria-hidden="true">{label.text}</span>
+  {/each}
+
   {#if marker}
     <span class="marker" style:left="{marker.x}px" style:top="{marker.y}px" aria-hidden="true"></span>
   {/if}
@@ -358,26 +484,25 @@
         <button class:on={!flatView} onclick={() => setFlat(false)} aria-pressed={!flatView}>3D</button>
         <button class:on={flatView} onclick={() => setFlat(true)} aria-pressed={flatView}>2D</button>
       </div>
+      <div class="toggle" role="group" aria-label="Colour by">
+        {#each MODES as [id, text]}
+          <button class:on={mode === id} onclick={() => setMode(id)} aria-pressed={mode === id}>{text}</button>
+        {/each}
+      </div>
+      {#if topics.length}
+        <div class="toggle">
+          <button class:on={showLabels} onclick={toggleLabels} aria-pressed={showLabels}>Labels</button>
+        </div>
+      {/if}
       {#if view?.Stale}
         <button class="quiet" onclick={build} title="The index has changed since this map was made">Rebuild</button>
       {/if}
     </header>
 
-    <ul class="legend" aria-label="Folders">
-      {#each roots as root, index}
-        <li>
-          <button class:off={hidden.has(index)} onclick={() => toggleFolder(index)} title={root || "A folder no longer searched"}
-            aria-pressed={!hidden.has(index)}>
-            <span class="dot" style:background={index < SLOTS.length && root ? SLOTS[index] : "var(--other)"}></span>
-            <span class="name">{folderName(root)}</span>
-            <span class="count">{counts[index]?.toLocaleString()}</span>
-          </button>
-        </li>
-      {/each}
-      <li class="total">{total.toLocaleString()} pieces</li>
-    </ul>
+    <Legend label={mode === "type" ? "File types" : mode === "age" ? "Age" : "Folders"} {entries}
+      hidden={mode === "age" ? new Set() : hiddenBy[mode]} cuts={mode === "age" ? cuts : null} {total} ontoggle={toggleGroup} />
 
-    <p class="help">Drag to turn · right-drag to move · scroll to zoom · double-click to fly in · F to come back</p>
+    <p class="help">Drag to turn · right-drag to move · scroll to zoom · click a dot for its whole file · double-click to fly in · L for labels · F to come back</p>
   {/if}
 
   {#if hover?.point}
@@ -386,7 +511,22 @@
       <p class="where">{folderName(card.root)} · {card.kind.replace("_", " ")}</p>
       <p class="file">{card.uri}</p>
       {#if card.text}<p class="text">{card.text}</p>{/if}
-      <p class="hint">Click to open</p>
+      <p class="hint">Click to show the whole file</p>
+    </aside>
+  {/if}
+
+  {#if selected}
+    {@const index = selected.index}
+    <aside class="card pinned" aria-live="polite">
+      <p class="where">
+        {selected.point ? `${folderName(selected.point.root)} · ` : ""}{selected.pieces === 1 ? "1 piece" : `${selected.pieces.toLocaleString()} pieces`}
+      </p>
+      <p class="file">{selected.point?.uri ?? "…"}</p>
+      {#if selected.pieces > 1}<p class="hint">The line runs through its pieces in reading order.</p>{/if}
+      <div class="actions">
+        <button class="quiet" onclick={() => Atlas.Open(index).catch((error) => (problem = String(error)))}>Open the file</button>
+        <button class="quiet" onclick={clearSelection}>Close</button>
+      </div>
     </aside>
   {/if}
 
@@ -540,60 +680,33 @@
     color: var(--night);
     font-weight: 500;
   }
-  .legend {
+  .topic {
     position: absolute;
-    left: 16px;
-    bottom: 16px;
-    max-height: 50vh;
-    overflow-y: auto;
-    margin: 0;
-    padding: 8px;
-    list-style: none;
-    border: 1px solid var(--edge);
-    border-radius: 14px;
-    background: var(--panel);
-    backdrop-filter: blur(12px);
-  }
-  .legend button {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 5px 8px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    text-align: left;
-  }
-  .legend button:hover {
-    background: rgba(255, 255, 255, 0.06);
-  }
-  .legend button.off {
-    color: var(--ink-3);
-  }
-  .legend button.off .dot {
-    opacity: 0.25;
-  }
-  .dot {
-    flex: none;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-  }
-  .name {
-    flex: 1;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    transform: translate(-50%, -50%);
+    color: var(--ink-1);
+    font-family: var(--sans);
+    font-weight: 500;
     white-space: nowrap;
+    text-shadow:
+      0 0 3px var(--night),
+      0 0 8px var(--night),
+      0 1px 2px var(--night);
+    pointer-events: none;
+    transition: opacity 180ms var(--ease);
   }
-  .count,
-  .total {
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
+  .card.pinned {
+    top: 68px;
+    right: 16px;
+    pointer-events: auto;
   }
-  .total {
-    padding: 6px 8px 2px;
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .actions .quiet {
+    height: 30px;
+    padding: 0 12px;
   }
   .help {
     position: absolute;

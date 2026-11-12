@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from omni_memory.api.deps import Engine, get_engine, get_store
 from omni_memory.atlas import Atlas
+from omni_memory.atlas_facts import Fact, describe
 from omni_memory.store import FlatStore
 
 router = APIRouter(prefix="/map")
@@ -23,14 +24,30 @@ class MapStatusOut(BaseModel):
     message: str
     count: int
     stale: bool
+    installed: bool  # the map's layout library is installed
+
+
+class TopicOut(BaseModel):
+    label: str
+    at: list[float]
+    count: int
 
 
 class MapOut(BaseModel):
-    """Point i is at coords[3i:3i+3] (float32, little-endian) and belongs to roots[source[i]]."""
+    """Point i is at coords[3i:3i+3] (float32, little-endian) and belongs to roots[source[i]].
 
-    coords: str  # base64
-    source: str  # base64 of uint16 per point
+    The per-point arrays are base64 of little-endian numbers, one per point.
+    """
+
+    coords: str
+    source: str  # uint16
     roots: list[str]
+    file: str  # uint32: points of one file share a number
+    rank: str  # uint32: the point's place in reading order within its file
+    type: str  # uint16: an index into types
+    types: list[str]  # file types, commonest first; "other" last when there are more
+    modified: str  # uint32: the file's last change, seconds since 1970
+    topics: list[TopicOut]  # named regions, largest first
 
 
 class MapPointOut(BaseModel):
@@ -76,11 +93,35 @@ def read_map(
     names = sorted(set(layout.sources))
     number = {name: i for i, name in enumerate(names)}
     source = np.array([number[s] for s in layout.sources], dtype="<u2")
-    return MapOut(
-        coords=base64.b64encode(layout.coords.astype("<f4").tobytes()).decode(),
-        source=base64.b64encode(source.tobytes()).decode(),
-        roots=[roots.get(name, "") for name in names],  # "" for a folder no longer searched
+    facts = describe(
+        layout.ids,
+        {
+            id_: Fact(uri, src, loc, mtime)
+            for id_, (src, uri, loc, mtime) in store.every_fact().items()
+        },
     )
+    return MapOut(
+        coords=_b64(layout.coords.astype("<f4")),
+        source=_b64(source),
+        roots=[roots.get(name, "") for name in names],  # "" for a folder no longer searched
+        file=_b64(facts.file),
+        rank=_b64(facts.rank),
+        type=_b64(facts.type),
+        types=facts.types,
+        modified=_b64(facts.modified),
+        topics=[TopicOut(label=t.label, at=list(t.at), count=t.count) for t in layout.topics],
+    )
+
+
+@router.delete("", status_code=204)
+def remove_map(atlas: Annotated[Atlas, Depends(get_atlas)]) -> None:
+    """Forget the map and delete its file; the launcher then removes the layout library."""
+    if not atlas.forget():
+        raise HTTPException(status_code=409, detail="the map is being built")
+
+
+def _b64(values: np.ndarray) -> str:
+    return base64.b64encode(values.tobytes()).decode()
 
 
 @router.get("/points/{index}")

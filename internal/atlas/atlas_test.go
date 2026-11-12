@@ -36,6 +36,13 @@ func (f *fakeEngine) Map(context.Context) (sidecar.MapPoints, error) { return si
 
 func (f *fakeEngine) MapPoint(context.Context, int) (sidecar.MapPoint, error) { return f.point, nil }
 
+func (f *fakeEngine) RemoveMap(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.state = "none"
+	return nil
+}
+
 func (f *fakeEngine) Locate(context.Context, string) (sidecar.Located, error) {
 	return sidecar.Located{}, nil
 }
@@ -80,6 +87,23 @@ func TestBuildInstallsTheExtraOnlyWhenTheEngineLacksIt(t *testing.T) {
 					tc.installs, tc.builds, tc.want)
 			}
 		})
+	}
+}
+
+func TestRemoveForgetsTheMapThenUninstallsAndIsRefusedDuringABuild(t *testing.T) {
+	engine := &fakeEngine{state: "ready"}
+	var stateWhileUninstalling string
+	s := New(Options{Engine: engine, Running: func() bool { return true },
+		Uninstall: func(context.Context) error { stateWhileUninstalling = engine.state; return nil }})
+	if err := s.Remove(); err != nil {
+		t.Fatal(err)
+	}
+	if stateWhileUninstalling != "none" {
+		t.Errorf("the library went before the map was forgotten (engine state %q)", stateWhileUninstalling)
+	}
+	s.busy = true
+	if err := s.Remove(); err == nil {
+		t.Error("a remove during a build was let through")
 	}
 }
 
