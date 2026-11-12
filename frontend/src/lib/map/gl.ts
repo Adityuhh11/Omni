@@ -1,6 +1,7 @@
 /**
- * Draws the map's points with WebGL2: one soft round dot per chunk, added onto the dark (so dense regions glow), smaller with
- * distance. Points a query landed among are "lit": larger, with a white core, while the rest dim.
+ * Draws the map's points with WebGL2: one solid round dot per chunk with a thin dark rim, smaller with distance. Dots are
+ * opaque and depth-tested, so a near dot covers a far one instead of their light adding up into a haze. Points a query
+ * landed among are "lit": larger, with a white core, drawn in front; the rest fade toward the background.
  */
 
 const VERTEX = `#version 300 es
@@ -13,23 +14,33 @@ uniform float u_size;
 uniform float u_dim;
 out vec4 v_color;
 out float v_lit;
+out float v_size;
+const vec3 NIGHT = vec3(0.055, 0.059, 0.071);
 void main() {
   gl_Position = u_matrix * vec4(a_pos.xy, a_pos.z * (1.0 - u_flat), 1.0);
-  gl_PointSize = clamp(u_size * (1.0 + a_lit * 1.8) / gl_Position.w, 1.5, 30.0);
-  v_color = vec4(a_color.rgb, a_color.a * mix(u_dim, 1.0, a_lit));
+  gl_Position.z -= a_lit * 0.01 * gl_Position.w; // lit dots in front of the dimmed ones
+  gl_PointSize = clamp(u_size * (1.0 + a_lit * 1.8) / gl_Position.w, 2.0, 30.0);
+  v_color = vec4(mix(NIGHT, a_color.rgb, mix(u_dim, 1.0, a_lit)), a_color.a);
   v_lit = a_lit;
+  v_size = gl_PointSize;
 }`;
 
 const FRAGMENT = `#version 300 es
 precision mediump float;
 in vec4 v_color;
 in float v_lit;
+in float v_size;
 out vec4 color;
 void main() {
+  if (v_color.a < 0.5) discard; // a hidden folder
   float d = length(gl_PointCoord - 0.5) * 2.0;
-  if (d > 1.0) discard;
-  float core = v_lit * (1.0 - smoothstep(0.0, 0.55, d));
-  color = vec4(mix(v_color.rgb, vec3(1.0), core * 0.7), v_color.a * (1.0 - smoothstep(0.45, 1.0, d)));
+  float px = 2.0 / v_size; // one screen pixel, in d units
+  float edge = 1.0 - smoothstep(1.0 - px, 1.0, d);
+  if (edge <= 0.0) discard;
+  float rim = v_size > 5.0 ? smoothstep(1.0 - 2.5 * px, 1.0 - 1.5 * px, d) : 0.0;
+  float core = v_lit * (1.0 - smoothstep(0.0, 0.45, d));
+  vec3 rgb = mix(v_color.rgb, vec3(1.0), core * 0.8);
+  color = vec4(mix(rgb, rgb * 0.35, rim), edge);
 }`;
 
 export interface Renderer {
@@ -41,7 +52,7 @@ export interface Renderer {
 
 /** A renderer for canvas, or null when the machine has no WebGL2 (the page then says so). */
 export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
-  const gl = canvas.getContext("webgl2", { antialias: false, premultipliedAlpha: false, alpha: false });
+  const gl = canvas.getContext("webgl2", { antialias: false, premultipliedAlpha: false, alpha: false, depth: true });
   if (!gl) return null;
   const program = link(gl, VERTEX, FRAGMENT);
   const at = (name: string) => gl.getUniformLocation(program, name);
@@ -78,9 +89,11 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     draw(matrix, flat, dim, size) {
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(0.055, 0.059, 0.071, 1); // the map's night (#0e0f12), whatever the system's look
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.enable(gl.BLEND); // only the one-pixel edge is see-through
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.useProgram(program);
       gl.uniformMatrix4fv(uniforms.matrix, false, matrix);
       gl.uniform1f(uniforms.flat, flat);

@@ -7,15 +7,13 @@
 export const SLOTS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 const OTHER = "#6b6e76";
 
-/** The point colours (rgba, 0-1) for each point's folder; a hidden folder's points are fully transparent. */
+/** The point colours (rgba, 0-1) for each point's folder: solid, or alpha 0 for a hidden folder's points. */
 export function colorsFor(source: Uint16Array, roots: string[], hidden: Set<number>): Float32Array {
-  // Thinner dots where there are many: additive dots in a dense region would otherwise all add up to white.
-  const alpha = Math.min(0.85, Math.max(0.22, 9000 / Math.max(1, source.length)));
   const palette = roots.map((root, i) => rgb(i < SLOTS.length && root ? SLOTS[i] : OTHER));
   const out = new Float32Array(source.length * 4);
   for (let i = 0; i < source.length; i++) {
     const [r, g, b] = palette[source[i]] ?? rgb(OTHER);
-    out.set([r, g, b, hidden.has(source[i]) ? 0 : alpha], i * 4);
+    out.set([r, g, b, hidden.has(source[i]) ? 0 : 1], i * 4);
   }
   return out;
 }

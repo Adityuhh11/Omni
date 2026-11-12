@@ -424,7 +424,7 @@
 </main>
 
 <style>
-  /* The map is night whatever the system's look: dots glow on dark. Its own ink, then. */
+  /* The map is night whatever the system's look. Its own ink, then. */
   main {
     --night: #0e0f12;
     --ink-1: #f0efec;
