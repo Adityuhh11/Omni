@@ -13,9 +13,14 @@
 </p>
 
 <p align="center">
+  <img alt="Omni: press a hotkey, type, and open an app, a photo or a note" src="docs/media/hero.gif" width="720">
+</p>
+
+<p align="center">
   <a href="#what-it-does">What it does</a> ·
   <a href="#install">Install</a> ·
   <a href="#file-search">File search</a> ·
+  <a href="#performance">Performance</a> ·
   <a href="#privacy-and-the-network">Privacy</a> ·
   <a href="#build-from-source">Build</a> ·
   <a href="#contributing">Contributing</a>
@@ -30,6 +35,19 @@
 | **Instant** | The bar is painted about 33 ms after the hotkey (median) and never waits on a model. |
 | **Light** | Idle, no CPU and about 270 MB including its web view. File search is optional and adds a small model and a Python process. |
 | **Private** | No telemetry, no account. Your files and your index never leave the machine. The few network calls are [listed below](#privacy-and-the-network). |
+
+## Try it
+
+Press **Alt+Shift+Space** (Mac: **⌥⇧Space**), then type:
+
+| Type | You get |
+|---|---|
+| `vsc` | Visual Studio Code, first in the list |
+| `a pug wrapped in a blanket` | the photo, found by what it shows |
+| `how I hash passwords` | the code file and the line |
+| `5 km in miles` | the answer; Enter copies it |
+| `ask: summarize my notes` | a chat with a model on this computer |
+| `timer 25` | a small timer at the edge of the screen |
 
 ## What it does
 
