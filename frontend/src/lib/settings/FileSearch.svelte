@@ -209,17 +209,6 @@
           </button>
         {/if}
       </div>
-      <div class="item">
-        <span class="text">
-          <span class="name">Map of your index</span>
-          <span class="sub">
-            A picture of what file search knows: every piece of every file is a dot, and pieces that mean something alike sit
-            together. Turn it in 3D, hover a dot to read it, click to open its file. The first time, it downloads a layout
-            library (about 150 MB).
-          </span>
-        </span>
-        <button type="button" class="btn" onclick={() => Atlas.Show()}>Open the map</button>
-      </div>
       {#if search.IndexState === "indexing" && search.IndexTotal > 0}
         <div class="item thin">
           <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax={search.IndexTotal} aria-valuenow={search.IndexDone} aria-label="Files indexed in this folder">
@@ -230,6 +219,22 @@
     {/if}
     {#if search.Error}<p class="item error">The last attempt failed: {search.Error}</p>{/if}
   </div>
+
+  {#if search.Enabled && search.EngineState === "ready" && !search.HoldIndexing && !search.NeedsUpdate}
+    <h3 class="group-title">Map</h3>
+    <div class="group">
+      <div class="item">
+        <span class="text">
+          <span class="name">Map of your index</span>
+          <span class="sub">
+            Every piece of every file is a dot; pieces that mean something alike sit together. Turn it in 3D, hover a dot to
+            read it, click to open its file. The first time, it downloads a layout library (about 150 MB).
+          </span>
+        </span>
+        <button type="button" class="btn" onclick={() => Atlas.Show()}>Open the map</button>
+      </div>
+    </div>
+  {/if}
 
   {#if search.Enabled && search.EngineState === "ready" && search.HoldIndexing && !search.NeedsUpdate}
     <div class="group callout" role="status">
