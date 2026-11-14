@@ -34,8 +34,8 @@ var (
 	chatSpec  = windowSpec{name: "chat", title: "Omni AI", route: "chat", width: 720, height: 540, minWidth: 520, minHeight: 380, onTop: true, card: true}
 	// The calendar shows a week: seven columns want more width than the notes.
 	calendarSpec = windowSpec{name: "calendar", title: "Omni Calendar", route: "calendar", width: 980, height: 660, minWidth: 720, minHeight: 460, card: true}
-	// The map of the index: a framed window whose page is one canvas, larger than the calendar (more room, more map).
-	mapSpec   = windowSpec{name: "map", title: "Omni Map", route: "map", width: 1100, height: 760, minWidth: 640, minHeight: 440}
+	// The map of the index: a card whose page is one canvas, larger than the calendar (more room, more map).
+	mapSpec   = windowSpec{name: "map", title: "Omni Map", route: "map", width: 1100, height: 760, minWidth: 640, minHeight: 440, card: true}
 	timerSpec = windowSpec{name: "timer", title: "Omni Timer", route: "timer", width: 264, height: 92, onTop: true, overlay: true}
 )
 

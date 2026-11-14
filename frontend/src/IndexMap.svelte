@@ -3,7 +3,10 @@
   import { Service as Atlas } from "../bindings/omni/internal/atlas";
   import type { View } from "../bindings/omni/internal/atlas";
   import type { MapPoint, MapTopic } from "../bindings/omni/internal/sidecar";
+  import { Window } from "@wailsio/runtime";
+  import Card from "./lib/Card.svelte";
   import Loader from "./lib/Loader.svelte";
+  import RoundButton from "./lib/RoundButton.svelte";
   import { createRenderer, type Renderer } from "./lib/map/gl";
   import { ageColors, colorsFor, folderName, slotColor } from "./lib/map/folders";
   import { piecesOf } from "./lib/map/files";
@@ -475,7 +478,10 @@
 
 <svelte:window {onkeydown} {onkeyup} onblur={() => held.clear()} />
 
+<Card>
 <main>
+  <div class="drag" aria-hidden="true"></div>
+  <div class="close"><RoundButton icon="close" label="Close" onclick={() => Window.Close()} /></div>
   <canvas
     bind:this={canvas}
     class:pointing={hover !== null}
@@ -586,6 +592,7 @@
 
   {#if problem}<p class="problem floating" role="alert">{problem}</p>{/if}
 </main>
+</Card>
 
 <style>
   /* The map is night whatever the system's look. Its own ink, then. */
@@ -598,12 +605,27 @@
     --other: #6b6e76;
     --panel: rgba(24, 25, 30, 0.82);
     --edge: rgba(255, 255, 255, 0.08);
-    position: fixed;
+    position: absolute;
     inset: 0;
     overflow: hidden;
+    border-radius: 26px;
     background: var(--night);
     color: var(--ink-1);
     font: 400 13px/1.45 var(--sans);
+  }
+  /* The window has no title bar: this strip drags it, and the close button sits above it. */
+  .drag {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 64px;
+    z-index: 1;
+    --wails-draggable: drag;
+  }
+  .close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
   }
   canvas {
     position: absolute;
@@ -623,7 +645,8 @@
     position: absolute;
     top: 16px;
     left: 16px;
-    right: 16px;
+    right: 62px;
+    z-index: 2;
     display: flex;
     gap: 10px;
     align-items: center;
