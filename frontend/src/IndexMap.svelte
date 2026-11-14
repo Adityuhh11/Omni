@@ -58,7 +58,7 @@
   let mode = $state<Mode>("folder");
   let hiddenBy = $state({ folder: new Set<number>(), type: new Set<number>() });
   let cuts = $state<[number, number, number] | null>(null);
-  let showLabels = $state(true);
+  let showLabels = $state(false);
   let labels = $state<{ text: string; x: number; y: number; size: number; fade: number }[]>([]);
 
   // The camera eases toward the goal every frame; input moves the goal.
@@ -163,9 +163,10 @@
     frame = 0;
     const dt = Math.min(0.1, (time - last) / 1000);
     last = time;
-    const idle = !reduced && !flatView && time - lastInput > IDLE_MS && !hover;
-    if (idle) goal.yaw += SPIN * dt;
-    let moving = idle;
+    // While the map may turn, the loop keeps running: the idle time passes with no event to wake it, and so does the end of a hover.
+    const spins = !reduced && !flatView;
+    if (spins && time - lastInput > IDLE_MS && !hover) goal.yaw += SPIN * dt;
+    let moving = spins;
     if (held.size) {
       let dx = 0;
       let dy = 0;
