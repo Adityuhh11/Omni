@@ -12,9 +12,12 @@
   <a href="https://github.com/Adityuhh11/Omni/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Adityuhh11/Omni?display_name=tag"></a>
 </p>
 
-<p align="center">
-  <img alt="Omni: press a hotkey, type, and open an app, a photo or a note" src="docs/media/hero.gif" width="800">
-</p>
+<table>
+  <tr>
+    <td width="50%"><img alt="Finding a photo by describing it" src="docs/media/photo-search.gif"><br><sub>Find a photo by what it shows.</sub></td>
+    <td width="50%"><img alt="Asking Omni AI a question" src="docs/media/ask-ai.gif"><br><sub>Ask a model that runs on your computer.</sub></td>
+  </tr>
+</table>
 
 <p align="center">
   <a href="#what-it-does">What it does</a> ·
@@ -48,13 +51,6 @@ Press **Alt+Shift+Space** (Mac: **⌥⇧Space**), then type:
 | `5 km in miles` | the answer; Enter copies it |
 | `ask: summarize my notes` | a chat with a model on this computer |
 | `timer 25` | a small timer at the edge of the screen |
-
-<table>
-  <tr>
-    <td width="50%"><img alt="Finding a photo by describing it" src="docs/media/photo-search.gif"><br><sub>Find a photo by what it shows.</sub></td>
-    <td width="50%"><img alt="Asking Omni AI a question" src="docs/media/ask-ai.gif"><br><sub>Ask a model that runs on your computer.</sub></td>
-  </tr>
-</table>
 
 ## What it does
 
