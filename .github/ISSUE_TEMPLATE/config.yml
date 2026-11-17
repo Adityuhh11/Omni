@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Question or idea to talk through
+    url: https://github.com/Adityuhh11/Omni/discussions
+    about: Ask how something works, share your setup, or float an idea before it becomes an issue.
   - name: Security problem
     url: https://github.com/Adityuhh11/Omni/security/advisories/new
     about: Please report it privately here instead of in a public issue.
