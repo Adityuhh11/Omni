@@ -1,10 +1,11 @@
 # Documentation index
 
-New here? The repository's [`README.md`](../README.md) explains what Omni is, how to install it and how it works.
+New here? The repository's [`README.md`](../README.md) explains what Omni is and how to install it; `GUIDE.md` has the rest.
 To contribute, read [`CONTRIBUTING.md`](../CONTRIBUTING.md), then `ARCHITECTURE.md`.
 
 | Doc | Answers |
 |---|---|
+| `GUIDE.md` | For users: every command and key, file search, `config.toml`, where Omni keeps its files, updating, and how it works. |
 | `ARCHITECTURE.md` | How the system fits together: modules, data flow, on-disk formats, invariants, and which code is for Windows and which for a Mac. |
 | `api.md` | The HTTP contract the Go launcher codes against: process contract, routes, status codes. |
 | `ROADMAP.md` | What comes next, and what is not planned. |
