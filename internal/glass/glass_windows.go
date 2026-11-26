@@ -3,6 +3,7 @@ package glass
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"sync"
 	"syscall"
@@ -145,6 +146,7 @@ var (
 	compositor *object // ICompositor, made on the windows' thread on first use
 	panes      = map[uintptr]*pane{}
 	mu         sync.Mutex // the map; the compositor is only touched inside InvokeSync
+	lastLook   string     // what the glass was the last time a card asked; guarded by mu
 )
 
 func shape(hwnd uintptr, r Rect, _ bool) (Glass, error) {
@@ -152,11 +154,15 @@ func shape(hwnd uintptr, r Rect, _ bool) (Glass, error) {
 		return Glass{}, errors.New("glass: the window has no handle yet")
 	}
 	lk := look()
-	wallpaper := lk == Tint && r.W > 0 && r.H > 0
-	var (
-		err, deskErr error
-		desk         desktop
-	)
+	mu.Lock()
+	prev := lastLook
+	lastLook = lk
+	mu.Unlock()
+	if prev != lk && r.W > 0 {
+		// A card that shows no blur is otherwise a mystery: this says whether Windows asked for it.
+		log.Printf("glass: %q (was %q); Windows' transparency effects and energy saver decide it", lk, prev)
+	}
+	var err error
 	application.InvokeSync(func() {
 		// A panic here would leave InvokeSync waiting for ever (Wails recovers it without finishing the call).
 		defer func() {
@@ -164,23 +170,9 @@ func shape(hwnd uintptr, r Rect, _ bool) (Glass, error) {
 				err = fmt.Errorf("glass: %v", v)
 			}
 		}()
-		if err = shapeNow(hwnd, r, lk); err == nil && wallpaper {
-			desk, deskErr = desktopOf(hwnd)
-		}
+		err = shapeNow(hwnd, r, lk)
 	})
-	if err != nil || !wallpaper {
-		return Glass{Look: lk}, err
-	}
-	// The picture is decoded and drawn here, off the windows' thread: a large wallpaper takes a moment, once per wallpaper.
-	g, werr := Glass{}, deskErr
-	if werr == nil {
-		g, werr = wallpaperGlass(desk)
-	}
-	if werr != nil {
-		logOnce(werr, "the cards are tinted instead")
-		return Glass{Look: Tint}, nil
-	}
-	return g, nil
+	return Glass{Look: lk}, err
 }
 
 // forget releases a window's glass when the window closes: Windows gives a later window the same handle, which must get a pane

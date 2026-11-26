@@ -20,6 +20,9 @@ var interpreters = map[string][]string{
 	".applescript": {"osascript"},
 }
 
+// Languages are the kinds of script the Add dialog writes, the most useful first.
+var Languages = []Language{{"Shell (bash)", ".sh"}, {"Zsh", ".zsh"}, {"Python", ".py"}, {"JavaScript (Node)", ".js"}, {"Ruby", ".rb"}, {"AppleScript", ".applescript"}}
+
 // homebrew are where Homebrew puts interpreters: an app started from the Finder or at login has only the system's folders on
 // its PATH, so node, ruby or a newer python3 would not be found.
 var homebrew = []string{"/opt/homebrew/bin", "/usr/local/bin"}

@@ -164,8 +164,8 @@
     </div>
     {#if theme === "glass" && !isMac}
       <span class="sub">
-        Windows pauses its blur while Energy saver is on: the cards show your wallpaper, blurred, instead of what is behind them
-        until it is off. With Transparency effects off (Personalization, Colors) they are solid.
+        Glass needs Windows' blur. While Energy saver (battery saver) is on, Windows turns the blur off and the cards go almost solid until
+        it is off again. With Transparency effects off (Personalization, Colors) they are solid.
       </span>
     {/if}
   </div>

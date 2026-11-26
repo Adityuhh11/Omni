@@ -3,6 +3,7 @@ package settingsui
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -24,16 +25,19 @@ type windowSpec struct {
 	// overlay makes a small window with no frame and no taskbar button that sits at the right edge of the screen: the
 	// timer. The page draws its own rounded outline on the clear window and says which part drags it.
 	overlay bool
+	// warm keeps a spare window, built and hidden, once the window has been opened: the next opening shows a page that is already
+	// loaded (about 200 ms faster than building one). The spare costs a web view's memory for as long as the program runs.
+	warm bool
 }
 
 var (
-	settingsSpec = windowSpec{name: "settings", title: "Omni Settings", route: "settings", width: 860, height: 620, minWidth: 680, minHeight: 480, card: true}
+	settingsSpec = windowSpec{name: "settings", title: "Omni Settings", route: "settings", width: 860, height: 620, minWidth: 680, minHeight: 480, card: true, warm: true}
 	setupSpec    = windowSpec{name: "setup", title: "Set up Omni", route: "setup", width: 760, height: 700, minWidth: 640, minHeight: 560}
 	// The notes and the chat are as wide as the search bar (720) and shorter than they are wide.
 	notesSpec = windowSpec{name: "notes", title: "Omni Notes", route: "notes", width: 720, height: 520, minWidth: 480, minHeight: 340, onTop: true, card: true}
 	chatSpec  = windowSpec{name: "chat", title: "Omni AI", route: "chat", width: 720, height: 540, minWidth: 520, minHeight: 380, onTop: true, card: true}
 	// The calendar shows a week: seven columns want more width than the notes.
-	calendarSpec = windowSpec{name: "calendar", title: "Omni Calendar", route: "calendar", width: 980, height: 660, minWidth: 720, minHeight: 460, card: true}
+	calendarSpec = windowSpec{name: "calendar", title: "Omni Calendar", route: "calendar", width: 980, height: 660, minWidth: 720, minHeight: 460, card: true, warm: true}
 	// The map of the index: a card whose page is one canvas, larger than the calendar (more room, more map).
 	mapSpec   = windowSpec{name: "map", title: "Omni Map", route: "map", width: 1100, height: 760, minWidth: 640, minHeight: 440, card: true}
 	timerSpec = windowSpec{name: "timer", title: "Omni Timer", route: "timer", width: 264, height: 92, onTop: true, overlay: true}
@@ -55,7 +59,8 @@ type Window struct {
 
 	mu    sync.Mutex
 	win   *application.WebviewWindow
-	count int // Wails wants every window name to be new
+	spare *application.WebviewWindow // built and hidden, for the next opening (see windowSpec.warm); guarded by build
+	count int                        // Wails wants every window name to be new
 }
 
 // NewWindow returns a Window for app.
@@ -101,11 +106,44 @@ func (w *Window) OpenAt(section string) {
 		if !w.spec.overlay {
 			win.Focus()
 		}
-		if section != "" {
-			win.ExecJS(fmt.Sprintf("location.hash = %q", "#"+w.spec.route+"/"+section))
-		}
+		w.goTo(win, section)
 		return
 	}
+	win := w.spare
+	if win != nil { // a page that is already loaded: showing it is all that is left
+		w.spare = nil
+	} else {
+		win = w.create(section, false)
+	}
+	w.adopt(win)
+	win.Show()
+	if !w.spec.overlay {
+		win.Focus() // the timer must not take the keyboard from whatever is being worked in
+	}
+	if w.spec.warm {
+		w.goTo(win, section)                  // a new window was made on its section; a spare was made on none
+		time.AfterFunc(time.Second, w.refill) // after the window in use has settled
+	}
+}
+
+// goTo points an open window at a section (or note): the page listens for the change of address.
+func (w *Window) goTo(win *application.WebviewWindow, section string) {
+	if section != "" {
+		win.ExecJS(fmt.Sprintf("location.hash = %q", "#"+w.spec.route+"/"+section))
+	}
+}
+
+// refill makes the spare window, hidden, unless there is one or the window is not one that keeps a spare.
+func (w *Window) refill() {
+	w.build.Lock()
+	defer w.build.Unlock()
+	if w.spare == nil {
+		w.spare = w.create("", true)
+	}
+}
+
+// create builds a window on the section, shown unless hidden. It is not the window in use until adopt.
+func (w *Window) create(section string, hidden bool) *application.WebviewWindow {
 	w.mu.Lock()
 	w.count++
 	name := fmt.Sprintf("%s-%d", w.spec.name, w.count)
@@ -124,6 +162,7 @@ func (w *Window) OpenAt(section string) {
 		AlwaysOnTop:      w.spec.onTop && (w.onTop == nil || w.onTop()),
 		URL:              url,
 		BackgroundColour: application.NewRGBA(0, 0, 0, 255),
+		Hidden:           hidden,
 	}
 	if w.spec.card {
 		options.Frameless = true
@@ -143,7 +182,11 @@ func (w *Window) OpenAt(section string) {
 		}
 	}
 	platformWindow(&options, w.spec)
-	win := w.app.Window.NewWithOptions(options)
+	return w.app.Window.NewWithOptions(options)
+}
+
+// adopt makes win the window in use: it counts as open until it closes.
+func (w *Window) adopt(win *application.WebviewWindow) {
 	if !w.spec.overlay { // the timer is a small overlay, not a window to switch to
 		dock.Counter.Opened()
 	}
@@ -160,10 +203,6 @@ func (w *Window) OpenAt(section string) {
 	w.mu.Lock()
 	w.win = win
 	w.mu.Unlock()
-	win.Show()
-	if !w.spec.overlay {
-		win.Focus() // the timer must not take the keyboard from whatever is being worked in
-	}
 }
 
 // Close closes the window if it is open. It is forgotten at once, so opening again straight after builds a new one instead of

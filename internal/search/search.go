@@ -139,6 +139,7 @@ type Service struct {
 	roots  func() map[string]string // source id -> folder on disk, as configured now
 	status func() sidecar.Status
 	exists func(path string) bool // false for a file deleted since the last sync; tests replace it
+	use    func() bool            // see OnDemand
 
 	mu     sync.Mutex
 	latest int
@@ -151,6 +152,10 @@ type Service struct {
 func New(engine Engine, roots func() map[string]string, status func() sidecar.Status) *Service {
 	return &Service{engine: engine, roots: roots, status: status, exists: fileExists}
 }
+
+// OnDemand makes every real query (not a blank one) tell use that file search is wanted. use reports whether that started the engine,
+// and the answer is then Warming: the page asks again a moment later.
+func (s *Service) OnDemand(use func() bool) { s.use = use }
 
 // Search finds files for query. token identifies the request; use a larger one for each new one.
 func (s *Service) Search(query string, token int) Results {
@@ -193,6 +198,9 @@ func (s *Service) find(ctx context.Context, query string, req sidecar.SearchFile
 			out.Message = "Searching " + strings.ToLower(sc.label) + ". Type what to look for."
 			return out
 		}
+	}
+	if s.use != nil && s.use() {
+		return Results{State: StateWarming, Message: "Search is starting up..."}
 	}
 	switch st := s.status(); st.State {
 	case sidecar.StateReady:
