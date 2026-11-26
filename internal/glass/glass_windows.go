@@ -146,7 +146,7 @@ var (
 	compositor *object // ICompositor, made on the windows' thread on first use
 	panes      = map[uintptr]*pane{}
 	mu         sync.Mutex // the map; the compositor is only touched inside InvokeSync
-	lastLook   string // what the glass was the last time a card asked; guarded by mu
+	lastLook   string     // what the glass was the last time a card asked; guarded by mu
 )
 
 func shape(hwnd uintptr, r Rect, _ bool) (Glass, error) {
