@@ -28,7 +28,7 @@ export const ACCENTS = [
 const GLASS2 = { id: "glass2", label: "Glass 2", plate: "#1c1d21", text: "#ffffff" } as const;
 
 /** The themes this system offers, in the order the picker lists them. */
-export const THEMES: readonly { id: string; label: string; plate: string; text: string }[] = isMac ? [...COMMON_THEMES, GLASS2] : COMMON_THEMES;
+export const THEMES: readonly { id: string; label: string; plate: string; text: string }[] = [...COMMON_THEMES, GLASS2];
 
 /** The Glass 2 bar's accents, offered beside its free colour; the first is a fresh install's (`config.DefaultBarAccent`). */
 export const BAR_ACCENTS = [
@@ -84,6 +84,7 @@ export function applyLook(next: Partial<Look>) {
   };
   const d = document.documentElement.dataset;
   d.theme = look.Theme;
+  d.system = isMac ? "mac" : "windows"; // Glass 2's blur differs: a Mac's is tinted, Windows' is not (theme.css)
   d.ring = look.Ring ? "on" : "off";
   d.accent = look.Accent;
   d.lights = look.Lights ? "on" : "off";

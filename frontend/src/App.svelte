@@ -18,7 +18,7 @@
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
   import Glow from "./lib/Glow.svelte";
-  import { glass } from "./lib/glass";
+  import { glass, glassPane } from "./lib/glass";
   import { showUnexpectedIn } from "./lib/oops";
   import Loader from "./lib/Loader.svelte";
   import { nextMetal, ringsFor } from "./lib/palettes";
@@ -715,7 +715,7 @@
 <svelte:window bind:innerWidth={windowWidth} onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
 <main bind:this={row} style:--row-w="{Math.max(0, windowWidth - SIDE * 2)}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
-  <div class="card" class:ringed class:typing style:height="{cardHeight}px" use:glass={30} bind:this={card} bind:clientWidth={cardWidth}>
+  <div class="card" class:ringed class:typing style:height="{cardHeight}px" use:glass={theme === "glass2" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
     {#if ringed}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
       <Glow running={active} />
@@ -812,7 +812,7 @@
   {#if showQuick}
     <div class="quick" role="group" aria-label="Quick open" style:height="{quickSize}px" style:--tile-size="{quickSize}px" transition:fade={{ duration: 160 }}>
       {#each quick as app, index (app.ID)}
-        <button type="button" class="tile" class:picked={quickPick === index} aria-current={quickPick === index} title="{app.Title}  {isMac ? "⌘" : "Ctrl+"}{index + 1}" aria-label="Open {app.Title} ({isMac ? "Command" : "Control"} {index + 1})" onclick={() => openQuick(index)} bind:this={tiles[index]}>
+        <button type="button" class="tile" class:picked={quickPick === index} aria-current={quickPick === index} title="{app.Title}  {isMac ? "⌘" : "Ctrl+"}{index + 1}" aria-label="Open {app.Title} ({isMac ? "Command" : "Control"} {index + 1})" onclick={() => openQuick(index)} bind:this={tiles[index]} use:glassPane>
           <span class="liquid" aria-hidden="true">
             <span class="flow">
               <span class="blob one"></span>

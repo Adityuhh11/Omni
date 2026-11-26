@@ -287,8 +287,8 @@ html[data-accent]:not([data-accent="none"]) {
   --lift-keyed: color-mix(in srgb, var(--chrome) 20%, transparent);
 }
 
-/* Glass 2: a clear plate over a blur of what is behind the window (the blur is the system's, put under the page by the launcher; see
-   panel.Glass), set in the Mac's own typeface. Colours are the UI Component Library's dark tokens; the ember accent lives only here. */
+/* Glass 2: a clear plate over a blur of what is behind the window (the blur is the system's: on a Mac the launcher's Liquid Glass,
+   panel.Glass; on Windows the compositor's, internal/glass), set in the system's own typeface (SF Pro, Segoe UI Variable). Colours are the UI Component Library's dark tokens; the ember accent lives only here. */
 html[data-theme="glass2"] {
   --ring-fallback: linear-gradient(135deg, #c94d14, #ffb08a 45%, #f2601d 70%, #e8f26b);
   --plate: rgba(22, 23, 27, 0.2); /* the Liquid Glass under it (panel.Glass) carries its own dark tint */
@@ -303,12 +303,32 @@ html[data-theme="glass2"] {
   --on-chrome: #0b0c0e;
   --danger: #ff5a5f;
   --radius: 27px; /* half the slim bar's height: a pill, which the blur behind it (panel.Glass) copies */
-  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
+}
+/* Windows' blur carries no tint of its own (a Mac's Liquid Glass does), so the plate there is denser for the text to read over a
+   bright window, with the faint text shadow Glass uses. */
+html[data-theme="glass2"][data-system="windows"] {
+  --plate: rgba(18, 19, 23, 0.5);
+}
+html[data-theme="glass2"][data-system="windows"]:not([data-glass="off"]) {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+/* Where the system cannot blur (Windows' energy saver) or transparency is off, as in Glass: nearly opaque, then opaque. */
+html[data-theme="glass2"][data-glass="tint"] {
+  --plate: rgba(22, 23, 27, 0.88);
+}
+html[data-theme="glass2"][data-glass="off"] {
+  --plate: #16171b;
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-theme="glass2"] {
+    --plate: #16171b;
+  }
 }
 /* Settings and the cards hold pages of text: their glass is frosted more heavily than the bar's, so what is behind stays a soft blur. */
-html[data-theme="glass2"]:is([data-surface="settings"], [data-surface="card"]) {
+html[data-theme="glass2"]:is([data-surface="settings"], [data-surface="card"]):not([data-glass="off"], [data-glass="tint"]) {
   --plate: rgba(20, 21, 25, 0.6);
   --tile: rgba(255, 255, 255, 0.07);
   --lift: rgba(255, 255, 255, 0.12);

@@ -54,10 +54,13 @@ const (
 	slotQueryInterface            = 0
 	slotRelease                   = 2
 	slotCreateDesktopWindowTarget = 3  // ICompositorDesktopInterop
+	slotCreateContainerVisual     = 9  // ICompositor
 	slotCreateSpriteVisual        = 22 // ICompositor
 	slotCreateHostBackdropBrush   = 6  // ICompositor3
 	slotCreateRectangleClip       = 8  // ICompositor7, no arguments
 	slotPutRoot                   = 7  // ICompositionTarget
+	slotGetChildren               = 6  // IContainerVisual
+	slotInsertAtTop               = 9  // IVisualCollection
 	slotPutBrush                  = 7  // ISpriteVisual
 	slotPutClip                   = 15 // IVisual
 	slotPutIsVisible              = 19
@@ -128,16 +131,28 @@ func guid(s string) *windows.GUID {
 	return &g
 }
 
-// pane is one window's glass.
+// pane is one window's glass: a container visual on the window with a piece of blurred backdrop per shape (the card, and the
+// quick-open tiles beside the bar). Pieces are kept once made and hidden while there are fewer shapes.
 type pane struct {
+	root     *object // IVisual of the container
+	children *object // IVisualCollection
+	pieces   []piece
+	target   *object // kept alive: releasing it takes the visuals off the window
+}
+
+// piece is one rounded rectangle of glass.
+type piece struct {
 	visual *object // IVisual
 	clip   *object // IRectangleClip
-	target *object // kept alive: releasing it takes the visual off the window
 }
 
 func (p *pane) release() {
-	p.clip.release()
-	p.visual.release()
+	for _, pc := range p.pieces {
+		pc.clip.release()
+		pc.visual.release()
+	}
+	p.children.release()
+	p.root.release()
 	p.target.release()
 }
 
@@ -147,12 +162,12 @@ var (
 	mu         sync.Mutex // the map; the compositor is only touched inside InvokeSync
 )
 
-func shape(hwnd uintptr, r Rect, _ bool) (Glass, error) {
+func shape(hwnd uintptr, shapes []Rect, _ bool) (Glass, error) {
 	if hwnd == 0 {
 		return Glass{}, errors.New("glass: the window has no handle yet")
 	}
 	lk := look()
-	wallpaper := lk == Tint && r.W > 0 && r.H > 0
+	wallpaper := lk == Tint && len(shapes) > 0
 	var (
 		err, deskErr error
 		desk         desktop
@@ -164,7 +179,7 @@ func shape(hwnd uintptr, r Rect, _ bool) (Glass, error) {
 				err = fmt.Errorf("glass: %v", v)
 			}
 		}()
-		if err = shapeNow(hwnd, r, lk); err == nil && wallpaper {
+		if err = shapeNow(hwnd, shapes, lk); err == nil && wallpaper {
 			desk, deskErr = desktopOf(hwnd)
 		}
 	})
@@ -217,7 +232,7 @@ func look() string {
 	return Blur
 }
 
-func shapeNow(hwnd uintptr, r Rect, lk string) error {
+func shapeNow(hwnd uintptr, shapes []Rect, lk string) error {
 	mu.Lock()
 	p := panes[hwnd]
 	mu.Unlock()
@@ -233,7 +248,7 @@ func shapeNow(hwnd uintptr, r Rect, lk string) error {
 		return nil
 	}
 	if p == nil {
-		if r.W <= 0 || r.H <= 0 {
+		if len(shapes) == 0 {
 			return nil
 		}
 		var err error
@@ -244,18 +259,37 @@ func shapeNow(hwnd uintptr, r Rect, lk string) error {
 		panes[hwnd] = p
 		mu.Unlock()
 	}
-	visible := r.W > 0 && r.H > 0
-	if err := p.visual.call(slotPutIsVisible, boolArg(visible)); err != nil || !visible {
-		return err
+	for len(p.pieces) < len(shapes) {
+		pc, err := newPiece(p.children)
+		if err != nil {
+			return fmt.Errorf("glass: %w", err)
+		}
+		p.pieces = append(p.pieces, pc)
 	}
 	dpi, _, _ := procDpiOfWindow.Call(hwnd)
 	if dpi == 0 {
 		dpi = 96
 	}
-	s := float64(dpi) / 96
-	x, y, w, h, radius := r.X*s, r.Y*s, r.W*s, r.H*s, r.R*s
+	scale := float64(dpi) / 96
+	for i, pc := range p.pieces {
+		shown := i < len(shapes)
+		if err := pc.visual.call(slotPutIsVisible, boolArg(shown)); err != nil {
+			return fmt.Errorf("glass: show the pane: %w", err)
+		}
+		if shown {
+			if err := pc.place(shapes[i], scale); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// place moves and cuts the piece to r, a rounded rectangle in CSS pixels, on a window at scale device pixels per CSS pixel.
+func (pc piece) place(r Rect, scale float64) error {
+	x, y, w, h, radius := r.X*scale, r.Y*scale, r.W*scale, r.H*scale, r.R*scale
 	offset := [3]float32{float32(x), float32(y), 0} // a Vector3 is 12 bytes, passed by address
-	if err := p.visual.call(slotPutOffset, uintptr(unsafe.Pointer(&offset))); err != nil {
+	if err := pc.visual.call(slotPutOffset, uintptr(unsafe.Pointer(&offset))); err != nil {
 		return fmt.Errorf("glass: place the pane: %w", err)
 	}
 	steps := []struct {
@@ -263,15 +297,15 @@ func shapeNow(hwnd uintptr, r Rect, lk string) error {
 		slot int
 		arg  uintptr
 	}{
-		{p.visual, slotPutSize, vector2(w, h)},
-		{p.clip, slotPutLeft, float(0)},
-		{p.clip, slotPutTop, float(0)},
-		{p.clip, slotPutRight, float(w)},
-		{p.clip, slotPutBottom, float(h)},
-		{p.clip, slotPutTopLeftRadius, vector2(radius, radius)},
-		{p.clip, slotPutTopRightRadius, vector2(radius, radius)},
-		{p.clip, slotPutBottomRightRadius, vector2(radius, radius)},
-		{p.clip, slotPutBottomLeftRadius, vector2(radius, radius)},
+		{pc.visual, slotPutSize, vector2(w, h)},
+		{pc.clip, slotPutLeft, float(0)},
+		{pc.clip, slotPutTop, float(0)},
+		{pc.clip, slotPutRight, float(w)},
+		{pc.clip, slotPutBottom, float(h)},
+		{pc.clip, slotPutTopLeftRadius, vector2(radius, radius)},
+		{pc.clip, slotPutTopRightRadius, vector2(radius, radius)},
+		{pc.clip, slotPutBottomRightRadius, vector2(radius, radius)},
+		{pc.clip, slotPutBottomLeftRadius, vector2(radius, radius)},
 	}
 	for _, step := range steps {
 		if err := step.o.call(step.slot, step.arg); err != nil {
@@ -288,7 +322,7 @@ func boolArg(b bool) uintptr {
 	return 0
 }
 
-// newPane puts a visual filled with the blurred backdrop behind the window's page.
+// newPane puts an empty container visual behind the window's page, for the pieces of glass to go in.
 func newPane(hwnd uintptr) (_ *pane, err error) {
 	built := &pane{}
 	defer func() {
@@ -312,69 +346,95 @@ func newPane(hwnd uintptr) (_ *pane, err error) {
 		return nil, fmt.Errorf("desktop interop: %w", err)
 	}
 	defer interop.release()
-	// Not topmost: the visual goes behind the window's content, the page.
+	// Not topmost: the visuals go behind the window's content, the page.
 	if err := interop.call(slotCreateDesktopWindowTarget, hwnd, 0, uintptr(unsafe.Pointer(&built.target))); err != nil {
 		return nil, fmt.Errorf("window target: %w", err)
 	}
-	sprite, err := compositor.create(slotCreateSpriteVisual)
+	container, err := compositor.create(slotCreateContainerVisual) // IContainerVisual
 	if err != nil {
-		return nil, fmt.Errorf("sprite visual: %w", err)
+		return nil, fmt.Errorf("container visual: %w", err)
 	}
-	defer sprite.release()
-	c3, err := compositor.as(iidCompositor3)
-	if err != nil {
-		return nil, fmt.Errorf("compositor 3 (Windows 10 1703 or later): %w", err)
+	defer container.release()
+	if built.children, err = container.create(slotGetChildren); err != nil {
+		return nil, fmt.Errorf("the container's children: %w", err)
 	}
-	defer c3.release()
-	backdrop, err := c3.create(slotCreateHostBackdropBrush)
-	if err != nil {
-		return nil, fmt.Errorf("backdrop brush: %w", err)
-	}
-	defer backdrop.release()
-	brush, err := backdrop.as(iidBrush)
-	if err != nil {
+	if built.root, err = container.as(iidVisual); err != nil {
 		return nil, err
-	}
-	defer brush.release()
-	spriteVisual, err := sprite.as(iidSpriteVisual)
-	if err != nil {
-		return nil, err
-	}
-	defer spriteVisual.release()
-	if err := spriteVisual.call(slotPutBrush, uintptr(unsafe.Pointer(brush))); err != nil {
-		return nil, fmt.Errorf("fill the visual: %w", err)
-	}
-	if built.visual, err = sprite.as(iidVisual); err != nil {
-		return nil, err
-	}
-	c7, err := compositor.as(iidCompositor7)
-	if err != nil {
-		return nil, fmt.Errorf("compositor 7 (Windows 10 2004 or later): %w", err)
-	}
-	defer c7.release()
-	rect, err := c7.create(slotCreateRectangleClip)
-	if err != nil {
-		return nil, fmt.Errorf("clip: %w", err)
-	}
-	defer rect.release()
-	if built.clip, err = rect.as(iidRectangleClip); err != nil {
-		return nil, err
-	}
-	asClip, err := rect.as(iidClip)
-	if err != nil {
-		return nil, err
-	}
-	defer asClip.release()
-	if err := built.visual.call(slotPutClip, uintptr(unsafe.Pointer(asClip))); err != nil {
-		return nil, fmt.Errorf("clip the visual: %w", err)
 	}
 	asTarget, err := built.target.as(iidCompositionTarget)
 	if err != nil {
 		return nil, err
 	}
 	defer asTarget.release()
-	if err := asTarget.call(slotPutRoot, uintptr(unsafe.Pointer(built.visual))); err != nil {
-		return nil, fmt.Errorf("put the visual on the window: %w", err)
+	if err := asTarget.call(slotPutRoot, uintptr(unsafe.Pointer(built.root))); err != nil {
+		return nil, fmt.Errorf("put the glass on the window: %w", err)
+	}
+	return built, nil
+}
+
+// newPiece adds a visual filled with the blurred backdrop, clipped to a rounded rectangle, on top of the pane's others.
+func newPiece(children *object) (_ piece, err error) {
+	var built piece
+	defer func() {
+		if err != nil {
+			built.clip.release()
+			built.visual.release()
+		}
+	}()
+	sprite, err := compositor.create(slotCreateSpriteVisual)
+	if err != nil {
+		return piece{}, fmt.Errorf("sprite visual: %w", err)
+	}
+	defer sprite.release()
+	c3, err := compositor.as(iidCompositor3)
+	if err != nil {
+		return piece{}, fmt.Errorf("compositor 3 (Windows 10 1703 or later): %w", err)
+	}
+	defer c3.release()
+	backdrop, err := c3.create(slotCreateHostBackdropBrush)
+	if err != nil {
+		return piece{}, fmt.Errorf("backdrop brush: %w", err)
+	}
+	defer backdrop.release()
+	brush, err := backdrop.as(iidBrush)
+	if err != nil {
+		return piece{}, err
+	}
+	defer brush.release()
+	spriteVisual, err := sprite.as(iidSpriteVisual)
+	if err != nil {
+		return piece{}, err
+	}
+	defer spriteVisual.release()
+	if err := spriteVisual.call(slotPutBrush, uintptr(unsafe.Pointer(brush))); err != nil {
+		return piece{}, fmt.Errorf("fill the visual: %w", err)
+	}
+	if built.visual, err = sprite.as(iidVisual); err != nil {
+		return piece{}, err
+	}
+	c7, err := compositor.as(iidCompositor7)
+	if err != nil {
+		return piece{}, fmt.Errorf("compositor 7 (Windows 10 2004 or later): %w", err)
+	}
+	defer c7.release()
+	rect, err := c7.create(slotCreateRectangleClip)
+	if err != nil {
+		return piece{}, fmt.Errorf("clip: %w", err)
+	}
+	defer rect.release()
+	if built.clip, err = rect.as(iidRectangleClip); err != nil {
+		return piece{}, err
+	}
+	asClip, err := rect.as(iidClip)
+	if err != nil {
+		return piece{}, err
+	}
+	defer asClip.release()
+	if err := built.visual.call(slotPutClip, uintptr(unsafe.Pointer(asClip))); err != nil {
+		return piece{}, fmt.Errorf("clip the visual: %w", err)
+	}
+	if err := children.call(slotInsertAtTop, uintptr(unsafe.Pointer(built.visual))); err != nil {
+		return piece{}, fmt.Errorf("add the visual to the glass: %w", err)
 	}
 	return built, nil
 }

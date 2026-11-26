@@ -118,7 +118,7 @@ type CalendarFeed struct {
 const DefaultBarAccent = "#e5484d"
 
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
-var Themes = append([]string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass"}, systemThemes...)
+var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass", "glass2"}
 
 // Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
 var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}
