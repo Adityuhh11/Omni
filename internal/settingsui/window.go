@@ -43,6 +43,9 @@ var (
 	timerSpec = windowSpec{name: "timer", title: "Omni Timer", route: "timer", width: 264, height: 92, onTop: true, overlay: true}
 )
 
+// cardRadius is the corners of the card the page draws on a clear window (lib/Card.svelte, Timer.svelte); the blur behind it has the same.
+const cardRadius = 26
+
 // overlayMargin is the gap between the timer and the right edge of the screen, and its top is a fifth of the way down.
 const overlayMargin = 16
 
@@ -61,6 +64,29 @@ type Window struct {
 	win   *application.WebviewWindow
 	spare *application.WebviewWindow // built and hidden, for the next opening (see windowSpec.warm); guarded by build
 	count int                        // Wails wants every window name to be new
+	glass bool                       // the system's blur is behind the page (the Glass theme)
+}
+
+// SetGlass puts the system's blur behind the page of a window drawn as a card (the Glass theme), or takes it away: on the window
+// in use and on the hidden spare, so the next opening has it too. A window built later starts with it. Windows with a frame of
+// their own are left alone.
+func (w *Window) SetGlass(on bool) {
+	if !w.spec.card && !w.spec.overlay {
+		return
+	}
+	w.mu.Lock()
+	w.glass = on
+	win := w.win
+	w.mu.Unlock()
+	if win != nil {
+		setGlass(win.NativeWindow(), on, cardRadius)
+	}
+	w.build.Lock()
+	spare := w.spare
+	w.build.Unlock()
+	if spare != nil {
+		setGlass(spare.NativeWindow(), on, cardRadius)
+	}
 }
 
 // NewWindow returns a Window for app.
@@ -200,9 +226,22 @@ func (w *Window) adopt(win *application.WebviewWindow) {
 		}
 		w.mu.Unlock()
 	})
+	// The native window exists once it is shown; the blur goes under it then.
+	win.OnWindowEvent(events.Common.WindowShow, func(*application.WindowEvent) {
+		w.mu.Lock()
+		on := w.glass && w.win == win
+		w.mu.Unlock()
+		if on {
+			setGlass(win.NativeWindow(), true, cardRadius)
+		}
+	})
 	w.mu.Lock()
 	w.win = win
+	on := w.glass
 	w.mu.Unlock()
+	if on { // a spare built before the Glass theme was chosen, or one whose native window is already there
+		setGlass(win.NativeWindow(), true, cardRadius)
+	}
 }
 
 // Close closes the window if it is open. It is forgotten at once, so opening again straight after builds a new one instead of

@@ -1,3 +1,4 @@
+import { isMac } from "./platform";
 import { Service as Glass } from "../../bindings/omni/internal/glass";
 
 // The frosted glass behind a card, while the Glass theme is chosen. A page cannot blur what is behind its own window, so it tells the window where its card is
@@ -6,6 +7,31 @@ import { Service as Glass } from "../../bindings/omni/internal/glass";
 // system for less transparency, or a system that cannot do it, gets the plate opaque (html[data-glass="off"]).
 
 const reduced = matchMedia("(prefers-reduced-transparency: reduce)");
+
+// The themes whose cards this glass is under. Glass 2 on a Mac has the launcher's Liquid Glass instead (panel.Glass), so here only on
+// Windows, where it is this same blur.
+const themes = isMac ? ["glass"] : ["glass", "glass2"];
+const wanted = () => themes.includes(document.documentElement.dataset.theme ?? "");
+
+// Panes drawn as the same glass beside a card (the bar's quick-open tiles), each round: the card's glass is asked for with them.
+const panes = new Set<HTMLElement>();
+const resend = new Set<() => void>();
+const sendAll = () => resend.forEach((soon) => soon());
+
+/** A Svelte action: the element is a round pane of the same glass as the card on its page. */
+export function glassPane(node: HTMLElement) {
+  panes.add(node);
+  const observer = new ResizeObserver(sendAll);
+  observer.observe(node);
+  sendAll();
+  return {
+    destroy() {
+      observer.disconnect();
+      panes.delete(node);
+      sendAll();
+    },
+  };
+}
 
 function off() {
   document.documentElement.dataset.glass = "off";
@@ -17,19 +43,25 @@ export function glass(node: HTMLElement, radius: number) {
   let frame = 0;
   const send = () => {
     frame = 0;
-    if (document.documentElement.dataset.theme !== "glass" || reduced.matches) {
+    if (!wanted() || reduced.matches) {
       if (reduced.matches) off();
       // Another theme, or no transparency wanted: take away any blur this card had.
-      if (last !== "none" && last !== "") Glass.Shape(0, 0, 0, 0, 0, true).catch((err) => console.warn("glass:", err));
+      if (last !== "none" && last !== "") Glass.Shape([], true).catch((err) => console.warn("glass:", err));
       last = "none"; // a window that never had glass is not asked to remove it
       return;
     }
     const box = node.getBoundingClientRect();
+    // Only Glass 2 draws its tiles as glass; the other themes give them their plate.
+    const beside = [...(document.documentElement.dataset.theme === "glass2" ? panes : [])].map((pane) => ({ pane, box: pane.getBoundingClientRect() }));
+    const shapes = [
+      { X: box.left, Y: box.top, W: box.width, H: box.height, R: radius },
+      ...beside.map(({ box }) => ({ X: box.left, Y: box.top, W: box.width, H: box.height, R: Math.min(box.width, box.height) / 2 })),
+    ];
     const dark = getComputedStyle(document.documentElement).colorScheme !== "light";
-    const key = `${box.left} ${box.top} ${box.width} ${box.height} ${radius} ${dark}`;
+    const key = `${shapes.map((r) => `${r.X} ${r.Y} ${r.W} ${r.H} ${r.R}`).join(" ")} ${dark}`;
     if (key === last) return;
     last = key;
-    Glass.Shape(box.left, box.top, box.width, box.height, radius, dark).then(
+    Glass.Shape(shapes, dark).then(
       // A call that failed earlier (the window had no handle yet) does not keep the card opaque once one works.
       (look) => {
         if (look.Look === "blur") delete document.documentElement.dataset.glass;
@@ -44,11 +76,12 @@ export function glass(node: HTMLElement, radius: number) {
   };
   // Once a frame at most: the bar's card changes height every frame while it grows.
   const soon = () => (frame ||= requestAnimationFrame(send));
+  resend.add(soon);
   const observer = new ResizeObserver(soon);
   observer.observe(node);
   // The glass comes and goes with the Glass theme.
-  const themes = new MutationObserver(soon);
-  themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  const themeChanges = new MutationObserver(soon);
+  themeChanges.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("resize", soon);
   // Energy saver and the transparency setting change while the window is hidden: ask again whenever it is shown.
   const shown = () => {
@@ -69,14 +102,15 @@ export function glass(node: HTMLElement, radius: number) {
       soon();
     },
     destroy() {
+      resend.delete(soon);
       observer.disconnect();
-      themes.disconnect();
+      themeChanges.disconnect();
       removeEventListener("resize", soon);
       removeEventListener("focus", shown);
       reduced.removeEventListener("change", changed);
       cancelAnimationFrame(frame);
       // The card is gone: no glass left behind on an empty window.
-      if (last !== "none" && last !== "") Glass.Shape(0, 0, 0, 0, 0, true).catch((err) => console.warn("glass:", err));
+      if (last !== "none" && last !== "") Glass.Shape([], true).catch((err) => console.warn("glass:", err));
     },
   };
 }

@@ -39,7 +39,17 @@ On a Mac they are drawn as `⌃ ⌥ ⇧ ⌘`.
 | `Ctrl+Enter` | Reveals a file in Explorer or Finder |
 | `Alt+Enter` | Searches the web from any row |
 | `Ctrl+,` | Opens Settings |
+| `Ctrl+1` to `Ctrl+4` (`⌘1` to `⌘4` on a Mac) | Opens that quick-open app beside the bar, whether or not something is typed |
+| `→` `←` | With nothing typed, walk through the quick-open apps; `Enter` opens the one picked, `Esc` goes back to the bar |
 | `Esc` | Closes the bar |
+
+### Quick open
+
+Beside the bar are three or four round shortcuts to apps (Settings > General > Quick open). You can set each slot to an app or leave it as
+"Suggested for you": then Omni fills it with the apps you usually open from the bar at this time of day, on this kind of day (a weekday or
+the weekend). The suggestion is worked out on your computer from the launch times Omni already keeps to rank results (at most 20 per app):
+nothing new is recorded and nothing is sent anywhere. "Forget my usage history" empties those launch times. With no history yet the slots show
+common apps (Safari, Notes, Mail on a Mac; Edge, File Explorer, Notepad on Windows).
 
 In file search, `code:` `img:` `pdf:` `doc:` `vid:` before a query limit it to one kind of file.
 
@@ -91,6 +101,12 @@ browser = 'firefox'                                 # empty = the system default
 trigger = 'gh'
 title   = 'GitHub'
 url     = 'https://github.com/search?q={q}'
+
+[quick_open]
+enabled = true
+count   = 3              # 3 or 4
+suggest = true           # fill the open slots from your launch times (on this computer only)
+apps    = ['app:...']    # slots set by hand, in order; '' leaves a slot to the suggestions
 
 [search]
 enabled  = true

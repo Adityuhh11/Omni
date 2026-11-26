@@ -76,6 +76,10 @@ type Options struct {
 	PickFolder func() (string, error)
 	// Browsers lists the installed browsers by name.
 	Browsers func() []string
+	// ForgetUsage drops the launch history the ranking and the quick-open suggestions learn from (state.Store.ForgetUses).
+	ForgetUsage func() error
+	// Apps lists the installed apps by name, for choosing what goes in the quick-open row.
+	Apps func() []AppChoice
 	// OpenFolder shows a folder in Explorer.
 	OpenFolder func(path string) error
 	// Autostart says whether the launcher starts when the user signs in; SetAutostart changes that.
@@ -244,6 +248,52 @@ func (s *Service) SetRing(on bool) string {
 // SetAccent changes the colour of focus, filled buttons and the selection; a name that is not one of config.Accents is refused.
 func (s *Service) SetAccent(name string) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Accent = name }))
+}
+
+// AppChoice is one installed app, as the quick-open slots offer it: ID is the palette id ("app:<id>").
+type AppChoice struct {
+	ID   string
+	Name string
+}
+
+// QuickOpen is how the quick-open row under the empty bar is set.
+func (s *Service) QuickOpen() config.QuickOpen { return s.o.Store.Get().QuickOpen }
+
+// SaveQuickOpen sets the quick-open row; a count out of range or something that is not an app is refused and nothing changes.
+func (s *Service) SaveQuickOpen(q config.QuickOpen) string {
+	for len(q.Apps) > 0 && q.Apps[len(q.Apps)-1] == "" {
+		q.Apps = q.Apps[:len(q.Apps)-1] // trailing "suggested" slots need not be written down
+	}
+	return reason(s.o.Store.Update(func(c *config.Config) { c.QuickOpen = q }))
+}
+
+// QuickOpenApps lists the installed apps for the quick-open slots, by name.
+func (s *Service) QuickOpenApps() []AppChoice {
+	if s.o.Apps == nil {
+		return []AppChoice{}
+	}
+	return s.o.Apps()
+}
+
+// ForgetUsage forgets every launch Omni has remembered, so the suggestions and the ranking start again from nothing.
+func (s *Service) ForgetUsage() string {
+	if s.o.ForgetUsage == nil {
+		return "not available"
+	}
+	if err := s.o.ForgetUsage(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// SetBarAccent changes the colour of the Glass 2 bar's icon, caret, glow and edge; anything but "#rrggbb" is refused.
+func (s *Service) SetBarAccent(hex string) string {
+	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.BarAccent = strings.ToLower(strings.TrimSpace(hex)) }))
+}
+
+// SetBarBorder shows or hides the thin edge round the Glass 2 search bar.
+func (s *Service) SetBarBorder(on bool) string {
+	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.BarBorder = on }))
 }
 
 // SaveTimer sets the pomodoro's lengths; a value out of range is refused and nothing changes.

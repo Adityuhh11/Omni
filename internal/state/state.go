@@ -156,6 +156,16 @@ func (s *Store) save() error {
 	return nil
 }
 
+// ForgetUses drops every launch time and everything learned from what was typed: the ranking and the quick-open
+// suggestions start again from nothing. Pins, tags and waived offers stay.
+func (s *Store) ForgetUses() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data.Uses = map[string][]int64{}
+	s.data.Learned = map[string]map[string]int{}
+	return s.save()
+}
+
 // MaxPins is how many things can be pinned: the bar lists them all when it opens, so the list has to fit.
 const MaxPins = 8
 

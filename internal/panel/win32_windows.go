@@ -140,3 +140,12 @@ func resizeHeight(hwnd uintptr, heightPx int) {
 	_, _, _ = procSetWindowPos.Call(hwnd, 0, 0, 0, uintptr(int32(width)), uintptr(int32(heightPx)),
 		swpNoMove|swpNoZOrder|swpNoActivate)
 }
+
+// setGlass does nothing on Windows: the page's own plate is the whole look there.
+func setGlass(uintptr, bool, int, int, int, int, int, int) {}
+
+// setGlassPanes does nothing on Windows either.
+func setGlassPanes(uintptr, []int, int, int) {}
+
+// setPageScale does nothing on Windows: WebView2 follows the monitor's own scale, which place() already sized the window by.
+func setPageScale(uintptr, uint32) {}

@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"slices"
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -41,10 +42,10 @@ func logOnce(err error, outcome string) {
 	}
 }
 
-// Shape puts the glass behind the calling window's card: x, y, width, height and corner radius in CSS pixels from the window's
-// top left. A width of 0 takes it away. dark says whether the page's theme is dark, which picks the Mac's material; Windows'
-// blur has no colour of its own. It says what the glass is.
-func (s *Service) Shape(ctx context.Context, x, y, width, height, radius float64, dark bool) (Glass, error) {
+// Shape puts the glass behind the calling window's card, and behind anything beside it drawn as the same glass (the bar's quick-open
+// tiles): each a rounded rectangle in CSS pixels from the window's top left. No shapes takes it away. dark says whether the page's
+// theme is dark, which picks the Mac's material; Windows' blur has no colour of its own. It says what the glass is.
+func (s *Service) Shape(ctx context.Context, shapes []Rect, dark bool) (Glass, error) {
 	win, ok := ctx.Value(application.WindowKey).(application.Window)
 	if !ok || win == nil {
 		return Glass{}, errors.New("glass: the call came from no window")
@@ -56,7 +57,8 @@ func (s *Service) Shape(ctx context.Context, x, y, width, height, radius float64
 			forget(hwnd)
 		})
 	}
-	g, err := shape(hwnd, Rect{X: x, Y: y, W: width, H: height, R: radius}, dark)
+	shapes = slices.DeleteFunc(slices.Clone(shapes), func(r Rect) bool { return r.W <= 0 || r.H <= 0 })
+	g, err := shape(hwnd, shapes, dark)
 	if err != nil {
 		logOnce(err, "the cards are opaque")
 	}

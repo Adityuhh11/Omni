@@ -45,6 +45,8 @@ type Config struct {
 	Search       Search `toml:"search"`
 	// UI holds the small choices about how the bar feels.
 	UI UI `toml:"ui"`
+	// QuickOpen is the row of apps under the empty bar, opened with the number keys.
+	QuickOpen QuickOpen `toml:"quick_open"`
 	// Timer is the pomodoro timer (internal/timer).
 	Timer Timer `toml:"timer"`
 	// Clipboard is the searchable history of what is copied (internal/clipboard).
@@ -77,7 +79,30 @@ type UI struct {
 	Accent string `toml:"accent"`
 	// Lights sets two faint lights in the accent's colour wandering inside the bar, in the Glass theme.
 	Lights bool `toml:"lights"`
+	// BarAccent is the colour of the search bar's icon, caret, glow and edge in the Glass 2 theme, as "#rrggbb".
+	BarAccent string `toml:"bar_accent"`
+	// BarBorder draws a thin edge in BarAccent round the search bar in the Glass 2 theme; off, the bar has no edge at all.
+	BarBorder bool `toml:"bar_border"`
 }
+
+// QuickOpen is the row of apps shown under the bar while nothing is typed; 1 to Count (or Cmd/Ctrl with the number) opens one.
+type QuickOpen struct {
+	// Enabled shows the row.
+	Enabled bool `toml:"enabled"`
+	// Count is how many apps the row holds: QuickOpenMin to QuickOpenMax.
+	Count int `toml:"count"`
+	// Suggest fills the slots the person has not set with the apps Omni expects them to want now. It is worked out on this
+	// computer from the launch times Omni already keeps for ranking (state.json); nothing about it is sent anywhere.
+	Suggest bool `toml:"suggest"`
+	// Apps are the apps put in the row by hand, as palette ids ("app:<id>"), in slot order; "" leaves that slot to the suggestions.
+	Apps []string `toml:"apps,omitempty"`
+}
+
+// The quick-open row holds this many apps at least and at most.
+const (
+	QuickOpenMin = 3
+	QuickOpenMax = 4
+)
 
 // Calendar lists the calendars that are shown. Their subscription addresses are secrets (anyone with one can read the
 // calendar), so they are in the system credential store under "calendar-<id>", never here.
@@ -91,8 +116,11 @@ type CalendarFeed struct {
 	Name string `toml:"name"`
 }
 
+// DefaultBarAccent is the Glass 2 bar's accent on a fresh install.
+const DefaultBarAccent = "#e5484d"
+
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
-var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass"}
+var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass", "glass2"}
 
 // Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
 var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}
@@ -340,6 +368,7 @@ func (c Config) Clone() Config {
 	c.Calendar.Feeds = slices.Clone(c.Calendar.Feeds)
 	c.Timer.BlockSites = slices.Clone(c.Timer.BlockSites)
 	c.Timer.BlockApps = slices.Clone(c.Timer.BlockApps)
+	c.QuickOpen.Apps = slices.Clone(c.QuickOpen.Apps)
 	return c
 }
 
@@ -377,6 +406,17 @@ func (c Config) Validate() error {
 	}
 	if err := c.validateWeb(); err != nil {
 		return err
+	}
+	if q := c.QuickOpen; q.Count < QuickOpenMin || q.Count > QuickOpenMax || len(q.Apps) > QuickOpenMax {
+		return fmt.Errorf("quick_open count must be %d to %d, with at most %d apps", QuickOpenMin, QuickOpenMax, QuickOpenMax)
+	}
+	for _, id := range c.QuickOpen.Apps {
+		if id != "" && !strings.HasPrefix(id, "app:") {
+			return fmt.Errorf("quick_open app %q must be an app id (app:...)", id)
+		}
+	}
+	if !isHexColour(c.UI.BarAccent) {
+		return fmt.Errorf("ui bar_accent %q must be a colour written as #rrggbb", c.UI.BarAccent)
 	}
 	if err := c.validateSnippets(); err != nil {
 		return err
@@ -509,6 +549,19 @@ func (c Config) validateChat() error {
 }
 
 // validateWeb checks the browser settings: a typo in a quicklink should fail loudly, not give a dead row.
+// isHexColour says whether s is a colour written as "#rrggbb", the one form a colour picker gives and every page reads.
+func isHexColour(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for _, r := range s[1:] {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", r) {
+			return false
+		}
+	}
+	return true
+}
+
 func (c Config) validateWeb() error {
 	if c.SearchURL != "" {
 		if err := checkTemplate(c.SearchURL); err != nil {

@@ -360,6 +360,13 @@ func run(afterUpdate bool) error {
 	calendars := calendar.New(filepath.Join(dataDir, "calendar"), func() []config.CalendarFeed { return store.Get().Calendar.Feeds },
 		func(id string) (string, error) { return secrets.Get(calendarAddress(id)) }, log.Printf)
 	chatWindow := settingsui.NewChatWindow(app, func() bool { return store.Get().Chat.OnTop })
+	// The Glass 2 theme's card windows have the system's blur behind them, as the bar does.
+	setGlass := func(on bool) {
+		for _, w := range []*settingsui.Window{settingsWindow, notesWindow, chatWindow, timerWindow, calendarWindow, mapWindow} {
+			w.SetGlass(on)
+		}
+	}
+	setGlass(store.Get().UI.Theme == "glass2")
 	// A notes folder that cannot be opened (read-only, a strange profile) costs the notes, not the launcher.
 	noteStore, err := notes.Open(filepath.Join(filepath.Dir(path), "notes"))
 	var noteBook palette.NoteBook
@@ -533,6 +540,7 @@ func run(afterUpdate bool) error {
 		application.NewService(indexMap),
 		application.NewService(opener),
 		application.NewService(keepPalette(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
+			QuickOpen: func() config.QuickOpen { return store.Get().QuickOpen },
 			Copy: func(text string) error {
 				if !clipboard.OwnCopy(func() bool { return app.Clipboard.SetText(text) }) { // the history must not keep what this program copied
 					return errors.New("the clipboard is in use by another program; try again")
@@ -609,8 +617,19 @@ func run(afterUpdate bool) error {
 				return app.Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).
 					SetTitle("Choose a folder to search").PromptForSingleSelection()
 			},
-			Browsers:             web.Installed,
-			Shortcuts:            shortcuts,
+			Browsers:    web.Installed,
+			Shortcuts:   shortcuts,
+			ForgetUsage: history.ForgetUses,
+			Apps: func() []settingsui.AppChoice {
+				var choices []settingsui.AppChoice
+				for _, a := range catalog.Index.All() {
+					choices = append(choices, settingsui.AppChoice{ID: "app:" + a.ID, Name: a.Name})
+				}
+				slices.SortFunc(choices, func(a, b settingsui.AppChoice) int {
+					return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+				})
+				return choices
+			},
 			OpenFolder:           openFolder,
 			Clipboard:            clips,
 			RebindClipboard:      func(accelerator string) error { return bar.RebindFill(accelerator, "clip: ") },
@@ -679,8 +698,11 @@ func run(afterUpdate bool) error {
 	// first and only saves the change if that worked.
 	store.Subscribe(func(old, updated config.Config) {
 		browser.Update(updated.Browser, updated.SearchURL, updated.Quicklinks)
-		if old.UI.Theme != updated.UI.Theme || old.UI.Ring != updated.UI.Ring || old.UI.Accent != updated.UI.Accent || old.UI.Lights != updated.UI.Lights {
+		if old.UI != updated.UI {
 			app.Event.Emit("ui:look", updated.UI) // every open window repaints
+		}
+		if old.UI.Theme != updated.UI.Theme {
+			setGlass(updated.UI.Theme == "glass2")
 		}
 		if old.Search.Pace != updated.Search.Pace {
 			indexer.SetPace(updated.Search.Pace)

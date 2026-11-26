@@ -3,6 +3,7 @@ package palette
 import (
 	"context"
 	"fmt"
+	"omni/internal/config"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,8 @@ type Extras struct {
 	Scripts   ScriptBox
 	RunScript func(ctx context.Context, s scripts.Script, input string) (string, error)
 	Paste     func(text string) error
+	// QuickOpen is the quick-open row's settings (quickopen.go).
+	QuickOpen func() config.QuickOpen
 }
 
 // With sets the extras of s and returns it. It is a function, not a method: the exported methods of a service are bound to
