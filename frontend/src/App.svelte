@@ -31,6 +31,7 @@
   import TagPicker from "./lib/TagPicker.svelte";
 
   const DEBOUNCE_MS = 120;
+  const WARMING_RETRY_MS = 1500;
   const RING = 2.5; // px of metal around the card
   const MARGIN_TOP = 12; // clear window above and below the card, for its shadow
   const MARGIN_BOTTOM = 40;
@@ -323,6 +324,11 @@
     answered = asked;
     selected = 0;
     expanded = new Set();
+    if (answer.State === "warming" && active) {
+      // The engine is starting (on demand, or just after launch): ask again until it answers, as typing more would.
+      refreshInfo();
+      timer = setTimeout(runSearch, WARMING_RETRY_MS);
+    }
   }
 
   // The panel acts on the row that was selected when it opened, even if the pointer wanders over

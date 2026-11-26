@@ -121,6 +121,7 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 		{"unknown photo mode", "[search]\npace = 'fast'\nphotos = 'pixels'\n", "photos"},
 		{"unknown video mode", "[search]\npace = 'fast'\nvideos = 'off'\n", "videos"},
 		{"unknown audio mode", "[search]\npace = 'fast'\naudio = 'on'\n", "audio"},
+		{"unknown start mode", "[search]\nstart = 'never'\n", "search start"},
 		{"unknown theme", "[ui]\ntheme = 'neon'\n", "ui theme"},
 		{"unknown accent", "[ui]\naccent = 'neon'\n", "ui accent"},
 	}

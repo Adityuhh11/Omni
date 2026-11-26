@@ -214,6 +214,9 @@ type Search struct {
 	InLauncher bool `toml:"in_launcher"`
 	// GroupResults shows file results under a heading per kind of file, with the single best match first.
 	GroupResults bool `toml:"group_results"`
+	// Start says when the engine starts: with the launcher ("launch"), or when file search is first used and ends after it sat
+	// idle ("search"), for someone who keeps files out of the default search and wants the model's video memory back meanwhile.
+	Start string `toml:"start"`
 	// HoldIndexing keeps the folders from being indexed until the person presses "Start indexing": set when file search
 	// is first downloaded, so the choices below are made before any picture is embedded. A file without the key (every
 	// install made before it existed) indexes as it always did.
@@ -235,6 +238,9 @@ type Search struct {
 	Videos   string `toml:"videos"`
 	Audio    string `toml:"audio"`
 }
+
+// StartModes are the allowed values of Search.Start, the default first.
+var StartModes = []string{"launch", "search"}
 
 // Paces are the allowed values of Search.Pace, from the most to the least demanding.
 var Paces = []string{"fast", "balanced", "gentle"}
@@ -381,6 +387,7 @@ func (c Config) Validate() error {
 		{"ui theme", c.UI.Theme, Themes},
 		{"ui accent", c.UI.Accent, Accents},
 		{"search pace", c.Search.Pace, Paces},
+		{"search start", c.Search.Start, StartModes},
 		{"pdf_pages", c.Search.PDFPages, PDFPageModes},
 		{"photos", c.Search.Photos, PhotoModes},
 		{"videos", c.Search.Videos, VideoModes},
