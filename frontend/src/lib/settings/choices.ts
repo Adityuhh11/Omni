@@ -10,6 +10,12 @@ export const SPEEDS: Option[] = [
   { id: "gentle", name: "Gentle", how: "Takes about six times as long. Your computer stays free and search stays quick." },
 ];
 
+// When the search engine starts. Its model holds video memory the whole time it runs.
+export const STARTS: Option[] = [
+  { id: "launch", name: "With Omni", how: "Ready the moment you search. Holds about 1.1 GB of video memory while Omni runs." },
+  { id: "search", name: "When I search for files", how: "Frees that memory until you search for a file. The first search waits while it starts, and it stops again after 10 idle minutes." },
+];
+
 // What each kind of file is searched by. Pictures are
 // what indexing time goes on: about 0.16 s each on a graphics card, about 5 s on a processor alone.
 export const CHOICES: { kind: Kind; label: string; options: Option[] }[] = [

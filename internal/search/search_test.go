@@ -488,3 +488,32 @@ func TestRecentPlacesFilesOnDiskAndKeepsTheLimit(t *testing.T) {
 		t.Fatalf("an old engine: %v", err)
 	}
 }
+
+func TestTypingWakesAnEngineThatStartsOnDemandAndAnswersWarming(t *testing.T) {
+	engine := &fakeEngine{respond: func(context.Context, sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error) {
+		t.Fatal("the engine was asked before it was up")
+		return sidecar.SearchFilesResponse{}, nil
+	}}
+	off := func() sidecar.Status { return sidecar.Status{State: sidecar.StateOff} }
+	s := newTest(engine, nil, off)
+	woke := 0
+	s.OnDemand(func() bool { woke++; return true })
+
+	if got := s.Search("   ", 1); got.State != StateResults || woke != 0 {
+		t.Fatalf("a blank query must not start the engine: %+v, woke %d", got, woke)
+	}
+	if got := s.Search("jwt", 2); got.State != StateWarming || woke != 1 {
+		t.Fatalf("got %+v, woke %d", got, woke)
+	}
+}
+
+func TestAnEngineThatIsRunningIsNotRestartedByASearch(t *testing.T) {
+	s := newTest(&fakeEngine{respond: func(context.Context, sidecar.SearchFilesRequest) (sidecar.SearchFilesResponse, error) {
+		return sidecar.SearchFilesResponse{}, nil
+	}}, nil, ready)
+	woke := 0
+	s.OnDemand(func() bool { woke++; return false })
+	if got := s.Search("jwt", 1); got.State != StateResults || woke != 1 {
+		t.Fatalf("got %+v, woke %d", got, woke)
+	}
+}

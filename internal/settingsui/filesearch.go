@@ -42,6 +42,8 @@ type SearchView struct {
 	// Data says where the download and the index are saved and whether that can still be changed.
 	Data DataFolder
 	Pace string
+	// Start is when the engine starts: "launch" or "search" (config.StartModes).
+	Start string
 	// HoldIndexing says the folders wait for StartIndexing; Indexed is how many files the index holds, which decides
 	// whether a change of choice is a draft the page keeps until it is saved.
 	HoldIndexing bool
@@ -82,7 +84,7 @@ func (s *Service) Search() SearchView {
 		Step: st.Progress.Step, Steps: st.Progress.Steps, StepName: st.Progress.Name,
 		Done: st.Progress.Done, Total: st.Progress.Total, Message: st.Progress.Message, Error: st.Error,
 		EngineState: string(engine.State), EngineMessage: engine.Message, Device: engine.Device,
-		Hosts: enginesetup.Hosts, DownloadMB: int(enginesetup.DownloadBytes() >> 20), Pace: cfg.Search.Pace,
+		Hosts: enginesetup.Hosts, DownloadMB: int(enginesetup.DownloadBytes() >> 20), Pace: cfg.Search.Pace, Start: cfg.Search.Start,
 		PDFPages: cfg.Search.PDFPages, Photos: cfg.Search.Photos, Videos: cfg.Search.Videos, Audio: cfg.Search.Audio,
 		Exclude: cfg.Exclude, Data: s.dataFolder(cfg, st), HoldIndexing: cfg.Search.HoldIndexing, Indexed: s.indexed(), IndexDone: index.FilesDone, IndexTotal: index.FilesTotal,
 	}
@@ -255,6 +257,11 @@ func (s *Service) SetIndexBetween(between string) string {
 // SetPauseOnBattery makes indexing wait while the computer runs on its battery, or lets it work there.
 func (s *Service) SetPauseOnBattery(on bool) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.Search.PauseOnBattery = on }))
+}
+
+// SetStart chooses when the engine starts: with the launcher, or when file search is first used.
+func (s *Service) SetStart(start string) string {
+	return reason(s.o.Store.Update(func(c *config.Config) { c.Search.Start = start }))
 }
 
 // SetPace sets how hard indexing works: fast, balanced or gentle.

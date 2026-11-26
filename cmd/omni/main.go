@@ -235,7 +235,8 @@ func run(afterUpdate bool) error {
 		engine  *sidecar.Supervisor
 	)
 	refresh := func() {
-		icon.SetStatus(statusLine(bar.HotkeyError(), engine.Status(), indexer.Status(), store.Get().Search.HoldIndexing))
+		search := store.Get().Search
+		icon.SetStatus(statusLine(bar.HotkeyError(), engine.Status(), indexer.Status(), search.HoldIndexing, search.Enabled && search.Start == "search"))
 		icon.SetPaused(indexer.Status().Paused)
 	}
 	layout, err := enginesetup.Locate(cfg.Search.DataDir)
@@ -249,6 +250,13 @@ func run(afterUpdate bool) error {
 	// Turning file search on installs the engine in the background; when that has worked, file search is
 	// switched on, which starts the engine (the store's subscriber below).
 	var engineSwitch *sidecar.Switch // set below; an install that ends before the app has started finds it nil
+	var demand *sidecar.OnDemand     // set below with the switch; nil until then
+	// wake starts the engine for what the person just asked of file search, when it starts on demand (and does nothing otherwise).
+	wake := func() {
+		if demand != nil {
+			demand.Use()
+		}
+	}
 	setup := enginesetup.NewManager(enginesetup.NewInstaller(layout, engineSource), func(err error) {
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
@@ -505,7 +513,7 @@ func run(afterUpdate bool) error {
 			indexer.Pause()
 		}
 	}
-	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, indexer.Rescan, togglePause)
+	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, func() { wake(); indexer.Rescan() }, togglePause)
 	for _, service := range []application.Service{
 		application.NewService(panel.NewService(bar)),
 		application.NewService(&glass.Service{}),
@@ -620,6 +628,15 @@ func run(afterUpdate bool) error {
 		st := setup.State()
 		return c.Search.Enabled && st.Installed && !st.NeedsUpdate && !st.Installing
 	}
+	// With "start when I search", the engine (and the video memory its model holds) waits for the first file search and ends after
+	// ten idle minutes; indexing in progress keeps it, and a restart finds the folders' changes by syncing on the way up.
+	demand = sidecar.NewOnDemand(engineSwitch,
+		func() bool { c := store.Get(); return c.Search.Start == "search" && engineWanted(c) },
+		func() bool { return engine.Status().State != sidecar.StateOff },
+		func() bool { return indexer.Status().State == indexing.Indexing },
+		10*time.Minute)
+	fileSearch.OnDemand(demand.Use)
+	go demand.Watch(ctx)
 
 	// The watcher follows the folders: it is started again whenever they change.
 	var watchMu sync.Mutex
@@ -655,15 +672,21 @@ func run(afterUpdate bool) error {
 		}
 		if old.Search.HoldIndexing != updated.Search.HoldIndexing {
 			refresh() // the tray says whether file search waits to be started
+			wake()    // "Start indexing" needs the engine
+		}
+		if old.Search.Start != updated.Search.Start {
+			refresh()
 		}
 		if indexOptions(old.Search) != indexOptions(updated.Search) {
 			indexer.SetOptions(indexOptions(updated.Search))
 			indexer.Rescan() // the engine processes again only the kinds of file whose choice changed
+			wake()
 		}
 		if !slices.Equal(old.Roots, updated.Roots) || !slices.Equal(old.Exclude, updated.Exclude) {
 			indexer.SetFolders(updated.Roots, updated.Exclude)
 			surveys.Set(updated.Roots, updated.Exclude)
 			watchFolders(updated.Roots)
+			wake()
 		}
 		if !reflect.DeepEqual(old.Chat, updated.Chat) {
 			chatSvc.Refresh()
@@ -692,11 +715,13 @@ func run(afterUpdate bool) error {
 			}
 		}
 		if want := engineWanted(updated); want != engineWanted(old) {
-			if want {
-				engineSwitch.On()
-			} else {
+			if !want {
 				engineSwitch.Off()
+			} else if updated.Search.Start != "search" {
+				engineSwitch.On()
 			}
+		} else if want && old.Search.Start != updated.Search.Start && updated.Search.Start != "search" {
+			engineSwitch.On() // back to starting with the launcher; the other way, the idle check ends the engine within a minute
 		}
 	})
 
@@ -722,7 +747,7 @@ func run(afterUpdate bool) error {
 			if err := setup.Start(); err != nil {
 				log.Printf("updating file search: %v", err)
 			}
-		} else if engineWanted(cfg) {
+		} else if engineWanted(cfg) && cfg.Search.Start != "search" {
 			engineSwitch.On()
 		} else {
 			engineSwitch.Off()
@@ -806,10 +831,12 @@ func indexOptions(s config.Search) sidecar.IndexOptions {
 }
 
 // statusLine is the one sentence the tray shows about the launcher, most urgent problem first.
-func statusLine(hotkeyError string, engine sidecar.Status, index indexing.Status, held bool) string {
+func statusLine(hotkeyError string, engine sidecar.Status, index indexing.Status, held, asleep bool) string {
 	switch {
 	case hotkeyError != "":
 		return hotkeyError
+	case engine.State == sidecar.StateOff && asleep:
+		return "File search starts when you search for a file."
 	case engine.State == sidecar.StateOff:
 		return "File search is off. Open Settings to turn it on."
 	case engine.State == sidecar.StateFailed:
