@@ -45,6 +45,16 @@
   .card > :global(*) {
     animation: rise 240ms var(--ease) backwards;
   }
+  /* The card and its page wait until the window knows what its glass is (lib/glass.ts), so the tint, the blur and the page arrive
+     together instead of the blur a few frames after the tint. The rise starts when they show, not when the page loads. */
+  :global(html:not([data-glass-ready])) .card {
+    background: transparent;
+    box-shadow: none;
+  }
+  :global(html:not([data-glass-ready])) .card > :global(*) {
+    animation: none;
+    opacity: 0;
+  }
   @keyframes rise {
     from {
       opacity: 0;

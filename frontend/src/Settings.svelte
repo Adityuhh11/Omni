@@ -74,29 +74,34 @@
   </nav>
   <main>
     {#if view}
-      {#if section === "general"}
-        <General {view} />
-      {:else if section === "quicklinks"}
-        <Quicklinks {view} />
-      {:else if section === "snippets"}
-        <Snippets {view} />
-      {:else if section === "hotkeys"}
-        <Shortcuts {view} />
-      {:else if section === "search"}
-        <FileSearch {view} {reload} />
-      {:else if section === "clipboard"}
-        <Clipboard />
-      {:else if section === "omni-ai"}
-        <OmniAI />
-      {:else if section === "ai-apps"}
-        <AIApps />
-      {:else if section === "calendar"}
-        <CalendarSettings />
-      {:else if section === "timer"}
-        <TimerSettings {view} />
-      {:else}
-        <About {view} />
-      {/if}
+      <!-- A page of its own for each section, so a change of section rises in like a window does. -->
+      {#key section}
+        <div class="pane">
+          {#if section === "general"}
+            <General {view} />
+          {:else if section === "quicklinks"}
+            <Quicklinks {view} />
+          {:else if section === "snippets"}
+            <Snippets {view} />
+          {:else if section === "hotkeys"}
+            <Shortcuts {view} />
+          {:else if section === "search"}
+            <FileSearch {view} {reload} />
+          {:else if section === "clipboard"}
+            <Clipboard />
+          {:else if section === "omni-ai"}
+            <OmniAI />
+          {:else if section === "ai-apps"}
+            <AIApps />
+          {:else if section === "calendar"}
+            <CalendarSettings />
+          {:else if section === "timer"}
+            <TimerSettings {view} />
+          {:else}
+            <About {view} />
+          {/if}
+        </div>
+      {/key}
     {/if}
   </main>
 </div>
@@ -192,5 +197,19 @@
   }
   main > :global(*) {
     max-width: 640px;
+  }
+  .pane {
+    animation: pane-in 180ms var(--ease) backwards;
+  }
+  @keyframes pane-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pane {
+      animation: none;
+    }
   }
 </style>
