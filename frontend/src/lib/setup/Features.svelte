@@ -20,14 +20,14 @@
   }
   let { search, ai, fileError, refreshAI, onenable, onchoose, onreset }: Props = $props();
 
-  // What works the moment Omni runs: shown so nobody has to find it later.
-  const READY: { icon: ComponentProps<typeof Icon>["name"]; name: string; eg: string }[] = [
-    { icon: "app", name: "Apps", eg: "vsc" },
-    { icon: "web", name: "Web and quicklinks", eg: "gh rust" },
-    { icon: "note", name: "Notes", eg: "note:" },
-    { icon: "timer", name: "Timer and focus", eg: "timer 25" },
-    { icon: "calc", name: "Calculator", eg: "12*7+3" },
-    { icon: "snippet", name: "Snippets", eg: "snip:" },
+  // What works the moment Omni runs: named so nobody has to find it later.
+  const READY: { icon: ComponentProps<typeof Icon>["name"]; name: string }[] = [
+    { icon: "app", name: "Apps" },
+    { icon: "web", name: "Web" },
+    { icon: "note", name: "Notes" },
+    { icon: "timer", name: "Timer" },
+    { icon: "calc", name: "Calculator" },
+    { icon: "snippet", name: "Snippets" },
   ];
 
   // Clipboard history: a switch that saves as it is flipped, like everywhere in Settings.
@@ -60,21 +60,18 @@
 </script>
 
 <h2>What should Omni do for you?</h2>
-<p class="lede">Most of it works already. Switch on the extras you want; every one can be changed later in Settings.</p>
+<p class="lede">Most of it works already. Switch on the extras you want; Settings changes any of it later.</p>
 
 <h3 class="group-title">Ready to use</h3>
 <ul class="ready">
   {#each READY as r (r.name)}
-    <li>
-      <span class="tile"><Icon name={r.icon} size={18} /></span>
-      <span class="what"><strong>{r.name}</strong><kbd>{r.eg}</kbd></span>
-    </li>
+    <li><Icon name={r.icon} size={15} />{r.name}</li>
   {/each}
 </ul>
 
-<h3 class="group-title">Switch on what you want</h3>
-<div class="offers">
-  <Offer icon="clip" title="Clipboard history" blurb="Find anything you copied in the last 30 days. Text only, kept on this computer; password managers are skipped." example="clip: invoice" on={clipOn} showDetail={clipError !== ""}>
+<h3 class="group-title">Extras</h3>
+<div class="group">
+  <Offer icon="clip" title="Clipboard history" blurb="Search what you copied (clip:). Kept on this computer." on={clipOn} showDetail={clipError !== ""}>
     {#snippet control()}
       <input type="checkbox" class="switch" aria-label="Clipboard history" bind:checked={clipOn} onchange={saveClip} disabled={!clip} />
     {/snippet}
@@ -84,12 +81,12 @@
   </Offer>
 
   {#if ai}
-    <Offer icon="chat" title="Omni AI" blurb="Chat with a small language model that runs on this computer. It can use your files, notes and calendar when you allow it." example="ask:" on={ai.Enabled || ai.Installing} showDetail={ai.Installing || !!ai.Error || aiError !== ""}>
+    <Offer icon="chat" title="Omni AI" blurb="Chat with a model that runs on this computer (ask:)." on={ai.Enabled || ai.Installing} showDetail={ai.Installing || !!ai.Error || aiError !== ""}>
       {#snippet control()}
         {#if ai.Installing}
           <button type="button" class="btn quiet" onclick={() => runAI(() => OmniAI.CancelInstall())}>Cancel</button>
         {:else if needsDownload}
-          <button type="button" class="btn primary" onclick={() => runAI(() => OmniAI.TurnOn())}>Download · {gb(ai.DownloadMB)} GB</button>
+          <button type="button" class="btn" onclick={() => runAI(() => OmniAI.TurnOn())}>Download {gb(ai.DownloadMB)} GB</button>
         {:else}
           <input
             type="checkbox"
@@ -103,9 +100,7 @@
       {#snippet detail()}
         {#if ai.Installing}
           <ProgressBar percent={percent(ai.Done, ai.Total)} label="Downloading Omni AI" />
-          <p class="help">
-            Downloading, once: step {ai.Step} of {ai.Steps}. Omni AI switches itself on when it is done; carry on meanwhile.
-          </p>
+          <p class="help">Step {ai.Step} of {ai.Steps}. It switches on by itself when done; carry on meanwhile.</p>
         {/if}
         {#if ai.Error}<p class="error">The download failed: {ai.Error}</p>{/if}
         {#if aiError}<p class="error">{aiError}</p>{/if}
@@ -113,29 +108,22 @@
     </Offer>
   {/if}
 
-  <Offer
-    icon="search"
-    title="File search"
-    blurb="Find a file by what is in it, not by its name: a page of a PDF, a function, a photo, the moment in a video. About {gb(search.DownloadMB)} GB, once."
-    example="the diagram with three boxes"
-    on={filesStarted}
-    showDetail={filesStarted || details}
-  >
+  <Offer icon="search" title="File search" blurb="Find files by what is in them. About {gb(search.DownloadMB)} GB, once." on={filesStarted} showDetail={filesStarted || details}>
     {#snippet control()}
       {#if search.Installing}
         <span class="state">Downloading</span>
       {:else if filesStarted}
         <span class="state on"><Icon name="check" size={15} />On</span>
       {:else}
-        <button type="button" class="btn" aria-expanded={details} onclick={() => (details = !details)}>{details ? "Hide" : "Set up..."}</button>
+        <button type="button" class="btn" aria-expanded={details} onclick={() => (details = !details)}>{details ? "Hide" : "Set up"}</button>
       {/if}
     {/snippet}
     {#snippet detail()}
       {#if search.Installing}
         <ProgressBar percent={percent(search.Done, search.Total)} label={search.StepName} />
-        <p class="help">Downloading, once: step {search.Step} of {search.Steps}. Carry on; the next screen picks the folders.</p>
+        <p class="help">Step {search.Step} of {search.Steps}. Carry on; the next screen picks the folders.</p>
       {:else if filesStarted}
-        <p class="help">Installed. The next screen picks the folders to read; nothing is read until you start it.</p>
+        <p class="help">Installed. The next screen picks the folders; nothing is read until you start it.</p>
       {:else if details}
         <FileDetails {search} error={fileError} {onenable} onskip={() => (details = false)} {onchoose} {onreset} />
       {/if}
@@ -143,55 +131,33 @@
   </Offer>
 </div>
 
-<p class="help more">More in Settings (<kbd>Ctrl+,</kbd>): calendars, quicklinks, snippets, a hotkey for any app, and the sites to keep out of the way while you focus.</p>
+<p class="help more">More in Settings (<kbd>Ctrl+,</kbd>): calendars, quicklinks, snippets, a hotkey for any app.</p>
 
 <style>
+  /* What works already, as small chips: it is a list to glance at, not to read. */
   .ready {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin: 0 0 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
   .ready li {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    min-width: 0;
-    padding: 10px 12px;
-    border-radius: 14px;
+    gap: 6px;
+    padding: 6px 11px 6px 9px;
+    border-radius: 999px;
     background: var(--tile);
+    color: var(--text-2);
+    font: 560 12px/1 var(--sans);
   }
-  .tile {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: var(--lift);
+  .ready li :global(svg) {
     color: var(--chrome);
   }
-  .what {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    min-width: 0;
-  }
-  .what strong {
-    font: 600 12.5px/1.2 var(--sans);
-  }
-  .what kbd {
-    padding: 1px 6px;
-    font-size: 11px;
-    color: var(--text-2);
-  }
-  .offers {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  .group :global(.offer + .offer) {
+    border-top: 1px solid var(--line);
   }
   .state {
     display: inline-flex;
@@ -204,6 +170,6 @@
     color: var(--chrome);
   }
   .more {
-    margin-top: 18px;
+    margin-top: 16px;
   }
 </style>

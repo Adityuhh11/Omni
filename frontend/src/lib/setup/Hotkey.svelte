@@ -34,16 +34,10 @@
     error = await Settings.SetAutostart(startup);
     if (error !== "") startup = !startup;
   }
-
-  const TIPS: [string, string][] = [
-    [combo("Tab"), "switches between everything, apps, files and the web"],
-    [combo("Ctrl+K"), "shows what can be done with the selected row"],
-    [combo("Ctrl+,"), "opens Settings"],
-  ];
 </script>
 
 <h2>Open it from anywhere</h2>
-<p class="lede">One key, in any program. Omni opens over what you are doing and gives the keyboard back when it closes.</p>
+<p class="lede">Press the hotkey in any program, then type.</p>
 
 <div class="stage" class:tried>
   <div class="caps" aria-label={`The hotkey: ${keycaps(hotkey).join(" ")}`}>
@@ -52,34 +46,29 @@
   {#key tried}
     <p class="say" aria-live="polite" in:fly={{ y: 6, duration: 260 }}>
       {#if tried}
-        <span class="tick"><Icon name="check" size={18} /></span>
-        That is it. It opens over whatever you were doing.
+        <span class="tick"><Icon name="check" size={16} /></span>It opens over whatever you were doing.
       {:else}
-        Try it now: press them. <kbd>{combo("Esc")}</kbd> closes the bar again.
+        Try it now. <kbd>{combo("Esc")}</kbd> closes the bar again.
       {/if}
     </p>
   {/key}
 </div>
 
-<div class="field">
-  <span class="label" id="setup-hotkey-label">Prefer another?</span>
-  <HotkeyField labelId="setup-hotkey-label" value={view.Hotkey} defaultValue={view.DefaultHotkey} onsave={saveHotkey} />
-  <p class="help">Click it, then press the keys you want. Omni says if another program already uses them.</p>
+<div class="group">
+  <div class="item">
+    <span class="name" id="setup-hotkey-label">Hotkey</span>
+    <HotkeyField labelId="setup-hotkey-label" value={view.Hotkey} defaultValue={view.DefaultHotkey} onsave={saveHotkey} />
+  </div>
+  <label class="item">
+    <span class="name">Start when I sign in</span>
+    <input type="checkbox" class="switch" bind:checked={startup} onchange={saveStartup} />
+  </label>
 </div>
+{#if error}<p class="error">{error}</p>{/if}
 
-<div class="field">
-  <label class="check"><input type="checkbox" bind:checked={startup} onchange={saveStartup} /> Start when I sign in</label>
-  {#if error}<p class="error">{error}</p>{/if}
-</div>
-
-<div class="field">
-  <span class="label">Three keys worth knowing, once the bar is open</span>
-  <ul class="tips">
-    {#each TIPS as [key, does] (key)}
-      <li><kbd>{key}</kbd><span>{does}</span></li>
-    {/each}
-  </ul>
-</div>
+<p class="help tips">
+  Once it is open: <kbd>{combo("Tab")}</kbd> changes what is searched, <kbd>{combo("Ctrl+K")}</kbd> shows actions.
+</p>
 
 <style>
   .stage {
@@ -87,21 +76,16 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
-    margin: 0 0 26px;
-    padding: 30px 20px 24px;
-    border-radius: 22px;
-    background: var(--tile);
-    box-shadow: inset 0 0 0 1px var(--line);
-    transition: background 400ms var(--ease);
-    overflow: hidden;
+    gap: 14px;
+    margin: 0 0 22px;
+    padding: 18px 0 8px;
   }
   /* A glow of the accent that calls for the press, and settles once the bar has opened. */
   .stage::before {
     content: "";
     position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 50% 38%, color-mix(in srgb, var(--chrome) 24%, transparent), transparent 62%);
+    inset: -10px -40px 0;
+    background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--chrome) 20%, transparent), transparent 62%);
     opacity: 0.9;
     pointer-events: none;
     will-change: opacity;
@@ -109,7 +93,7 @@
   }
   .stage.tried::before {
     animation: none;
-    opacity: 0.4;
+    opacity: 0.35;
   }
   @keyframes call {
     50% {
@@ -119,19 +103,19 @@
   .caps {
     position: relative;
     display: flex;
-    gap: 10px;
+    gap: 8px;
   }
   /* Each key is a cap with a lit top edge and a lip beneath, as a keyboard's. */
   .caps .cap {
     display: grid;
     place-items: center;
-    min-width: 56px;
-    height: 56px;
-    padding: 0 18px;
+    min-width: 48px;
+    height: 48px;
+    padding: 0 16px;
     box-sizing: border-box;
-    border-radius: 14px;
+    border-radius: 12px;
     background: var(--lift-keyed);
-    font: 600 18px/1 var(--sans);
+    font: 600 16px/1 var(--sans);
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, var(--ink) 20%, transparent),
       0 3px 0 color-mix(in srgb, var(--ink) 11%, transparent),
@@ -151,36 +135,22 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-height: 22px;
+    gap: 7px;
+    min-height: 20px;
     margin: 0;
     color: var(--text-2);
-    font-size: 13.5px;
+    font-size: 13px;
   }
   .tried .say {
     color: var(--text);
   }
   .tick {
+    display: grid;
     color: var(--chrome);
   }
   .tips {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    margin: 2px 0 0;
-    padding: 0;
-    list-style: none;
-  }
-  .tips li {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    color: var(--text-2);
-    font-size: 13px;
-  }
-  .tips kbd {
-    flex: none;
-    min-width: 54px;
+    margin-top: 16px;
+    line-height: 1.9;
   }
   @media (prefers-reduced-motion: reduce) {
     .stage::before {

@@ -12,10 +12,10 @@
     autoplay?: boolean;
     /** The chips that jump to an example, and the line under the bar. */
     chips?: boolean;
-    /** Room for the card at its tallest (a bar and three rows), so the screen does not jump between examples. */
+    /** Room for the card at its tallest (a bar and two rows), so the screen does not jump between examples. */
     height?: number;
   }
-  let { scenes = SCENES, autoplay = true, chips = true, height = 268 }: Props = $props();
+  let { scenes = SCENES, autoplay = true, chips = true, height = 206 }: Props = $props();
 
   // Reduced motion: no typing and no moving on; the example is simply there and the chips choose another.
   const still = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -200,19 +200,20 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
-    margin: 4px 0 14px;
+    gap: 5px;
+    /* a little wider than the column, so the seven chips share one line */
+    margin: 0 -24px 12px;
   }
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 7px 13px 7px 11px;
+    gap: 5px;
+    padding: 6px 10px 6px 8px;
     border: 0;
     border-radius: 999px;
     background: var(--tile);
     color: var(--text-2);
-    font: 560 12.5px/1 var(--sans);
+    font: 560 12px/1 var(--sans);
     cursor: pointer;
     transition:
       background 160ms var(--ease),
@@ -232,7 +233,7 @@
     min-height: 2.8em;
     margin: 0;
     color: var(--text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     line-height: 1.45;
     text-align: center;
     text-wrap: balance;

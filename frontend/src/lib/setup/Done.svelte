@@ -29,8 +29,8 @@
   const LONG = 2 * 3600;
 
   const KEYS: [string, string][] = [
-    [combo("Tab"), "switches between everything, apps, files and the web"],
-    [combo("Ctrl+K"), "shows what can be done with the selected row"],
+    [combo("Tab"), "switches what is searched"],
+    [combo("Ctrl+K"), "shows actions for a row"],
     [combo("Ctrl+,"), "opens Settings"],
     [combo("Esc"), "closes the bar"],
   ];
@@ -42,11 +42,11 @@
 </script>
 
 <div class="hero">
-  <span class="seal"><Icon name="check" size={28} /></span>
+  <span class="seal"><Icon name="check" size={22} /></span>
   <h2>You are all set</h2>
   <p class="lede">
-    Press {#each keycaps(view.Hotkey) as part (part)}<kbd>{part}</kbd> {/each} in any program to open the bar. Omni lives in the {isMac ? "menu bar" : "notification area, by the clock"};
-    closing this window does not stop anything.
+    Press {#each keycaps(view.Hotkey) as part (part)}<kbd>{part}</kbd> {/each} in any program to open the bar. Omni stays in the {isMac ? "menu bar" : "notification area"}; closing this
+    window does not stop it.
   </p>
 </div>
 
@@ -55,13 +55,9 @@
     <li><kbd>{key}</kbd><span>{does}</span></li>
   {/each}
 </ul>
-<p class="help again">Open this guide again from the Omni icon, or in Settings, About.</p>
 
 {#if !files}
-  <p class="help">
-    File search is off, so only apps, the web, the clipboard and snippets are searched. Turn it on any time in Settings > File search; it is
-    the same download.
-  </p>
+  <p class="help note">File search is off. Turn it on any time in Settings, File search; it is the same download.</p>
 {:else if search.Installing}
   <div class="card">
     <p class="label">Downloading file search</p>
@@ -119,13 +115,15 @@
 {/if}
 {#if error}<p class="error">{error}</p>{/if}
 
+<p class="help again">Open this guide again from the Omni icon, or in Settings, About.</p>
+
 <style>
   .card {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin: 4px 0 0;
-    padding: 16px;
+    margin: 18px 0 0;
+    padding: 14px 16px;
     border: 1px solid var(--line);
     border-radius: 12px;
     background: var(--tile);
@@ -138,22 +136,22 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 6px 0 22px;
+    margin: 0 0 22px;
     text-align: center;
   }
   /* The accent, lit, with a small spring as it lands. */
   .seal {
     display: grid;
     place-items: center;
-    width: 60px;
-    height: 60px;
-    margin-bottom: 14px;
+    width: 46px;
+    height: 46px;
+    margin-bottom: 12px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--chrome) 16%, transparent);
     color: var(--chrome);
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, var(--chrome) 50%, transparent),
-      0 0 34px -6px var(--chrome);
+      0 0 26px -6px var(--chrome);
     animation: land 640ms var(--spring) both;
   }
   @keyframes land {
@@ -163,38 +161,36 @@
     }
   }
   .hero h2 {
-    font-size: 24px;
+    font-size: 22px;
   }
   .hero .lede {
-    max-width: 520px;
     margin-bottom: 0;
   }
+  /* The four keys as a plain two-by-two: no boxes, the keycaps line up on their own column. */
   .keys {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 0 0 8px;
+    gap: 10px 20px;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
   .keys li {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    border-radius: 14px;
-    background: var(--tile);
+    gap: 10px;
     color: var(--text-2);
     font-size: 12.5px;
-    line-height: 1.35;
   }
   .keys kbd {
     flex: none;
-    min-width: 46px;
+    min-width: 52px;
+  }
+  .note {
+    margin-top: 20px;
   }
   .again {
-    margin-bottom: 22px;
-    text-align: center;
+    margin-top: 8px;
   }
   @media (prefers-reduced-motion: reduce) {
     .seal {

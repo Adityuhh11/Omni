@@ -16,31 +16,20 @@
   const gb = $derived((search.DownloadMB / 1024).toFixed(1));
 </script>
 
-<ul class="eg">
-  <li>“the clause about pets in the lease” opens the PDF page</li>
-  <li>“retry a failed call with backoff” finds the function; <kbd>code:</kbd> limits a search to code</li>
-  <li>“red ball floating in a river” finds the video, and “dog on a beach” the photo</li>
-  <li>“the part about sleep” finds the moment in a recording or a video where it is talked about</li>
-</ul>
+<p class="eg">Finds “the clause about pets in the lease” as a PDF page, “retry with backoff” as a function, “dog on a beach” as a photo.</p>
 
-<div class="field">
-  <span class="label">What it costs</span>
-  <ul class="costs">
-    <li><strong>A download of about {gb} GB, once</strong>: a search engine and its model. After that it works offline and sends nothing anywhere.</li>
-    <li>
-      <strong>About 1.1 GB of disk</strong>, saved in <span class="mono where">{search.Data.Engine}</span>. The index it builds goes in
-      <span class="mono where">{search.Data.Index}</span>.
-      {#if search.Data.CanChange}
-        <span class="folder">
-          <button type="button" class="btn quiet" onclick={onchoose}>Change folder...</button>
-          {#if search.Data.Chosen}<button type="button" class="btn quiet" onclick={onreset}>Use the usual place</button>{/if}
-        </span>
-      {/if}
-    </li>
-    <li>It uses your graphics card when it can. On the processor a picture takes about 5 seconds instead of a fraction of one; the guide says which you have, and nothing is indexed until you start it.</li>
-  </ul>
-  <p class="help mono">From {(search.Hosts ?? []).join(", ")}</p>
-</div>
+<ul class="costs">
+  <li>Downloads about {gb} GB once, then works offline and sends nothing anywhere.</li>
+  <li>
+    Saved in <span class="mono where">{search.Data.Engine}</span>; the index in <span class="mono where">{search.Data.Index}</span>.
+    {#if search.Data.CanChange}
+      <button type="button" class="btn quiet" onclick={onchoose}>Change folder...</button>
+      {#if search.Data.Chosen}<button type="button" class="btn quiet" onclick={onreset}>Use the usual place</button>{/if}
+    {/if}
+  </li>
+  <li>Uses your graphics card when it can. Nothing is indexed until you start it.</li>
+</ul>
+<p class="help mono">From {(search.Hosts ?? []).join(", ")}</p>
 
 {#if search.Error}<p class="error">The last attempt failed: {search.Error}</p>{/if}
 {#if error}<p class="error">{error}</p>{/if}
@@ -53,32 +42,26 @@
 <style>
   .eg {
     margin: 0;
-    padding-left: 18px;
     color: var(--text-2);
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: 12.5px;
+    line-height: 1.5;
   }
   .costs {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
     margin: 0;
-    padding-left: 18px;
+    padding-left: 16px;
     color: var(--text-2);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.5;
-  }
-  .costs strong {
-    color: var(--text);
-    font-weight: 600;
   }
   .where {
     overflow-wrap: anywhere;
+    font-size: 11.5px;
   }
-  .folder {
-    display: inline-flex;
-    gap: 4px;
-    margin-left: 4px;
+  .costs .btn {
+    margin-left: 2px;
   }
   .actions {
     display: flex;

@@ -6,27 +6,25 @@
     icon: "clip" | "chat" | "search";
     title: string;
     blurb: string;
-    /** What is typed in the bar to use it. */
-    example: string;
-    /** Whether it is switched on: the card is lit in the accent. */
+    /** Whether it is switched on: its icon is lit in the accent. */
     on: boolean;
     /** The switch or button at the right. */
     control: Snippet;
     /** What shows under the heading: progress, costs, a problem. */
     detail?: Snippet;
-    /** Whether there is anything under the heading right now; with nothing, the card has no divider either. */
+    /** Whether there is anything under the heading right now. */
     showDetail?: boolean;
   }
-  let { icon, title, blurb, example, on, control, detail, showDetail = true }: Props = $props();
+  let { icon, title, blurb, on, control, detail, showDetail = true }: Props = $props();
 </script>
 
+<!-- One row of a list (the list's container draws the box), so three offers are one block, not three. -->
 <section class="offer" class:on>
   <div class="top">
-    <span class="tile"><Icon name={icon} /></span>
+    <span class="tile"><Icon name={icon} size={18} /></span>
     <div class="words">
       <h4>{title}</h4>
       <p>{blurb}</p>
-      <kbd>{example}</kbd>
     </div>
     <div class="control">{@render control()}</div>
   </div>
@@ -35,32 +33,22 @@
 
 <style>
   .offer {
-    padding: 16px;
-    border-radius: 16px;
-    background: var(--tile);
-    box-shadow: inset 0 0 0 1px var(--line);
-    transition:
-      background 300ms var(--ease),
-      box-shadow 300ms var(--ease);
-  }
-  .offer.on {
-    background: color-mix(in srgb, var(--chrome) 7%, var(--tile));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 42%, transparent);
+    padding: 12px 14px;
   }
   .top {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
   }
   .tile {
     display: grid;
     place-items: center;
     flex: none;
-    width: 44px;
-    height: 44px;
-    border-radius: 13px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
     background: var(--tile);
-    color: var(--text-2);
+    color: var(--text-3);
     transition: color 300ms var(--ease);
   }
   .on .tile {
@@ -71,14 +59,14 @@
     min-width: 0;
   }
   h4 {
-    margin: 0 0 3px;
-    font: 620 14px/1.25 var(--sans);
+    margin: 0 0 2px;
+    font: 600 13.5px/1.25 var(--sans);
   }
   p {
-    margin: 0 0 7px;
+    margin: 0;
     color: var(--text-2);
     font-size: 12.5px;
-    line-height: 1.45;
+    line-height: 1.4;
   }
   .control {
     display: flex;
@@ -89,9 +77,7 @@
   .detail {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--line);
+    gap: 10px;
+    margin: 12px 0 0 46px;
   }
 </style>

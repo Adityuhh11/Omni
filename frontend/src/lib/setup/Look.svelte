@@ -17,10 +17,10 @@
 </script>
 
 <h2>Pick your look</h2>
-<p class="lede">The bar below and this window change as you choose. Change it any time in Settings, General.</p>
+<p class="lede">The bar and this window follow your choice. Settings, General changes it later.</p>
 
 <div class="preview">
-  <DemoBar scenes={[scene]} autoplay={false} chips={false} height={134} />
+  <DemoBar scenes={[scene]} autoplay={false} chips={false} height={130} />
 </div>
 
 <div class="group">
@@ -29,6 +29,6 @@
 
 <style>
   .preview {
-    margin: 0 0 22px;
+    margin: 0 0 18px;
   }
 </style>

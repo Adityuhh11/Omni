@@ -35,7 +35,7 @@ export const SCENES: Scene[] = [
     icon: "app",
     query: "vsc",
     caption: "A few letters open any app. The ones you use most come first.",
-    items: [item("app", "Visual Studio Code", "Application"), item("app", "Visual Studio Installer", "Application"), item("web", "Search the web for “vsc”", "Web")],
+    items: [item("app", "Visual Studio Code", "Application"), item("app", "Visual Studio Installer", "Application")],
   },
   {
     id: "web",
@@ -58,8 +58,8 @@ export const SCENES: Scene[] = [
     label: "Clipboard",
     icon: "clip",
     query: "clip:",
-    caption: "Everything you copied lately, newest first. Enter pastes it where you were. Off until you switch it on.",
-    items: [item("clip", "Invoice #2041, due 14 March", "Clipboard"), item("clip", "https://github.com/rust-lang/rust", "Clipboard"), item("clip", "Meet at 3 in room 4", "Clipboard")],
+    caption: "Everything you copied lately. Enter pastes it where you were. Off until you switch it on.",
+    items: [item("clip", "Invoice #2041, due 14 March", "Clipboard"), item("clip", "https://github.com/rust-lang/rust", "Clipboard")],
   },
   {
     id: "note",

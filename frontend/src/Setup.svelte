@@ -5,6 +5,8 @@
   import { Window } from "@wailsio/runtime";
   import { OmniAI, Service as Settings } from "../bindings/omni/internal/settingsui";
   import type { OmniAIView, SearchView, View } from "../bindings/omni/internal/settingsui";
+  import Card from "./lib/Card.svelte";
+  import RoundButton from "./lib/RoundButton.svelte";
   import "./lib/settings/forms.css";
   import { after, before, stepsFor, type Step } from "./lib/setup/flow";
   import Done from "./lib/setup/Done.svelte";
@@ -41,7 +43,7 @@
 
   // While a download runs the guide asks every second how it is going; the footer shows it on every screen.
   onMount(() => {
-    document.documentElement.dataset.surface = "settings";
+    document.documentElement.dataset.surface = "card";
     refresh();
     const timer = setInterval(() => Promise.all([refreshSearch(), refreshAI()]), 1000);
     return () => clearInterval(timer);
@@ -108,58 +110,60 @@
 
 <svelte:window {onkeydown} />
 
-<main class="setup">
-  <header>
-    <ol class="pips" aria-label="Progress">
-      {#each steps as s, i (s)}
-        <li class:done={i < at} class:now={i === at} aria-current={i === at ? "step" : undefined}></li>
-      {/each}
-    </ol>
-    <span class="count">{at + 1} of {steps.length}</span>
-  </header>
+<Card>
+  <main class="setup">
+    <header>
+      <div class="drag" aria-hidden="true"></div>
+      <ol class="pips" aria-label="Progress">
+        {#each steps as s, i (s)}
+          <li class:done={i < at} class:now={i === at} aria-current={i === at ? "step" : undefined}></li>
+        {/each}
+      </ol>
+      <div class="close"><RoundButton icon="close" label="Close" onclick={() => Window.Close()} /></div>
+    </header>
 
-  <div class="content" bind:this={content}>
-    {#if view && search}
-      {#key step}
-        <div class="screen" in:fly={{ x: reduced ? 0 : heading * 28, duration: reduced ? 0 : 320, easing: cubicOut }}>
-          {#if step === "welcome"}
-            <Welcome />
-          {:else if step === "hotkey"}
-            <Hotkey {view} />
-          {:else if step === "look"}
-            <Look {view} />
-          {:else if step === "features"}
-            <Features {search} {ai} {fileError} {refreshAI} onenable={enable} onchoose={() => chooseFolder(Settings.ChooseDataFolder)} onreset={() => chooseFolder(Settings.UseDefaultDataFolder)} />
-          {:else if step === "files"}
-            <FilesStep {search} {refresh} {refreshSearch} />
-          {:else}
-            <Done {view} {search} {files} {refresh} onfolders={() => go("files")} />
-          {/if}
-        </div>
-      {/key}
-    {/if}
-  </div>
-
-  <footer>
-    <div class="status" aria-live="polite">
-      {#each notes as note (note.text)}<span class:problem={note.problem}>{note.text}</span>{/each}
-    </div>
-    <div class="nav">
-      {#if step !== "welcome"}
-        <button type="button" class="btn" onclick={() => go(before(step, files))}>Back</button>
+    <div class="content" bind:this={content}>
+      {#if view && search}
+        {#key step}
+          <div class="screen" in:fly={{ x: reduced ? 0 : heading * 24, duration: reduced ? 0 : 300, easing: cubicOut }}>
+            {#if step === "welcome"}
+              <Welcome />
+            {:else if step === "hotkey"}
+              <Hotkey {view} />
+            {:else if step === "look"}
+              <Look {view} />
+            {:else if step === "features"}
+              <Features {search} {ai} {fileError} {refreshAI} onenable={enable} onchoose={() => chooseFolder(Settings.ChooseDataFolder)} onreset={() => chooseFolder(Settings.UseDefaultDataFolder)} />
+            {:else if step === "files"}
+              <FilesStep {search} {refresh} {refreshSearch} />
+            {:else}
+              <Done {view} {search} {files} {refresh} onfolders={() => go("files")} />
+            {/if}
+          </div>
+        {/key}
       {/if}
-      <button type="button" class="btn primary" onclick={forward}>{LABELS[step] ?? "Continue"}</button>
     </div>
-  </footer>
-</main>
+
+    <footer>
+      <div class="status" aria-live="polite">
+        {#each notes as note (note.text)}<span class:problem={note.problem}>{note.text}</span>{/each}
+      </div>
+      <div class="nav">
+        {#if step !== "welcome"}
+          <button type="button" class="btn" onclick={() => go(before(step, files))}>Back</button>
+        {/if}
+        <button type="button" class="btn primary" onclick={forward}>{LABELS[step] ?? "Continue"}</button>
+      </div>
+    </footer>
+  </main>
+</Card>
 
 <style>
   .setup {
     display: flex;
+    flex: 1;
     flex-direction: column;
-    height: 100vh;
-    background: var(--plate);
-    color: var(--text);
+    min-height: 0;
   }
   header {
     position: relative;
@@ -167,10 +171,23 @@
     align-items: center;
     justify-content: center;
     flex: none;
-    height: 44px;
+    height: 54px;
+  }
+  /* The top of the window drags it; the close button sits above that strip. */
+  .drag {
+    position: absolute;
+    inset: 0;
+    --wails-draggable: drag;
+  }
+  .close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    z-index: 2;
   }
   /* One pip a screen: those walked are lit, the one you are on is long. */
   .pips {
+    position: relative;
     display: flex;
     gap: 6px;
     margin: 0;
@@ -178,9 +195,9 @@
     list-style: none;
   }
   .pips li {
-    width: 7px;
-    height: 7px;
-    border-radius: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
     background: var(--lift-keyed);
     transition:
       width 360ms var(--ease),
@@ -190,29 +207,27 @@
     background: color-mix(in srgb, var(--chrome) 50%, transparent);
   }
   .pips li.now {
-    width: 24px;
+    width: 20px;
     background: var(--chrome);
-  }
-  .count {
-    position: absolute;
-    right: 24px;
-    color: var(--text-3);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
   }
   .content {
     flex: 1;
     min-height: 0;
-    padding: 12px 48px 24px;
+    padding: 6px 32px 20px;
     overflow-y: auto;
+  }
+  /* Every screen is one column, so what is on it lines up from screen to screen. */
+  .screen {
+    max-width: 520px;
+    margin: 0 auto;
   }
   footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    min-height: 64px;
-    padding: 0 24px 0 48px;
+    min-height: 60px;
+    padding: 0 22px 0 32px;
     border-top: 1px solid var(--line);
   }
   .status {
@@ -220,7 +235,7 @@
     flex-direction: column;
     gap: 2px;
     color: var(--text-3);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .status .problem {
     color: var(--danger);
