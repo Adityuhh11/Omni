@@ -5,7 +5,7 @@
   import type { SearchView, View } from "../../../bindings/omni/internal/settingsui";
   import type { View as MapView } from "../../../bindings/omni/internal/atlas";
   import { changes, effects, type Choices, type Kind } from "../indexingPlan";
-  import { CHOICES, SPEEDS } from "./choices";
+  import { CHOICES, SPEEDS, STARTS } from "./choices";
   import { choiceHints, paceHints, surveyLine } from "./hints";
   import IndexWindow from "./IndexWindow.svelte";
   import ChoiceGroup from "./ChoiceGroup.svelte";
@@ -336,6 +336,10 @@
       <div class="item stack">
         <span class="name" id="speed-label">How hard it works</span>
         <ChoiceGroup labelId="speed-label" options={SPEEDS} value={search.Pace} onpick={(id) => run(() => Settings.SetPace(id))} hints={paceHints(search.Estimate)} />
+      </div>
+      <div class="item stack">
+        <span class="name" id="start-label">Start the search engine</span>
+        <ChoiceGroup labelId="start-label" options={STARTS} value={search.Start} onpick={(id) => run(() => Settings.SetStart(id))} />
       </div>
       <label class="item">
         <span class="text">

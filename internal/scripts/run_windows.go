@@ -24,6 +24,9 @@ var interpreters = map[string][]string{
 	".cmd": {"cmd.exe", "/d", "/c"},
 }
 
+// Languages are the kinds of script the Add dialog writes, the most useful first. An .exe is run, not written.
+var Languages = []Language{{"PowerShell", ".ps1"}, {"Python", ".py"}, {"JavaScript (Node)", ".js"}, {"Bash", ".sh"}, {"Batch file", ".bat"}}
+
 // environ is the environment a script runs in.
 func environ() []string { return os.Environ() }
 

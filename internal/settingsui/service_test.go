@@ -306,6 +306,16 @@ func TestPaceMustBeOneOfTheKnownSpeeds(t *testing.T) {
 	}
 }
 
+func TestTheEngineStartModeMustBeOneOfTheKnownModes(t *testing.T) {
+	h := newHarness(t)
+	if msg := h.svc.SetStart("never"); !strings.Contains(msg, "must be one of") {
+		t.Fatalf("message = %q", msg)
+	}
+	if msg := h.svc.SetStart("search"); msg != "" || h.store.Get().Search.Start != "search" {
+		t.Fatalf("SetStart(search) = %q, start %q", msg, h.store.Get().Search.Start)
+	}
+}
+
 func TestOpenFolderKnowsTheConfigAndLogFoldersOnly(t *testing.T) {
 	h := newHarness(t)
 	if msg := h.svc.OpenFolder("logs"); msg != "" || h.opened != testpath.P(`C:\logs`) {

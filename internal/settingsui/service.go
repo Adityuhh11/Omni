@@ -107,6 +107,8 @@ type Options struct {
 	OpenSetup func()
 	// Engine reports the file-search engine's state, why it is in it, and where its model runs.
 	Engine func() sidecar.Status
+	// Shortcuts is the hotkeys that run apps, scripts and the like; nil leaves the page without them.
+	Shortcuts ShortcutSet
 	// LogDir is where omni.log is written. Version is the build's version.
 	LogDir, Version string
 }
@@ -145,12 +147,15 @@ type View struct {
 	SearchURL     string
 	Quicklinks    []config.Quicklink
 	Snippets      []config.Snippet
-	Roots         []string
-	Off           []string // roots switched out of the results, still indexed
-	FileSearch    bool
-	Pace          string
-	Autostart     bool
-	CheckUpdates  bool
+	// Shortcuts are the hotkeys that run something; ShortcutErrors says why a combination does not work, by combination.
+	Shortcuts      []config.Shortcut
+	ShortcutErrors map[string]string
+	Roots          []string
+	Off            []string // roots switched out of the results, still indexed
+	FileSearch     bool
+	Pace           string
+	Autostart      bool
+	CheckUpdates   bool
 	// SelectionEffect is the arrow-key lift in the bar; Timer is the pomodoro's lengths.
 	SelectionEffect bool
 	Theme           string
@@ -170,7 +175,7 @@ type View struct {
 func (s *Service) View() View {
 	c := s.o.Store.Get()
 	return View{
-		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets,
+		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets, Shortcuts: c.Shortcuts, ShortcutErrors: s.shortcutErrors(),
 		Roots: c.Roots, Off: c.Off, FileSearch: c.Search.Enabled, Pace: c.Search.Pace,
 		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Lights: c.UI.Lights, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
 		ConfigPath: s.o.Store.Path(), LogDir: s.o.LogDir, Version: s.o.Version,

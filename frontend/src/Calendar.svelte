@@ -115,7 +115,16 @@
       now = new Date();
       load();
     }, 60_000);
-    return () => clearInterval(timer);
+    // A window made ahead of time (internal/settingsui/window.go) was loaded before it was shown: read the calendars again when it is.
+    const shown = () => {
+      now = new Date();
+      load();
+    };
+    window.addEventListener("focus", shown);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", shown);
+    };
   });
 </script>
 

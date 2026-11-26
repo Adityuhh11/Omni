@@ -2,7 +2,7 @@
 // shape the page says its card has, and the page paints its theme's plate, part see-through, on top. A web page cannot blur what
 // is behind its own window, so this is the system's work: a compositor visual with the blurred backdrop, clipped to the shape, on
 // Windows (glass_windows.go), a visual effect view masked to the shape behind the page on a Mac (glass_darwin.go). While Windows'
-// energy saver stops the system's blur, the glass is the wallpaper under the window, blurred here (wallpaper.go).
+// energy saver stops the system's blur there is no glass: the cards are nearly opaque (Tint).
 package glass
 
 import (
@@ -23,19 +23,14 @@ type Service struct {
 
 // What the glass behind a card is, as Shape reports it to the page, which paints its plate to match.
 const (
-	Blur      = "blur"      // the system blurs what is behind the card; the plate is part see-through
-	Wallpaper = "wallpaper" // the system draws no blur for now (Windows' energy saver): the page lays Glass.Image under the plate
-	Tint      = "tint"      // no blur and no wallpaper to show: the plate is nearly opaque, without a blur
-	Off       = "off"       // the person asked the system for no transparency; the plate is opaque
+	Blur = "blur" // the system blurs what is behind the card; the plate is part see-through
+	Tint = "tint" // the system draws no blur for now (Windows' energy saver): the plate is nearly opaque
+	Off  = "off"  // the person asked the system for no transparency; the plate is opaque
 )
 
 // Glass is what Shape reports to the page.
 type Glass struct {
-	Look string // Blur, Wallpaper, Tint or Off
-	// While Look is Wallpaper: the wallpaper of the window's screen, small and blurred (a data: URL), and where that screen lies
-	// in CSS pixels from the window's top left, for the page to lay it under its card.
-	Image                    string
-	Left, Top, Width, Height float64
+	Look string // Blur, Tint or Off
 }
 
 var logged sync.Map // failures already in the log, by message: the page asks again on every resize and every move

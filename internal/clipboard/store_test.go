@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-var t0 = time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+// t0 is a little before now, not a fixed date: OpenStore drops entries older than MaxAge counted from the real clock, so a fixed
+// date in the past turned every reopening test into one that loses its entries once that date was MaxAge old.
+var t0 = time.Now().UTC().Truncate(time.Minute).Add(-2 * time.Hour)
 
 func open(t *testing.T) (*Store, string) {
 	t.Helper()

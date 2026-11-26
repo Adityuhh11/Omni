@@ -15,6 +15,7 @@
   import General from "./lib/settings/General.svelte";
   import OmniAI from "./lib/settings/OmniAI.svelte";
   import Quicklinks from "./lib/settings/Quicklinks.svelte";
+  import Shortcuts from "./lib/settings/Shortcuts.svelte";
   import Snippets from "./lib/settings/Snippets.svelte";
   import TimerSettings from "./lib/settings/TimerSettings.svelte";
 
@@ -23,6 +24,7 @@
     { id: "general", label: "General", icon: "settings" },
     { id: "quicklinks", label: "Quicklinks", icon: "link", heading: "Features" },
     { id: "snippets", label: "Snippets", icon: "snippet" },
+    { id: "hotkeys", label: "Hotkeys", icon: "app" },
     { id: "clipboard", label: "Clipboard", icon: "clip" },
     { id: "timer", label: "Focus & timer", icon: "timer" },
     { id: "calendar", label: "Calendar", icon: "calendar" },
@@ -50,7 +52,12 @@
     document.documentElement.dataset.surface = "card";
     reload();
     window.addEventListener("hashchange", follow);
-    return () => window.removeEventListener("hashchange", follow);
+    // A window made ahead of time (internal/settingsui/window.go) was loaded before it was shown: read the settings again when it is.
+    window.addEventListener("focus", reload);
+    return () => {
+      window.removeEventListener("hashchange", follow);
+      window.removeEventListener("focus", reload);
+    };
   });
 </script>
 
@@ -72,27 +79,34 @@
   </nav>
   <main>
     {#if view}
-      {#if section === "general"}
-        <General {view} />
-      {:else if section === "quicklinks"}
-        <Quicklinks {view} />
-      {:else if section === "snippets"}
-        <Snippets {view} />
-      {:else if section === "search"}
-        <FileSearch {view} {reload} />
-      {:else if section === "clipboard"}
-        <Clipboard />
-      {:else if section === "omni-ai"}
-        <OmniAI />
-      {:else if section === "ai-apps"}
-        <AIApps />
-      {:else if section === "calendar"}
-        <CalendarSettings />
-      {:else if section === "timer"}
-        <TimerSettings {view} />
-      {:else}
-        <About {view} />
-      {/if}
+      <!-- A page of its own for each section, so a change of section rises in like a window does. -->
+      {#key section}
+        <div class="pane">
+          {#if section === "general"}
+            <General {view} />
+          {:else if section === "quicklinks"}
+            <Quicklinks {view} />
+          {:else if section === "snippets"}
+            <Snippets {view} />
+          {:else if section === "hotkeys"}
+            <Shortcuts {view} />
+          {:else if section === "search"}
+            <FileSearch {view} {reload} />
+          {:else if section === "clipboard"}
+            <Clipboard />
+          {:else if section === "omni-ai"}
+            <OmniAI />
+          {:else if section === "ai-apps"}
+            <AIApps />
+          {:else if section === "calendar"}
+            <CalendarSettings />
+          {:else if section === "timer"}
+            <TimerSettings {view} />
+          {:else}
+            <About {view} />
+          {/if}
+        </div>
+      {/key}
     {/if}
   </main>
 </div>
@@ -188,5 +202,19 @@
   }
   main > :global(*) {
     max-width: 640px;
+  }
+  .pane {
+    animation: pane-in 100ms var(--ease) backwards;
+  }
+  @keyframes pane-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pane {
+      animation: none;
+    }
   }
 </style>
