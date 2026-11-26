@@ -7,6 +7,7 @@ import (
 	"omni/internal/chat"
 	"omni/internal/config"
 	"omni/internal/llm"
+	"omni/internal/scripts"
 	"omni/internal/settings"
 )
 
@@ -52,8 +53,11 @@ type OmniAIOptions struct {
 	Tools        func() []chat.ToolGroup
 	SetTool      func(group string, on bool) error
 	SetAlwaysRun func(group string, on bool) error
-	// ScriptsDir is the scripts folder.
+	// ScriptsDir is the scripts folder. AddScript writes a new script into it; PickScript asks for a file of the person's own
+	// to load into the Add dialog ("" when they cancel).
 	ScriptsDir string
+	AddScript  func(n scripts.New) (string, error)
+	PickScript func() (string, error)
 	// CustomKey and SetCustomKey are the API key of a model somebody else runs, in the system credential store; ListModels asks
 	// such a server for its models (llm.ListModels when nil).
 	CustomKey    func() string
@@ -107,6 +111,8 @@ type OmniAIView struct {
 	// Tools are the groups of tools the model may be given; ScriptsFolder is where scripts go.
 	Tools         []chat.ToolGroup
 	ScriptsFolder string
+	// ScriptLanguages are the kinds of script the Add dialog can write on this system.
+	ScriptLanguages []scripts.Language
 	// The values each choice offers, from the settings file's own lists.
 	Loads                                         []string
 	ContextChoices, UnloadChoices, HistoryChoices []int
