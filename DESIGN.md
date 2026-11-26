@@ -44,7 +44,7 @@ Three choices in Settings, General change this, and every window follows at once
   4 px into the page when chosen (100 ms): motion here is short, because a window that is slow to appear is worse than one with
   no animation. The settings and calendar windows are built ahead of time, hidden, once they have been opened (`warm` in
   `internal/settingsui/window.go`), so every opening after the first shows a page that is already loaded: the card is up in about
-  50 ms instead of 200. Where Windows' energy saver stops the blur the glass is the nearly opaque plate, and Settings says so. Only the
+  50 ms instead of 200. Where Windows' energy saver stops the blur the glass is the nearly opaque plate. Only the
   content moves: the glass is the system's and cannot be animated. All of it fills backwards only, so no opacity or transform
   stays on the text, and none of it with reduced motion.
   The window around it is clear and transparent (`BackgroundTypeTransparent`), 20 px wider on each side and 12 px above
