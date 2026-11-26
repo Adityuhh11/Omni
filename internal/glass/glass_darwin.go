@@ -2,7 +2,7 @@ package glass
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#cgo LDFLAGS: -framework Cocoa
+#cgo LDFLAGS: -framework Cocoa -framework WebKit
 void omniGlassShape(unsigned long window, double x, double y, double w, double h, double r, int dark);
 */
 import "C"

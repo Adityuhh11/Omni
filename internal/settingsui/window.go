@@ -39,6 +39,9 @@ var (
 	timerSpec = windowSpec{name: "timer", title: "Omni Timer", route: "timer", width: 264, height: 92, onTop: true, overlay: true}
 )
 
+// cardRadius is the corners of the card the page draws on a clear window (lib/Card.svelte, Timer.svelte); the blur behind it has the same.
+const cardRadius = 26
+
 // overlayMargin is the gap between the timer and the right edge of the screen, and its top is a fifth of the way down.
 const overlayMargin = 16
 
@@ -55,7 +58,23 @@ type Window struct {
 
 	mu    sync.Mutex
 	win   *application.WebviewWindow
-	count int // Wails wants every window name to be new
+	count int  // Wails wants every window name to be new
+	glass bool // the system's blur is behind the page (the Glass theme)
+}
+
+// SetGlass puts the system's blur behind the page of a window drawn as a card (the Glass theme), or takes it away; a window built
+// later starts with it. Windows with a frame of their own are left alone.
+func (w *Window) SetGlass(on bool) {
+	if !w.spec.card && !w.spec.overlay {
+		return
+	}
+	w.mu.Lock()
+	w.glass = on
+	win := w.win
+	w.mu.Unlock()
+	if win != nil {
+		setGlass(win.NativeWindow(), on, cardRadius)
+	}
 }
 
 // NewWindow returns a Window for app.
@@ -156,6 +175,15 @@ func (w *Window) OpenAt(section string) {
 			w.win = nil
 		}
 		w.mu.Unlock()
+	})
+	// The native window exists once it is shown; the blur goes under it then.
+	win.OnWindowEvent(events.Common.WindowShow, func(*application.WindowEvent) {
+		w.mu.Lock()
+		on := w.glass && w.win == win
+		w.mu.Unlock()
+		if on {
+			setGlass(win.NativeWindow(), true, cardRadius)
+		}
 	})
 	w.mu.Lock()
 	w.win = win

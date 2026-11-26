@@ -2,7 +2,7 @@ package panel
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#cgo LDFLAGS: -framework Cocoa
+#cgo LDFLAGS: -framework Cocoa -framework QuartzCore -framework WebKit
 #include "native_darwin.h"
 */
 import "C"
@@ -71,12 +71,18 @@ func moveTopmost(window uintptr, r Rect) {
 	C.omniSetFrame(C.uintptr_t(window), C.double(r.X), C.double(r.Y), C.double(r.W), C.double(r.H))
 }
 
-// cursorMonitor returns the usable area of the screen that holds the mouse, in points, and 96: a point is one device-independent
-// pixel, so place() needs no scaling.
+// cursorMonitor returns the usable area of the screen that holds the mouse, in points, and the "dpi" the bar is drawn at there:
+// 96 (a point per device-independent pixel) on a screen as dense as a MacBook's, less on a screen that draws each point larger
+// (a 24-inch 1080p monitor), so the bar keeps its size to the eye. setPageScale zooms the page to match.
 func cursorMonitor() (Rect, uint32) {
-	var x, y, w, h C.double
-	C.omniScreenUnderMouse(&x, &y, &w, &h)
-	return rect(x, y, w, h), 96
+	var x, y, w, h, zoom C.double
+	C.omniScreenUnderMouse(&x, &y, &w, &h, &zoom)
+	return rect(x, y, w, h), uint32(math.Round(96 * float64(zoom)))
+}
+
+// setPageScale zooms the page to dpi (see cursorMonitor), so its CSS pixels fill the window place() sized.
+func setPageScale(window uintptr, dpi uint32) {
+	C.omniSetPageZoom(C.uintptr_t(window), C.double(float64(dpi)/96))
 }
 
 // windowRect is where the window is, in points.
@@ -86,7 +92,10 @@ func windowRect(window uintptr) Rect {
 	return rect(x, y, w, h)
 }
 
-func windowDPI(uintptr) uint32 { return 96 }
+// windowDPI is the dpi the page is drawn at now (96 times its zoom), for turning its CSS pixels into points.
+func windowDPI(window uintptr) uint32 {
+	return uint32(math.Round(96 * float64(C.omniPageZoom(C.uintptr_t(window)))))
+}
 
 // resizeHeight changes the height in place, keeping the top edge.
 func resizeHeight(window uintptr, heightPx int) {
@@ -95,4 +104,24 @@ func resizeHeight(window uintptr, heightPx int) {
 
 func rect(x, y, w, h C.double) Rect {
 	return Rect{X: int(math.Round(float64(x))), Y: int(math.Round(float64(y))), W: int(math.Round(float64(w))), H: int(math.Round(float64(h)))}
+}
+
+// setGlass puts the system's blur under the card (or takes it away): the card is the rounded rectangle at (x, top) of size w by h in the
+// window, and a change of shape takes ms milliseconds.
+func setGlass(window uintptr, on bool, x, top, w, h, radius, ms int) {
+	var flag C.int
+	if on {
+		flag = 1
+	}
+	C.omniGlass(C.uintptr_t(window), flag, C.double(x), C.double(top), C.double(w), C.double(h), C.double(radius), C.double(ms))
+}
+
+// setGlassPanes puts a round pane of the card's glass behind each quick-open tile: their left edges at xs, their top at top, size
+// across; none takes them away.
+func setGlassPanes(window uintptr, xs []int, top, size int) {
+	lefts := make([]C.double, len(xs)+1) // +1: never empty, so there is always an element to point at
+	for i, x := range xs {
+		lefts[i] = C.double(x)
+	}
+	C.omniGlassPanes(C.uintptr_t(window), &lefts[0], C.int(len(xs)), C.double(top), C.double(size))
 }

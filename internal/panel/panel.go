@@ -259,6 +259,7 @@ func (p *Panel) Show() {
 	}
 	p.placed = spot
 	p.mu.Unlock()
+	setPageScale(hwnd, dpi)
 	moveTopmost(hwnd, spot)
 	cloak(hwnd, false)
 	p.win.Focus()
@@ -305,6 +306,22 @@ func (p *Panel) Resize(heightDIP int) {
 		heightPx = min(heightPx, room)
 	}
 	resizeHeight(hwnd, heightPx)
+}
+
+// Glass puts the system's blur behind the card, which is the rounded rectangle at (x, top) of size w by h CSS pixels in the window, or
+// takes it away. A change of shape runs over ms milliseconds, in step with the card's own motion. Only a Mac has it.
+func (p *Panel) Glass(on bool, x, top, w, h, radius, ms int) {
+	if hwnd := p.hwnd(); hwnd != 0 {
+		setGlass(hwnd, on, x, top, w, h, radius, ms)
+	}
+}
+
+// GlassPanes puts the card's glass behind each quick-open tile as well: round panes size CSS pixels across, their left edges at xs and
+// their top edges at top in the window. No xs takes them away. Only a Mac has it.
+func (p *Panel) GlassPanes(xs []int, top, size int) {
+	if hwnd := p.hwnd(); hwnd != 0 {
+		setGlassPanes(hwnd, xs, top, size)
+	}
 }
 
 func (p *Panel) hide(restoreFocus bool) {
