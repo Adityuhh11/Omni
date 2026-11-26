@@ -65,7 +65,7 @@ func (s *Service) doSettings(page settingsPage, action string) error {
 	if action != "open" {
 		return fmt.Errorf("a settings row can only be opened, not %q", action)
 	}
+	s.dismiss() // the bar goes first, as for the notes: the window is built next and must be the one that gets the keyboard
 	s.openSettings(page.section)
-	s.dismiss()
 	return nil
 }

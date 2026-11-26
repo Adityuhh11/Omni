@@ -438,8 +438,8 @@
     event.preventDefault();
     switch (command.do) {
       case "settings":
+        Panel.HideForLaunch(); // first: Hide() would hand the keyboard to the previous app and leave Settings behind it
         SettingsWindow.Open();
-        Panel.Hide();
         break;
       case "escape": {
         const next = escapeStep(mode, query);
