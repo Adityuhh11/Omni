@@ -575,6 +575,15 @@ func run(afterUpdate bool) error {
 			SetTool:      chatSvc.SetTool,
 			SetAlwaysRun: chatSvc.SetAlwaysRun,
 			ScriptsDir:   filepath.Join(filepath.Dir(path), "scripts"),
+			AddScript: func(n scripts.New) (string, error) {
+				if scriptFolder == nil {
+					return "", errors.New("the scripts folder could not be opened")
+				}
+				return scriptFolder.Add(n)
+			},
+			PickScript: func() (string, error) {
+				return app.Dialog.OpenFile().CanChooseFiles(true).CanChooseDirectories(false).SetTitle("Choose a script to add").PromptForSingleSelection()
+			},
 			CustomKey:    customKey,
 			SetCustomKey: func(key string) error { return secrets.Set(customKeyName, key) },
 		})),

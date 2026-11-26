@@ -92,6 +92,41 @@
     await run(() => OmniAI.UseCustom(draft.url, draft.model));
   }
 
+  // The Add script dialog: null while closed. The page's refreshes leave it alone.
+  const OUTPUTS = [
+    ["silent", "Do nothing with what it prints"],
+    ["copy", "Copy what it prints"],
+    ["paste", "Type what it prints into the program I was in"],
+  ];
+  let script = $state<{ name: string; ext: string; output: string; body: string; error: string } | null>(null);
+  let addedScript = $state("");
+
+  function startScript() {
+    addedScript = "";
+    script = { name: "", ext: page?.ScriptLanguages?.[0]?.Ext ?? "", output: "silent", body: "", error: "" };
+  }
+
+  /** Fills the code box from a file, and suggests its name and language when the dialog has none yet. */
+  async function loadScript() {
+    if (!script) return;
+    const file = await OmniAI.LoadScript();
+    if (file.Error) script.error = file.Error;
+    else if (file.Text !== "") {
+      script.body = file.Text;
+      script.name ||= file.Name;
+      if (file.Ext) script.ext = file.Ext;
+      script.error = "";
+    }
+  }
+
+  async function addScript() {
+    if (!script) return;
+    script.error = await OmniAI.AddScript(script.name, script.ext, script.output, script.body);
+    if (script.error) return;
+    addedScript = script.name.trim();
+    script = null;
+  }
+
   async function remove() {
     confirming = "";
     await run(() => OmniAI.Remove());
@@ -290,8 +325,35 @@
         <span class="name">Your scripts</span>
         <span class="sub">A script with an <span class="mono">@omni.tool</span> line becomes a tool (SCRIPTS.md)</span>
       </span>
-      <button type="button" class="btn" onclick={() => run(() => OmniAI.OpenScriptsFolder())}>Show folder</button>
+      <span class="end">
+        <button type="button" class="btn" onclick={startScript}>Add script</button>
+        <button type="button" class="btn quiet" onclick={() => run(() => OmniAI.OpenScriptsFolder())}>Show folder</button>
+      </span>
     </div>
+    {#if script}
+      <div class="item stack" role="group" aria-label="Add a script">
+        <div class="top">
+          <input type="text" aria-label="Name" placeholder="Name, for example Kill port" bind:value={script.name} />
+          <select class="ask" aria-label="Language" bind:value={script.ext}>
+            {#each page.ScriptLanguages ?? [] as language (language.Ext)}<option value={language.Ext}>{language.Label}</option>{/each}
+          </select>
+        </div>
+        <textarea aria-label="Code" rows="8" placeholder="The code it runs. Type it here, or load a file." bind:value={script.body} spellcheck="false"></textarea>
+        <div class="top">
+          <select class="ask" aria-label="What to do with its output" bind:value={script.output}>
+            {#each OUTPUTS as [id, label] (id)}<option value={id}>{label}</option>{/each}
+          </select>
+          <button type="button" class="btn quiet" onclick={loadScript}>Load from file…</button>
+        </div>
+        {#if script.error}<p class="error" role="alert">{script.error}</p>{/if}
+        <span class="end">
+          <button type="button" class="btn primary" disabled={!script.name.trim() || !script.body.trim()} onclick={addScript}>Add</button>
+          <button type="button" class="btn quiet" onclick={() => (script = null)}>Cancel</button>
+        </span>
+      </div>
+    {:else if addedScript}
+      <p class="item sub" role="status">Added “{addedScript}”. Type its name in the bar to run it.</p>
+    {/if}
   </div>
   <p class="group-note">
     {#if page.Custom.On && !page.Custom.Local}
@@ -402,6 +464,37 @@
   .item .ask {
     width: auto;
     height: 30px;
+  }
+  .top {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .top :global(input) {
+    flex: 1;
+    min-width: 0;
+  }
+  textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--tile);
+    color: var(--text);
+    font: 450 13px/1.5 var(--mono);
+    resize: vertical;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
+  }
+  textarea::placeholder {
+    color: var(--text-3);
+  }
+  .item .error {
+    margin: 0;
+    font-size: 12px;
   }
   .item.sub,
   .item.error {
