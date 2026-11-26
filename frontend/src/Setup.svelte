@@ -1,38 +1,49 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { cubicOut } from "svelte/easing";
+  import { fly } from "svelte/transition";
   import { Window } from "@wailsio/runtime";
-  import { Service as Settings } from "../bindings/omni/internal/settingsui";
-  import type { SearchView, View } from "../bindings/omni/internal/settingsui";
+  import { OmniAI, Service as Settings } from "../bindings/omni/internal/settingsui";
+  import type { OmniAIView, SearchView, View } from "../bindings/omni/internal/settingsui";
   import "./lib/settings/forms.css";
-  import { after, before, type Step } from "./lib/setup/flow";
+  import { after, before, stepsFor, type Step } from "./lib/setup/flow";
   import Done from "./lib/setup/Done.svelte";
-  import Files from "./lib/setup/Files.svelte";
-  import Folders from "./lib/setup/Folders.svelte";
-  import Keys from "./lib/setup/Keys.svelte";
-  import Options from "./lib/setup/Options.svelte";
+  import Features from "./lib/setup/Features.svelte";
+  import FilesStep from "./lib/setup/FilesStep.svelte";
+  import Hotkey from "./lib/setup/Hotkey.svelte";
+  import Look from "./lib/setup/Look.svelte";
   import Welcome from "./lib/setup/Welcome.svelte";
 
   let step = $state<Step>("welcome");
+  // Which way the last move went, so a screen slides in from the side the person is heading to.
+  let heading = $state(1);
   let view = $state<View | null>(null);
   let search = $state<SearchView | null>(null);
-  // Whether the person is setting up file search: they pressed Download or Turn on, or it was already running.
-  let files = $state(false);
-  let enableError = $state("");
+  let ai = $state<OmniAIView | null>(null);
+  let fileError = $state("");
+  let content = $state<HTMLElement>();
+
+  // Whether file search is on or on its way: it adds the folders screen.
+  const files = $derived(!!search && (search.Installing || (search.Installed && search.Enabled)));
+  const steps = $derived(stepsFor(files));
+  const at = $derived(Math.max(0, steps.indexOf(step)));
+  const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const refreshSearch = async () => {
     search = await Settings.Search();
   };
+  const refreshAI = async () => {
+    ai = await OmniAI.View();
+  };
   const refresh = async () => {
-    [view, search] = await Promise.all([Settings.View(), Settings.Search()]);
+    [view, search, ai] = await Promise.all([Settings.View(), Settings.Search(), OmniAI.View()]);
   };
 
   // While a download runs the guide asks every second how it is going; the footer shows it on every screen.
   onMount(() => {
     document.documentElement.dataset.surface = "settings";
-    refresh().then(() => {
-      if (search && (search.Installing || (search.Installed && search.Enabled))) files = true;
-    });
-    const timer = setInterval(refreshSearch, 1000);
+    refresh();
+    const timer = setInterval(() => Promise.all([refreshSearch(), refreshAI()]), 1000);
     return () => clearInterval(timer);
   });
 
@@ -49,72 +60,95 @@
   });
 
   async function enable() {
-    enableError = await Settings.TurnOn();
-    if (enableError !== "") return;
-    files = true;
+    fileError = await Settings.TurnOn();
     await refreshSearch();
-    step = after("files", true);
   }
 
   // Choosing where the download goes can be refused (a folder that cannot be written); the reason shows where the button is.
   async function chooseFolder(change: () => Promise<string>) {
-    enableError = await change();
+    fileError = await change();
     await refreshSearch();
   }
 
-  function skip() {
-    files = false;
-    step = "done";
+  function go(next: Step) {
+    heading = steps.indexOf(next) >= at ? 1 : -1;
+    step = next;
+    content?.scrollTo(0, 0);
+  }
+  const forward = () => (step === "done" ? Window.Close() : go(after(step, files)));
+
+  // Enter moves on, unless it was meant for something that has its own use for it.
+  function onkeydown(event: KeyboardEvent) {
+    if (event.key !== "Enter" || event.defaultPrevented) return;
+    if ((event.target as HTMLElement).closest("button, input, select, textarea, a, summary, [role='radio']")) return;
+    forward();
   }
 
   const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(0);
-  const footer = $derived.by((): { text: string; problem: boolean } => {
-    if (!search || !files) return { text: "", problem: false };
-    if (search.Installing) {
-      const part = search.Total > 0 ? ` · ${mb(search.Done)} of ${mb(search.Total)} MB` : "";
-      return { text: `Downloading file search · step ${search.Step} of ${search.Steps}${part}`, problem: false };
+  const notes = $derived.by((): { text: string; problem: boolean }[] => {
+    const out: { text: string; problem: boolean }[] = [];
+    if (search && files) {
+      if (search.Installing) {
+        const part = search.Total > 0 ? ` · ${mb(search.Done)} of ${mb(search.Total)} MB` : "";
+        out.push({ text: `Downloading file search · step ${search.Step} of ${search.Steps}${part}`, problem: false });
+      } else if (search.Error) {
+        out.push({ text: "The download failed: " + search.Error, problem: true });
+      } else if (search.Installed && search.Enabled) {
+        out.push({ text: search.EngineState === "ready" ? "File search is ready" : "Starting the search engine...", problem: false });
+      }
     }
-    if (search.Error) return { text: "The download failed: " + search.Error, problem: true };
-    if (search.Installed && search.Enabled) {
-      return { text: search.EngineState === "ready" ? "File search is ready" : "Starting the search engine...", problem: false };
+    if (ai?.Installing) {
+      out.push({ text: `Downloading Omni AI${ai.Total > 0 ? ` · ${mb(ai.Done)} of ${mb(ai.Total)} MB` : ""}`, problem: false });
     }
-    return { text: "", problem: false };
+    return out;
   });
 
-  // The files screen has its own buttons (Download, Not now), so Continue shows there only once a download has started.
-  const canContinue = $derived(step !== "files" || !!search?.Installing || (!!search?.Installed && !!search?.Enabled));
+  const LABELS: Partial<Record<Step, string>> = { welcome: "Get started", done: "Done" };
 </script>
 
+<svelte:window {onkeydown} />
+
 <main class="setup">
-  <div class="content">
+  <header>
+    <ol class="pips" aria-label="Progress">
+      {#each steps as s, i (s)}
+        <li class:done={i < at} class:now={i === at} aria-current={i === at ? "step" : undefined}></li>
+      {/each}
+    </ol>
+    <span class="count">{at + 1} of {steps.length}</span>
+  </header>
+
+  <div class="content" bind:this={content}>
     {#if view && search}
-      {#if step === "welcome"}
-        <Welcome />
-      {:else if step === "keys"}
-        <Keys {view} />
-      {:else if step === "files"}
-        <Files {search} error={enableError} onenable={enable} onskip={skip} onchoose={() => chooseFolder(Settings.ChooseDataFolder)} onreset={() => chooseFolder(Settings.UseDefaultDataFolder)} />
-      {:else if step === "folders"}
-        <Folders {search} {refresh} />
-      {:else if step === "options"}
-        <Options {search} refresh={refreshSearch} />
-      {:else}
-        <Done {view} {search} {files} {refresh} onfolders={() => (step = "folders")} />
-      {/if}
+      {#key step}
+        <div class="screen" in:fly={{ x: reduced ? 0 : heading * 28, duration: reduced ? 0 : 320, easing: cubicOut }}>
+          {#if step === "welcome"}
+            <Welcome />
+          {:else if step === "hotkey"}
+            <Hotkey {view} />
+          {:else if step === "look"}
+            <Look {view} />
+          {:else if step === "features"}
+            <Features {search} {ai} {fileError} {refreshAI} onenable={enable} onchoose={() => chooseFolder(Settings.ChooseDataFolder)} onreset={() => chooseFolder(Settings.UseDefaultDataFolder)} />
+          {:else if step === "files"}
+            <FilesStep {search} {refresh} {refreshSearch} />
+          {:else}
+            <Done {view} {search} {files} {refresh} onfolders={() => go("files")} />
+          {/if}
+        </div>
+      {/key}
     {/if}
   </div>
 
   <footer>
-    <span class="status" class:problem={footer.problem} aria-live="polite">{footer.text}</span>
+    <div class="status" aria-live="polite">
+      {#each notes as note (note.text)}<span class:problem={note.problem}>{note.text}</span>{/each}
+    </div>
     <div class="nav">
       {#if step !== "welcome"}
-        <button type="button" class="btn" onclick={() => (step = before(step, files))}>Back</button>
+        <button type="button" class="btn" onclick={() => go(before(step, files))}>Back</button>
       {/if}
-      {#if step === "done"}
-        <button type="button" class="btn primary" onclick={() => Window.Close()}>Done</button>
-      {:else if canContinue}
-        <button type="button" class="btn primary" onclick={() => (step = after(step, files))}>Continue</button>
-      {/if}
+      <button type="button" class="btn primary" onclick={forward}>{LABELS[step] ?? "Continue"}</button>
     </div>
   </footer>
 </main>
@@ -127,10 +161,49 @@
     background: var(--plate);
     color: var(--text);
   }
+  header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    height: 44px;
+  }
+  /* One pip a screen: those walked are lit, the one you are on is long. */
+  .pips {
+    display: flex;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pips li {
+    width: 7px;
+    height: 7px;
+    border-radius: 4px;
+    background: var(--lift-keyed);
+    transition:
+      width 360ms var(--ease),
+      background 360ms var(--ease);
+  }
+  .pips li.done {
+    background: color-mix(in srgb, var(--chrome) 50%, transparent);
+  }
+  .pips li.now {
+    width: 24px;
+    background: var(--chrome);
+  }
+  .count {
+    position: absolute;
+    right: 24px;
+    color: var(--text-3);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
   .content {
     flex: 1;
     min-height: 0;
-    padding: 36px 48px 24px;
+    padding: 12px 48px 24px;
     overflow-y: auto;
   }
   footer {
@@ -143,14 +216,23 @@
     border-top: 1px solid var(--line);
   }
   .status {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     color: var(--text-3);
     font-size: 12.5px;
   }
-  .status.problem {
+  .status .problem {
     color: var(--danger);
   }
   .nav {
     display: flex;
+    flex: none;
     gap: 8px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pips li {
+      transition: none;
+    }
   }
 </style>

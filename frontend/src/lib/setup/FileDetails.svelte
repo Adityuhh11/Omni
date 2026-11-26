@@ -14,15 +14,7 @@
   let { search, error, onenable, onskip, onchoose, onreset }: Props = $props();
 
   const gb = $derived((search.DownloadMB / 1024).toFixed(1));
-  // Installing, or installed and on. Installed and off still needs a button: turning it on starts the engine.
-  const started = $derived(search.Installing || (search.Installed && search.Enabled));
 </script>
-
-<h2>Search your files too?</h2>
-<p class="lede">
-  File search finds a file by what is in it, not by its name: a page of a PDF, a function, a photo. The launcher works without it, and
-  you can turn it on later in Settings.
-</p>
 
 <ul class="eg">
   <li>“the clause about pets in the lease” opens the PDF page</li>
@@ -54,17 +46,13 @@
 {#if error}<p class="error">{error}</p>{/if}
 
 <div class="actions">
-  {#if started}
-    <p class="help">{search.Installing ? "The download is running; you can carry on." : "File search is installed."}</p>
-  {:else}
-    <button type="button" class="btn primary" onclick={onenable}>{search.Installed ? "Turn on and continue" : "Download and continue"}</button>
-    <button type="button" class="btn quiet" onclick={onskip}>Not now</button>
-  {/if}
+  <button type="button" class="btn primary" onclick={onenable}>{search.Installed ? "Turn on" : "Download and turn on"}</button>
+  <button type="button" class="btn quiet" onclick={onskip}>Not now</button>
 </div>
 
 <style>
   .eg {
-    margin: 0 0 22px;
+    margin: 0;
     padding-left: 18px;
     color: var(--text-2);
     font-size: 13px;

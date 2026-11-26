@@ -2,8 +2,11 @@
   import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { SearchView, View } from "../../../bindings/omni/internal/settingsui";
   import { duration } from "../format";
+  import Icon from "../Icon.svelte";
   import { keycaps } from "../keycaps";
+  import { combo, isMac } from "../platform";
   import IndexWindow from "../settings/IndexWindow.svelte";
+  import ProgressBar from "./ProgressBar.svelte";
 
   interface Props {
     view: View;
@@ -25,18 +28,34 @@
   // A first index of hours is worth offering the night for.
   const LONG = 2 * 3600;
 
+  const KEYS: [string, string][] = [
+    [combo("Tab"), "switches between everything, apps, files and the web"],
+    [combo("Ctrl+K"), "shows what can be done with the selected row"],
+    [combo("Ctrl+,"), "opens Settings"],
+    [combo("Esc"), "closes the bar"],
+  ];
+
   async function start() {
     error = await Settings.StartIndexing();
     await refresh();
   }
 </script>
 
-<h2>You are all set</h2>
+<div class="hero">
+  <span class="seal"><Icon name="check" size={28} /></span>
+  <h2>You are all set</h2>
+  <p class="lede">
+    Press {#each keycaps(view.Hotkey) as part (part)}<kbd>{part}</kbd> {/each} in any program to open the bar. Omni lives in the {isMac ? "menu bar" : "notification area, by the clock"};
+    closing this window does not stop anything.
+  </p>
+</div>
 
-<p class="lede">
-  Press {#each keycaps(view.Hotkey) as part (part)}<kbd>{part}</kbd> {/each} in any program to open the bar. Omni lives in the notification area, by the
-  clock; closing this window does not stop anything.
-</p>
+<ul class="keys">
+  {#each KEYS as [key, does] (key)}
+    <li><kbd>{key}</kbd><span>{does}</span></li>
+  {/each}
+</ul>
+<p class="help again">Open this guide again from the Omni icon, or in Settings, About.</p>
 
 {#if !files}
   <p class="help">
@@ -46,9 +65,7 @@
 {:else if search.Installing}
   <div class="card">
     <p class="label">Downloading file search</p>
-    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent} aria-label={search.StepName}>
-      <div class="fill" style:transform="scaleX({(search.Total > 0 ? percent : 4) / 100})"></div>
-    </div>
+    <ProgressBar percent={search.Total > 0 ? percent : null} label={search.StepName} />
     <p class="help">
       Step {search.Step} of {search.Steps}: {search.StepName}{search.Total > 0 ? ` · ${megabytes(search.Done)} of ${megabytes(search.Total)} MB` : ""}.
       Nothing is indexed until you start it, so you can use Omni meanwhile.
@@ -95,9 +112,7 @@
     <p class="label">{search.IndexState === "uptodate" ? "Everything is indexed" : "Reading your files"}</p>
     <p class="help">{search.Paused ? "Indexing is paused." : search.IndexText}</p>
     {#if search.IndexState === "indexing" && search.IndexTotal > 0}
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax={search.IndexTotal} aria-valuenow={search.IndexDone} aria-label="Files indexed">
-        <div class="fill" style:transform="scaleX({search.IndexDone / search.IndexTotal})"></div>
-      </div>
+      <ProgressBar percent={Math.round((search.IndexDone / search.IndexTotal) * 100)} label="Files indexed" />
     {/if}
     <p class="help">You can search right away: results fill in as Omni reads your files, newest first. The notification-area icon shows how it is going.</p>
   </div>
@@ -119,17 +134,71 @@
     margin: 0;
     font: 600 13.5px/1.2 var(--sans);
   }
-  .bar {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--lift);
-    overflow: hidden;
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 6px 0 22px;
+    text-align: center;
   }
-  .fill {
-    height: 100%;
-    border-radius: 3px;
-    background: var(--chrome);
-    transform-origin: left;
-    transition: transform 0.4s var(--ease);
+  /* The accent, lit, with a small spring as it lands. */
+  .seal {
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    margin-bottom: 14px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--chrome) 16%, transparent);
+    color: var(--chrome);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--chrome) 50%, transparent),
+      0 0 34px -6px var(--chrome);
+    animation: land 640ms var(--spring) both;
+  }
+  @keyframes land {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+  .hero h2 {
+    font-size: 24px;
+  }
+  .hero .lede {
+    max-width: 520px;
+    margin-bottom: 0;
+  }
+  .keys {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+  }
+  .keys li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    background: var(--tile);
+    color: var(--text-2);
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+  .keys kbd {
+    flex: none;
+    min-width: 46px;
+  }
+  .again {
+    margin-bottom: 22px;
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .seal {
+      animation: none;
+    }
   }
 </style>

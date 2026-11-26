@@ -2,12 +2,23 @@
 
 Everything Omni does, the keys, file search, settings, and how it works. The [README](../README.md) has the short version and the install steps.
 
+- [First start](#first-start)
 - [Commands](#commands)
 - [Keys](#keys)
 - [File search](#file-search)
 - [Settings and where things are](#settings-and-where-things-are)
 - [Updating and removing](#updating-and-removing)
 - [How it works](#how-it-works)
+
+## First start
+
+The first start opens a short setup guide, about a minute, every part of it optional. Open it again from the tray icon ("Set up Omni...") or Settings > About.
+
+1. **Meet Omni.** A bar types examples by itself (apps, web and quicklinks, maths, clipboard, notes, timer, files); the chips under it jump to one.
+2. **Your hotkey.** Record another if you like, and press it to see the bar open (**Try it now**). Optionally start Omni when you sign in.
+3. **Your look.** Theme and accent, shown on a bar and on the guide itself as you choose.
+4. **What you want.** What works already, and the extras to switch on: clipboard history (instant), Omni AI and file search (each a download of about 1 GB, started by a button that says so).
+5. **Your files**, only if you turned file search on: the folders to read, and how thorough (chosen for your computer).
 
 ## Commands
 
