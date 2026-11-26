@@ -20,8 +20,10 @@ Three choices in Settings, General change this, and every window follows at once
   faint text shadow. Where the system cannot blur (Windows' energy saver: nearly opaque) or the person asked for less transparency
   (opaque), the plate is dense again. What floats inside a card is denser and blurs what it covers (`--glass-raised`, `--glass-blur`).
   No ring: the bar is slimmer (50 px), its edge a hairline in the accent (`[ui] bar_border` turns it off), and its rim lit brightest at
-  the top left. Motion is three accent blobs drifting through the card, brighter while the bar has the keyboard and while you type, and a faint
-  light that follows the pointer; the results pour in, sliding down out of a 6 px blur as they fade in (one filter on the results
+  the top left. Motion is three accent blobs drifting through the card (a pass takes 20 to 30 seconds), brighter while the bar has the keyboard and while you type,
+  and held back to a glow once results show (opacity 0.12 to 0.2, against 0.18 to 0.4 on the bare bar), and a faint
+  light that follows the pointer. A blob is a still picture, soft all the way out (a gradient that falls away in eight steps, no core, no white one), moved by transform alone: a
+  blur filter on it softened it too, and cost frames; the results pour in, sliding down out of a 6 px blur as they fade in (one filter on the results
   panel, which costs nothing measurable). It stops for reduced motion. What cost frames, on 2026-11-26, was a blur on every blob, a
   gradient that turned, a shape that changed outline every frame, a sweep band and a copy of all of it in each tile: 104 fps idle and
   85 typing against 144 and 138 without them, on a 144 Hz screen. Keep what moves to transforms and opacity, which the compositor runs

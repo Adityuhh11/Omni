@@ -717,7 +717,7 @@
 <svelte:window bind:innerWidth={windowWidth} onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
 <main bind:this={row} style:--row-w="{showQuick ? Math.max(0, windowWidth - SIDE * 2) : cardWidth}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
-  <div class="card" class:ringed class:typing class:alone={!showQuick} style:max-width={showQuick ? null : `${BAR_WIDTH}px`} style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
+  <div class="card" class:ringed class:typing class:open={showPanel} class:alone={!showQuick} style:max-width={showQuick ? null : `${BAR_WIDTH}px`} style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
     {#if ringed}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
       <div class="liquid" aria-hidden="true">
@@ -1119,7 +1119,7 @@
   }
   /* Glass: no metal and no bevel, and a slimmer bar. The plate reaches the card's edge, which is a hairline in the accent (or nothing,
      if the bar is set to have no edge), and the light under the text moves like a slow liquid: two faint blobs of the accent wander
-     over the whole card, results and all, and change shape as they go, each pass taking about a quarter of a minute, brighter while
+     over the whole card, results and all, and change shape as they go, each pass taking about half a minute, brighter while
      the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from what is being typed. */
   .liquid {
     display: none;
@@ -1165,7 +1165,7 @@
     overflow: hidden;
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0.22;
+    opacity: 0.18;
     transition: opacity 1200ms var(--ease);
   }
   /* The flow is the whole row, card and quick-open tiles, placed from the card's top left; the card and each tile show their own part
@@ -1180,39 +1180,67 @@
     container-type: size;
   }
   :global(html[data-theme="glass"]) main:has(.card:hover, .tile:hover) .liquid {
-    opacity: 0.27;
+    opacity: 0.22;
   }
   :global(html[data-theme="glass"]) main:has(.card:focus-within) .liquid {
-    opacity: 0.42;
+    opacity: 0.32;
   }
   :global(html[data-theme="glass"]) main:has(.card.typing) .liquid {
-    opacity: 0.55;
+    opacity: 0.4;
     transition-duration: 500ms;
   }
+  /* With results showing the light sits behind text on every row, so it is held back to a glow: it should be felt, not seen. */
+  :global(html[data-theme="glass"]) main:has(.card.open) .liquid {
+    opacity: 0.12;
+  }
+  :global(html[data-theme="glass"]) main:has(.card.open:focus-within) .liquid {
+    opacity: 0.17;
+  }
+  :global(html[data-theme="glass"]) main:has(.card.open.typing) .liquid {
+    opacity: 0.2;
+  }
+  /* Each blob is a still picture of soft light, moved by transform alone (a blur filter on them cost frames). Its edge is not an edge: the
+     light falls away in many small steps, as a blurred one does, so there is no bright core and no rim to see travelling. */
   .blob {
+    --tint: var(--chrome);
     position: absolute;
-    top: -70px; /* the blob's middle is the card's top left corner, from where the paths below move it */
-    left: -110px;
-    width: 220px;
-    height: 140px;
-    background: radial-gradient(closest-side, var(--chrome), transparent);
-    animation: wander 11s ease-in-out infinite alternate;
+    top: -110px; /* the blob's middle is the card's top left corner, from where the paths below move it */
+    left: -160px;
+    width: 320px;
+    height: 220px;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--tint) 100%, transparent),
+      color-mix(in srgb, var(--tint) 80%, transparent) 12%,
+      color-mix(in srgb, var(--tint) 56%, transparent) 26%,
+      color-mix(in srgb, var(--tint) 34%, transparent) 42%,
+      color-mix(in srgb, var(--tint) 17%, transparent) 58%,
+      color-mix(in srgb, var(--tint) 7%, transparent) 74%,
+      color-mix(in srgb, var(--tint) 2%, transparent) 88%,
+      transparent
+    );
+    animation: wander 24s ease-in-out infinite alternate;
   }
   .blob.two {
-    width: 280px;
-    left: -140px;
+    --tint: color-mix(in srgb, var(--chrome) 88%, var(--ink));
+    width: 400px;
+    height: 260px;
+    left: -200px;
+    top: -130px;
     animation-name: wander-back;
-    animation-duration: 15s;
-    animation-delay: -6s;
+    animation-duration: 32s;
+    animation-delay: -13s;
   }
+  /* The third is a paler cast of the accent, never white: a white one reads as a torch. */
   .blob.three {
-    width: 160px;
-    height: 110px;
-    left: -80px;
-    top: -55px;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--chrome) 55%, white), transparent);
-    animation-duration: 8s;
-    animation-delay: -3s;
+    --tint: color-mix(in srgb, var(--chrome) 78%, var(--ink));
+    width: 260px;
+    height: 180px;
+    left: -130px;
+    top: -90px;
+    opacity: 0.7;
+    animation-duration: 19s;
+    animation-delay: -7s;
   }
   @media (prefers-reduced-motion: reduce) {
     .blob {
