@@ -196,9 +196,12 @@ static NSView *newGlass(NSRect frame) {
 		NSGlassEffectView *glass = [[NSGlassEffectView alloc] initWithFrame:frame];
 		glass.style = NSGlassEffectViewStyleRegular; // frosted: the clear style barely blurs, and busy windows behind show through sharp
 		glass.tintColor = [NSColor colorWithWhite:0.06 alpha:0.22]; // light: more of the desktop's colour comes through the bar
+// Only built with an SDK that has the property: @available checks at run time, not when compiling against an older SDK.
+#if defined(__MAC_27_0) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_27_0
 		if (@available(macOS 27.0, *)) {
 			glass.effectIsInteractive = YES;
 		}
+#endif
 		return glass;
 	}
 	NSVisualEffectView *blur = [[NSVisualEffectView alloc] initWithFrame:frame];
