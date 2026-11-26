@@ -41,7 +41,7 @@ the engine only after the page asks.
 | `browsers` | Reads the history and bookmarks of Zen, Firefox, Chrome, Edge and Brave for Omni AI's `browser` tool group: a copy of each browser's database and write-ahead log is read with pure-Go SQLite (`modernc.org/sqlite`), Chromium's `Bookmarks` file as JSON; only the folders differ per system (`paths_windows.go`, `paths_darwin.go`) |
 | `secrets` | API keys in the system credential store (Credential Manager through `advapi32`; the Keychain through the `security` command, the secret on its standard input), by a short name; `Get`, `Set`, `Delete` (`secrets_windows.go`, `secrets_darwin.go`) |
 | `mcpconnect` | Settings > AI apps: adds Omni to, or removes it from, the MCP settings file of Claude Desktop, Cursor, VS Code and Windsurf on the person's button press, keeping every other server and the original as `.omni-backup`; a file that is not plain JSON is refused. The table of files is shared (`targets.go`), only the settings folder differs (`targets_windows.go`, `targets_darwin.go`) |
-| `hotkey` | One extra global hotkey that can be moved while the program runs (the chat's, the notes') |
+| `hotkey` | One extra global hotkey that can be moved while the program runs (the chat's, the notes'), and `Set`, the hotkeys the person made for apps, scripts and the like (`[[shortcut]]`): each runs a row of the bar through `palette.Do`; `Apply` registers only what changed, so a combination another program owns fails alone |
 | `update`, `autostart`, `tray`, `status` | Release check and one-click update, start at sign-in, the notification-area icon, the status line |
 
 Settings changes flow one way: the page calls a `settingsui` method, which validates and saves through `settings.Store`, whose

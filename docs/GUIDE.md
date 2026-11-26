@@ -43,6 +43,19 @@ On a Mac they are drawn as `⌃ ⌥ ⇧ ⌘`.
 
 In file search, `code:` `img:` `pdf:` `doc:` `vid:` before a query limit it to one kind of file.
 
+## Hotkeys for anything
+
+**Settings > Hotkeys** gives any app, script, settings page or the timer its own global hotkey. Press **Add hotkey**, search for what to run (the same rows the
+bar lists), then press **Set** and the keys. The hotkey does what Enter does on that row. A combination another program already owns is refused with
+the reason, and a combination used for another Omni job (the bar, the chat, the notes, the clipboard) cannot be used twice.
+
+```toml
+[[shortcut]]
+keys   = 'Ctrl+Alt+T'
+target = 'app:...'       # the row's id; Settings fills it in
+title  = 'Terminal'
+```
+
 ## File search
 
 File search is the part that needs real resources, so it is a choice you make in **Settings > File search**.

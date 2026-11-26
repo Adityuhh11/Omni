@@ -483,6 +483,17 @@ func run(afterUpdate bool) error {
 	}
 	// The notes hotkey works the same way: it shows the window and closes it again when it is the one in use.
 	notesKey := hotkey.NewSlot(app.GlobalShortcut)
+	// The hotkeys the person made for apps, scripts and the like each run a row of the bar, as Enter on it would. The bar's
+	// service is made below; a hotkey is only pressed after the program has started.
+	var paletteSvc *palette.Service
+	keepPalette := func(s *palette.Service) *palette.Service { paletteSvc = s; return s }
+	shortcuts := hotkey.NewSet(app.GlobalShortcut, func(target string) {
+		go func() { // the hotkey arrives on the main thread, and launching waits for another program
+			if err := paletteSvc.Do(target, "open", ""); err != nil {
+				log.Printf("hotkey for %s: %v", target, err)
+			}
+		}()
+	})
 	// The timer lives here, not in its window: the window opens when one starts and closes when it ends.
 	countdown := timer.New(
 		func() config.Timer { return store.Get().Timer },
@@ -521,7 +532,7 @@ func run(afterUpdate bool) error {
 		application.NewService(fileSearch),
 		application.NewService(indexMap),
 		application.NewService(opener),
-		application.NewService(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
+		application.NewService(keepPalette(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
 			Copy: func(text string) error {
 				if !clipboard.OwnCopy(func() bool { return app.Clipboard.SetText(text) }) { // the history must not keep what this program copied
 					return errors.New("the clipboard is in use by another program; try again")
@@ -550,7 +561,7 @@ func run(afterUpdate bool) error {
 				Ready: func() bool { return engine.Status().State == sidecar.StateReady && !setup.State().NeedsUpdate },
 				OnCPU: func() bool { return engine.Status().Device == "cpu" },
 			},
-		})),
+		}))),
 		application.NewService(notes.NewService(noteStore, notesWindow.SetAlwaysOnTop)),
 		application.NewService(timer.NewService(countdown)),
 		application.NewService(calendar.NewService(calendars, browser.Open, func() { settingsWindow.OpenAt("calendar") })),
@@ -599,6 +610,7 @@ func run(afterUpdate bool) error {
 					SetTitle("Choose a folder to search").PromptForSingleSelection()
 			},
 			Browsers:             web.Installed,
+			Shortcuts:            shortcuts,
 			OpenFolder:           openFolder,
 			Clipboard:            clips,
 			RebindClipboard:      func(accelerator string) error { return bar.RebindFill(accelerator, "clip: ") },
@@ -773,6 +785,9 @@ func run(afterUpdate bool) error {
 		}
 		icon.SetChat(cfg.Chat.Enabled)
 		go chatSvc.Housekeeping()
+		if len(cfg.Shortcuts) > 0 {
+			go shortcuts.Apply(settingsui.ShortcutBindings(cfg.Shortcuts)) // like the others: registering asks the main thread, which is running this handler
+		}
 		if hk := cfg.Notes.Hotkey; hk != "" {
 			go func() {
 				if err := notesKey.Rebind(hk, notesWindow.Toggle); err != nil {

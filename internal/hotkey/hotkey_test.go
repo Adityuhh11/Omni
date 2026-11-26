@@ -74,3 +74,48 @@ func TestAnEmptyAcceleratorTurnsTheHotkeyOffAndTheSameOneIsLeftAlone(t *testing.
 		t.Fatal("a working hotkey must clear the error")
 	}
 }
+
+func TestASetRegistersWhatIsAskedDropsWhatIsNotAndKeepsTheRest(t *testing.T) {
+	keys := &fakeKeys{bound: map[string]func(){}, taken: map[string]bool{"Ctrl+Alt+Z": true}}
+	var ran []string
+	set := NewSet(keys, func(target string) { ran = append(ran, target) })
+
+	set.Apply([]Binding{{"Ctrl+Alt+A", "app:one"}, {"Ctrl+Alt+B", "app:two"}, {"Ctrl+Alt+Z", "app:taken"}})
+	if len(keys.bound) != 2 {
+		t.Fatalf("bound = %v", keys.bound)
+	}
+	if msg := set.Errors()["Ctrl+Alt+Z"]; msg == "" || set.Errors()["Ctrl+Alt+A"] != "" {
+		t.Fatalf("errors = %v: only the taken combination may fail", set.Errors())
+	}
+	keys.bound["Ctrl+Alt+A"]()
+	keys.bound["Ctrl+Alt+B"]()
+	if len(ran) != 2 || ran[0] != "app:one" || ran[1] != "app:two" {
+		t.Fatalf("ran %v", ran)
+	}
+
+	// B goes, A keeps its registration but now runs another thing, C arrives.
+	keys.events = nil
+	set.Apply([]Binding{{"Ctrl+Alt+A", "script:x"}, {"Ctrl+Alt+C", "app:three"}})
+	if got := len(keys.events); got != 2 || keys.bound["Ctrl+Alt+B"] != nil || keys.bound["Ctrl+Alt+C"] == nil {
+		t.Fatalf("events = %v, bound = %v", keys.events, keys.bound)
+	}
+	ran = nil
+	keys.bound["Ctrl+Alt+A"]()
+	if len(ran) != 1 || ran[0] != "script:x" {
+		t.Fatalf("after a change the old target ran: %v", ran)
+	}
+	if len(set.Errors()) != 0 {
+		t.Fatalf("errors = %v", set.Errors())
+	}
+}
+
+func TestASetTriesAgainAKeyThatFailedBefore(t *testing.T) {
+	keys := &fakeKeys{bound: map[string]func(){}, taken: map[string]bool{"Ctrl+Alt+Z": true}}
+	set := NewSet(keys, func(string) {})
+	set.Apply([]Binding{{"Ctrl+Alt+Z", "app:x"}})
+	keys.taken["Ctrl+Alt+Z"] = false // the other program let go
+	set.Apply([]Binding{{"Ctrl+Alt+Z", "app:x"}})
+	if keys.bound["Ctrl+Alt+Z"] == nil || len(set.Errors()) != 0 {
+		t.Fatalf("bound = %v, errors = %v", keys.bound, set.Errors())
+	}
+}

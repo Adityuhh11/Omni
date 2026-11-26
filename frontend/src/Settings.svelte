@@ -15,6 +15,7 @@
   import General from "./lib/settings/General.svelte";
   import OmniAI from "./lib/settings/OmniAI.svelte";
   import Quicklinks from "./lib/settings/Quicklinks.svelte";
+  import Shortcuts from "./lib/settings/Shortcuts.svelte";
   import Snippets from "./lib/settings/Snippets.svelte";
   import TimerSettings from "./lib/settings/TimerSettings.svelte";
 
@@ -23,6 +24,7 @@
     { id: "general", label: "General", icon: "settings" },
     { id: "quicklinks", label: "Quicklinks", icon: "link", heading: "Features" },
     { id: "snippets", label: "Snippets", icon: "snippet" },
+    { id: "hotkeys", label: "Hotkeys", icon: "app" },
     { id: "clipboard", label: "Clipboard", icon: "clip" },
     { id: "timer", label: "Focus & timer", icon: "timer" },
     { id: "calendar", label: "Calendar", icon: "calendar" },
@@ -78,6 +80,8 @@
         <Quicklinks {view} />
       {:else if section === "snippets"}
         <Snippets {view} />
+      {:else if section === "hotkeys"}
+        <Shortcuts {view} />
       {:else if section === "search"}
         <FileSearch {view} {reload} />
       {:else if section === "clipboard"}
