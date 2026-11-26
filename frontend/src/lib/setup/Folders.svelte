@@ -53,8 +53,7 @@
 
 <h2>What should Omni search?</h2>
 <p class="lede">
-  Pick folders, and leave out the subfolders you do not need. The first pass reads everything once; after that Omni keeps up with changes as they
-  happen.
+  Pick the folders, and leave out subfolders you do not need. Everything is read once; after that Omni keeps up on its own.
 </p>
 
 <ul class="rows">

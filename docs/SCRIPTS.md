@@ -6,6 +6,14 @@ need an SDK or a manifest: a few comment lines at the top of the file are enough
 The folder is `%APPDATA%\Omni\scripts` on Windows and `~/Library/Application Support/Omni/scripts` on a Mac. Type `scripts`
 in the bar, or open Settings, Omni AI, Tools, to open it.
 
+## Add a script from Settings
+
+Settings, Omni AI, Tools, **Add script**: give it a name, choose the language, type the code or press **Load from file…**, choose what to do with
+what it prints, and press **Add**. Omni writes the file into the scripts folder with the `@omni.title` line (your name) on top, so it is a command in
+the bar at once. The file is named after your name (`Kill port` becomes `kill-port.ps1`); two scripts cannot share a name, and an existing file is
+never replaced. A file you load keeps its `#!` line first, and a title it already had gives way to the name you chose. For an `@omni.tool` or
+`@omni.argument` line, edit the file in the folder afterwards.
+
 ## A first script
 
 `hello.ps1`:

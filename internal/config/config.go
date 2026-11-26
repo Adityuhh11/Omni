@@ -45,6 +45,8 @@ type Config struct {
 	Search       Search `toml:"search"`
 	// UI holds the small choices about how the bar feels.
 	UI UI `toml:"ui"`
+	// QuickOpen is the row of apps under the empty bar, opened with the number keys.
+	QuickOpen QuickOpen `toml:"quick_open"`
 	// Timer is the pomodoro timer (internal/timer).
 	Timer Timer `toml:"timer"`
 	// Clipboard is the searchable history of what is copied (internal/clipboard).
@@ -57,6 +59,8 @@ type Config struct {
 	Calendar Calendar `toml:"calendar"`
 	// Snippets are texts kept to be pasted from the bar (internal/snippets).
 	Snippets []Snippet `toml:"snippet,omitempty"`
+	// Shortcuts are hotkeys that each run one row of the bar from anywhere: an app, a script, a settings page.
+	Shortcuts []Shortcut `toml:"shortcut,omitempty"`
 	// Sidecar is the retired [sidecar] table (where the engine lived in the repository). Load reads
 	// it so old files still open and then clears it, so it is never written back.
 	Sidecar *retiredSidecar `toml:"sidecar,omitempty"`
@@ -70,12 +74,35 @@ type UI struct {
 	Theme string `toml:"theme"`
 	// Ring draws the flowing metal ring around the bar and the chat's box; off, they have a plain hairline edge.
 	Ring bool `toml:"ring"`
-	// Accent colours what the bright chrome marks (focus, the caret, filled buttons, switches, the selected row): one of Accents,
-	// "none" for the chrome itself.
+	// Accent colours what the bright chrome marks (focus, the caret, the bar's icon and edge, filled buttons, switches, the selected row):
+	// one of Accents, "none" for the chrome itself, or any colour written as "#rrggbb".
 	Accent string `toml:"accent"`
-	// Lights sets two faint lights in the accent's colour wandering inside the bar, in the Glass theme.
-	Lights bool `toml:"lights"`
+	// BarBorder draws a thin edge in the accent round the search bar in the Glass theme; off, the bar has no edge at all.
+	BarBorder bool `toml:"bar_border"`
+	// Lights and BarAccent are retired keys (the Glass theme's floating lights, and the colour of the second Glass theme's bar, which
+	// the accent replaced). Load reads them so old files still open and then clears them, so they are never written back.
+	Lights    *bool   `toml:"lights,omitempty" json:"-"`
+	BarAccent *string `toml:"bar_accent,omitempty" json:"-"`
 }
+
+// QuickOpen is the row of apps shown under the bar while nothing is typed; 1 to Count (or Cmd/Ctrl with the number) opens one.
+type QuickOpen struct {
+	// Enabled shows the row.
+	Enabled bool `toml:"enabled"`
+	// Count is how many apps the row holds: QuickOpenMin to QuickOpenMax.
+	Count int `toml:"count"`
+	// Suggest fills the slots the person has not set with the apps Omni expects them to want now. It is worked out on this
+	// computer from the launch times Omni already keeps for ranking (state.json); nothing about it is sent anywhere.
+	Suggest bool `toml:"suggest"`
+	// Apps are the apps put in the row by hand, as palette ids ("app:<id>"), in slot order; "" leaves that slot to the suggestions.
+	Apps []string `toml:"apps,omitempty"`
+}
+
+// The quick-open row holds this many apps at least and at most.
+const (
+	QuickOpenMin = 3
+	QuickOpenMax = 4
+)
 
 // Calendar lists the calendars that are shown. Their subscription addresses are secrets (anyone with one can read the
 // calendar), so they are in the system credential store under "calendar-<id>", never here.
@@ -92,8 +119,8 @@ type CalendarFeed struct {
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
 var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass"}
 
-// Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
-var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}
+// Accents are the named values of UI.Accent, the default first (frontend/src/theme.css); a colour written as "#rrggbb" is allowed as well.
+var Accents = []string{"ember", "none", "blue", "violet", "green", "amber", "rose"}
 
 // Timer holds the lengths of a pomodoro and how it goes on.
 type Timer struct {
@@ -130,6 +157,15 @@ type Snippet struct {
 	// Keyword, if set, is one word that shows the snippet in the bar when it is typed exactly.
 	Keyword string `toml:"keyword,omitempty"`
 	Text    string `toml:"text"`
+}
+
+// Shortcut is a hotkey that runs one row of the bar from anywhere, as pressing Enter on that row would.
+type Shortcut struct {
+	Keys string `toml:"keys"`
+	// Target is the id of the row it runs ("app:...", "script:...", "cmd:settings:about", "timer:pomodoro").
+	Target string `toml:"target"`
+	// Title is the name the settings list shows for it, kept so the list still reads well when the row is gone (an app that was removed).
+	Title string `toml:"title,omitempty"`
 }
 
 // Clipboard holds the settings of the clipboard history.
@@ -214,6 +250,9 @@ type Search struct {
 	InLauncher bool `toml:"in_launcher"`
 	// GroupResults shows file results under a heading per kind of file, with the single best match first.
 	GroupResults bool `toml:"group_results"`
+	// Start says when the engine starts: with the launcher ("launch"), or when file search is first used and ends after it sat
+	// idle ("search"), for someone who keeps files out of the default search and wants the model's video memory back meanwhile.
+	Start string `toml:"start"`
 	// HoldIndexing keeps the folders from being indexed until the person presses "Start indexing": set when file search
 	// is first downloaded, so the choices below are made before any picture is embedded. A file without the key (every
 	// install made before it existed) indexes as it always did.
@@ -235,6 +274,9 @@ type Search struct {
 	Videos   string `toml:"videos"`
 	Audio    string `toml:"audio"`
 }
+
+// StartModes are the allowed values of Search.Start, the default first.
+var StartModes = []string{"launch", "search"}
 
 // Paces are the allowed values of Search.Pace, from the most to the least demanding.
 var Paces = []string{"fast", "balanced", "gentle"}
@@ -281,6 +323,10 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	cfg.Sidecar = nil
+	cfg.UI.Lights, cfg.UI.BarAccent = nil, nil
+	if cfg.UI.Theme == "glass2" { // the theme that replaced the first Glass kept its short name
+		cfg.UI.Theme = "glass"
+	}
 	if slices.ContainsFunc(cfg.Roots, func(folder string) bool {
 		return slices.ContainsFunc(cfg.Roots, func(root string) bool { return Inside(folder, root) })
 	}) {
@@ -319,9 +365,11 @@ func (c Config) Clone() Config {
 	c.Quicklinks = slices.Clone(c.Quicklinks)
 	c.Clipboard.Ignore = slices.Clone(c.Clipboard.Ignore)
 	c.Snippets = slices.Clone(c.Snippets)
+	c.Shortcuts = slices.Clone(c.Shortcuts)
 	c.Calendar.Feeds = slices.Clone(c.Calendar.Feeds)
 	c.Timer.BlockSites = slices.Clone(c.Timer.BlockSites)
 	c.Timer.BlockApps = slices.Clone(c.Timer.BlockApps)
+	c.QuickOpen.Apps = slices.Clone(c.QuickOpen.Apps)
 	return c
 }
 
@@ -360,6 +408,17 @@ func (c Config) Validate() error {
 	if err := c.validateWeb(); err != nil {
 		return err
 	}
+	if q := c.QuickOpen; q.Count < QuickOpenMin || q.Count > QuickOpenMax || len(q.Apps) > QuickOpenMax {
+		return fmt.Errorf("quick_open count must be %d to %d, with at most %d apps", QuickOpenMin, QuickOpenMax, QuickOpenMax)
+	}
+	for _, id := range c.QuickOpen.Apps {
+		if id != "" && !strings.HasPrefix(id, "app:") {
+			return fmt.Errorf("quick_open app %q must be an app id (app:...)", id)
+		}
+	}
+	if !slices.Contains(Accents, c.UI.Accent) && !isHexColour(c.UI.Accent) {
+		return fmt.Errorf("ui accent %q must be one of %s, or a colour written as #rrggbb", c.UI.Accent, strings.Join(Accents, ", "))
+	}
 	if err := c.validateSnippets(); err != nil {
 		return err
 	}
@@ -379,8 +438,8 @@ func (c Config) Validate() error {
 		allowed     []string
 	}{
 		{"ui theme", c.UI.Theme, Themes},
-		{"ui accent", c.UI.Accent, Accents},
 		{"search pace", c.Search.Pace, Paces},
+		{"search start", c.Search.Start, StartModes},
 		{"pdf_pages", c.Search.PDFPages, PDFPageModes},
 		{"photos", c.Search.Photos, PhotoModes},
 		{"videos", c.Search.Videos, VideoModes},
@@ -446,6 +505,15 @@ func (c Config) validateHotkeys() error {
 		{"chat", "the chat's", c.Chat.Hotkey},
 		{"notes", "the notes'", c.Notes.Hotkey},
 	}
+	for _, s := range c.Shortcuts {
+		switch {
+		case strings.TrimSpace(s.Keys) == "":
+			return fmt.Errorf("a shortcut needs a hotkey")
+		case strings.TrimSpace(s.Target) == "":
+			return fmt.Errorf("the shortcut %q needs something to run", s.Keys)
+		}
+		jobs = append(jobs, struct{ name, owner, keys string }{"shortcut", "another shortcut's", s.Keys})
+	}
 	squeeze := func(keys string) string { return strings.ToLower(strings.ReplaceAll(keys, " ", "")) }
 	for i, job := range jobs {
 		for _, earlier := range jobs[:i] {
@@ -478,6 +546,19 @@ func (c Config) validateChat() error {
 		}
 	}
 	return nil
+}
+
+// isHexColour says whether s is a colour written as "#rrggbb", the one form a colour picker gives and every page reads.
+func isHexColour(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for _, r := range s[1:] {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", r) {
+			return false
+		}
+	}
+	return true
 }
 
 // validateWeb checks the browser settings: a typo in a quicklink should fail loudly, not give a dead row.

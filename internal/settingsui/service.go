@@ -76,6 +76,10 @@ type Options struct {
 	PickFolder func() (string, error)
 	// Browsers lists the installed browsers by name.
 	Browsers func() []string
+	// ForgetUsage drops the launch history the ranking and the quick-open suggestions learn from (state.Store.ForgetUses).
+	ForgetUsage func() error
+	// Apps lists the installed apps by name, for choosing what goes in the quick-open row.
+	Apps func() []AppChoice
 	// OpenFolder shows a folder in Explorer.
 	OpenFolder func(path string) error
 	// Autostart says whether the launcher starts when the user signs in; SetAutostart changes that.
@@ -103,6 +107,8 @@ type Options struct {
 	OpenSetup func()
 	// Engine reports the file-search engine's state, why it is in it, and where its model runs.
 	Engine func() sidecar.Status
+	// Shortcuts is the hotkeys that run apps, scripts and the like; nil leaves the page without them.
+	Shortcuts ShortcutSet
 	// LogDir is where omni.log is written. Version is the build's version.
 	LogDir, Version string
 }
@@ -141,18 +147,20 @@ type View struct {
 	SearchURL     string
 	Quicklinks    []config.Quicklink
 	Snippets      []config.Snippet
-	Roots         []string
-	Off           []string // roots switched out of the results, still indexed
-	FileSearch    bool
-	Pace          string
-	Autostart     bool
-	CheckUpdates  bool
+	// Shortcuts are the hotkeys that run something; ShortcutErrors says why a combination does not work, by combination.
+	Shortcuts      []config.Shortcut
+	ShortcutErrors map[string]string
+	Roots          []string
+	Off            []string // roots switched out of the results, still indexed
+	FileSearch     bool
+	Pace           string
+	Autostart      bool
+	CheckUpdates   bool
 	// SelectionEffect is the arrow-key lift in the bar; Timer is the pomodoro's lengths.
 	SelectionEffect bool
 	Theme           string
 	Ring            bool
 	Accent          string
-	Lights          bool
 	Timer           config.Timer
 	UpdateFound     string // the version of a newer release the last check saw, or ""
 	// UpdateInstallable says that release has a zip that can be checked, so the page can offer to install it.
@@ -166,9 +174,9 @@ type View struct {
 func (s *Service) View() View {
 	c := s.o.Store.Get()
 	return View{
-		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets,
+		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets, Shortcuts: c.Shortcuts, ShortcutErrors: s.shortcutErrors(),
 		Roots: c.Roots, Off: c.Off, FileSearch: c.Search.Enabled, Pace: c.Search.Pace,
-		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Lights: c.UI.Lights, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
+		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
 		ConfigPath: s.o.Store.Path(), LogDir: s.o.LogDir, Version: s.o.Version,
 	}
 }
@@ -226,19 +234,60 @@ func (s *Service) SetTheme(name string) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Theme = name }))
 }
 
-// SetLights turns the wandering lights inside the bar (Glass theme) on or off.
-func (s *Service) SetLights(on bool) string {
-	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Lights = on }))
-}
-
 // SetRing shows or hides the metal ring around the bar and the chat's box.
 func (s *Service) SetRing(on bool) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Ring = on }))
 }
 
-// SetAccent changes the colour of focus, filled buttons and the selection; a name that is not one of config.Accents is refused.
+// SetAccent changes the colour of focus, the bar's icon and edge, filled buttons and the selection; anything that is neither one of
+// config.Accents nor a "#rrggbb" colour is refused.
 func (s *Service) SetAccent(name string) string {
+	name = strings.TrimSpace(name)
+	if strings.HasPrefix(name, "#") {
+		name = strings.ToLower(name) // what a colour picker may give in capitals
+	}
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Accent = name }))
+}
+
+// AppChoice is one installed app, as the quick-open slots offer it: ID is the palette id ("app:<id>").
+type AppChoice struct {
+	ID   string
+	Name string
+}
+
+// QuickOpen is how the quick-open row under the empty bar is set.
+func (s *Service) QuickOpen() config.QuickOpen { return s.o.Store.Get().QuickOpen }
+
+// SaveQuickOpen sets the quick-open row; a count out of range or something that is not an app is refused and nothing changes.
+func (s *Service) SaveQuickOpen(q config.QuickOpen) string {
+	for len(q.Apps) > 0 && q.Apps[len(q.Apps)-1] == "" {
+		q.Apps = q.Apps[:len(q.Apps)-1] // trailing "suggested" slots need not be written down
+	}
+	return reason(s.o.Store.Update(func(c *config.Config) { c.QuickOpen = q }))
+}
+
+// QuickOpenApps lists the installed apps for the quick-open slots, by name.
+func (s *Service) QuickOpenApps() []AppChoice {
+	if s.o.Apps == nil {
+		return []AppChoice{}
+	}
+	return s.o.Apps()
+}
+
+// ForgetUsage forgets every launch Omni has remembered, so the suggestions and the ranking start again from nothing.
+func (s *Service) ForgetUsage() string {
+	if s.o.ForgetUsage == nil {
+		return "not available"
+	}
+	if err := s.o.ForgetUsage(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// SetBarBorder shows or hides the thin edge round the Glass search bar.
+func (s *Service) SetBarBorder(on bool) string {
+	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.BarBorder = on }))
 }
 
 // SaveTimer sets the pomodoro's lengths; a value out of range is refused and nothing changes.

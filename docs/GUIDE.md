@@ -2,12 +2,23 @@
 
 Everything Omni does, the keys, file search, settings, and how it works. The [README](../README.md) has the short version and the install steps.
 
+- [First start](#first-start)
 - [Commands](#commands)
 - [Keys](#keys)
 - [File search](#file-search)
 - [Settings and where things are](#settings-and-where-things-are)
 - [Updating and removing](#updating-and-removing)
 - [How it works](#how-it-works)
+
+## First start
+
+The first start opens a short setup guide, about a minute, every part of it optional. Open it again from the tray icon ("Set up Omni...") or Settings > About.
+
+1. **Meet Omni.** A bar types examples by itself (apps, web and quicklinks, maths, clipboard, notes, timer, files); the chips under it jump to one.
+2. **Your hotkey.** Record another if you like, and press it to see the bar open (**Try it now**). Optionally start Omni when you sign in.
+3. **Your look.** Theme and accent, shown on a bar and on the guide itself as you choose.
+4. **What you want.** What works already, and the extras to switch on: clipboard history (instant), Omni AI and file search (each a download of about 1 GB, started by a button that says so).
+5. **Your files**, only if you turned file search on: the folders to read, and how thorough (chosen for your computer).
 
 ## Commands
 
@@ -39,9 +50,32 @@ On a Mac they are drawn as `⌃ ⌥ ⇧ ⌘`.
 | `Ctrl+Enter` | Reveals a file in Explorer or Finder |
 | `Alt+Enter` | Searches the web from any row |
 | `Ctrl+,` | Opens Settings |
+| `Ctrl+1` to `Ctrl+4` (`⌘1` to `⌘4` on a Mac) | Opens that quick-open app beside the bar, whether or not something is typed |
+| `→` `←` | With nothing typed, walk through the quick-open apps; `Enter` opens the one picked, `Esc` goes back to the bar |
 | `Esc` | Closes the bar |
 
+### Quick open
+
+Beside the bar are three or four round shortcuts to apps (Settings > General > Quick open). You can set each slot to an app or leave it as
+"Suggested for you": then Omni fills it with the apps you usually open from the bar at this time of day, on this kind of day (a weekday or
+the weekend). The suggestion is worked out on your computer from the launch times Omni already keeps to rank results (at most 20 per app):
+nothing new is recorded and nothing is sent anywhere. "Forget my usage history" empties those launch times. With no history yet the slots show
+common apps (Safari, Notes, Mail on a Mac; Edge, File Explorer, Notepad on Windows).
+
 In file search, `code:` `img:` `pdf:` `doc:` `vid:` before a query limit it to one kind of file.
+
+## Hotkeys for anything
+
+**Settings > Hotkeys** gives any app, script, settings page or the timer its own global hotkey. Press **Add hotkey**, search for what to run (the same rows the
+bar lists), then press **Set** and the keys. The hotkey does what Enter does on that row. A combination another program already owns is refused with
+the reason, and a combination used for another Omni job (the bar, the chat, the notes, the clipboard) cannot be used twice.
+
+```toml
+[[shortcut]]
+keys   = 'Ctrl+Alt+T'
+target = 'app:...'       # the row's id; Settings fills it in
+title  = 'Terminal'
+```
 
 ## File search
 
@@ -52,6 +86,9 @@ File search is the part that needs real resources, so it is a choice you make in
 2. **Choose folders and what to index** (PDF pages, photos, videos, audio) and **how hard it works** (Fast, Balanced, Gentle). Nothing is read until you
    press **Start indexing**, and each option says how long it will take on this computer.
 3. **It stays current.** A watcher follows your folders; a new file is searchable a few seconds after it appears.
+4. **When it runs.** By default the engine starts with Omni and holds about 1.1 GB of video memory while Omni runs. Choose **Start the search engine: When I
+   search for files** to free that memory until you search for a file; the first search waits while it starts (about 6 s on a laptop RTX 4050) and it stops
+   again after 10 idle minutes, never in the middle of indexing.
 
 A graphics card makes it fast (NVIDIA, AMD or Intel Arc, through Vulkan, or Metal on a Mac). Without one it still works, only slower to index: choose
 *Words only* for PDFs and *names* for photos. On a laptop with an RTX 4050, text indexes at about 53 chunks a second, and pictures and PDF pages at
@@ -75,6 +112,12 @@ browser = 'firefox'                                 # empty = the system default
 trigger = 'gh'
 title   = 'GitHub'
 url     = 'https://github.com/search?q={q}'
+
+[quick_open]
+enabled = true
+count   = 3              # 3 or 4
+suggest = true           # fill the open slots from your launch times (on this computer only)
+apps    = ['app:...']    # slots set by hand, in order; '' leaves a slot to the suggestions
 
 [search]
 enabled  = true

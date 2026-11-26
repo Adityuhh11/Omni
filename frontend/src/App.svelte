@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { fade } from "svelte/transition";
+  import { cubicOut } from "svelte/easing";
   import { Clipboard, Events } from "@wailsio/runtime";
   import { Service as Files } from "../bindings/omni/internal/files";
   import { Service as Palette } from "../bindings/omni/internal/palette";
@@ -16,8 +17,7 @@
   import Hints from "./lib/Hints.svelte";
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
-  import Glow from "./lib/Glow.svelte";
-  import { glass } from "./lib/glass";
+  import { glass, glassPane } from "./lib/glass";
   import { showUnexpectedIn } from "./lib/oops";
   import Loader from "./lib/Loader.svelte";
   import { nextMetal, ringsFor } from "./lib/palettes";
@@ -26,11 +26,13 @@
   import { actionsFor, available, type Way } from "./lib/actions";
   import { filePathOf, flatten, keyOf, openLine, pathOf, pinIdOf, step, tagIdOf, timeOf, type Item } from "./lib/flatten";
   import { keyCommand } from "./lib/keys";
+  import { isMac } from "./lib/platform";
   import { asksForFiles, cycle, escapeStep, label, type Mode } from "./lib/modes";
   import { notesFor } from "./lib/notes";
   import TagPicker from "./lib/TagPicker.svelte";
 
   const DEBOUNCE_MS = 120;
+  const WARMING_RETRY_MS = 1500;
   const RING = 2.5; // px of metal around the card
   const MARGIN_TOP = 12; // clear window above and below the card, for its shadow
   const MARGIN_BOTTOM = 40;
@@ -49,6 +51,8 @@
   let ring = $state(currentLook().Ring); // the metal ring, or a plain edge
   let metal = $state(0); // which of the theme's rings the bar wears; changes whenever the panel closes
   const rings = $derived(ringsFor(theme));
+  // Glass has no metal: its edge is a hairline in the bar's accent. The other themes wear the ring unless it is turned off.
+  const ringed = $derived(theme !== "glass" && ring);
   let pending = $state(false); // a search is in flight
   let typing = $state(false); // a key was pressed in the last moment
   let target = $state<Item | null>(null); // the row the open action panel acts on (null: panel closed)
@@ -61,6 +65,11 @@
   let answerNote = $state(""); // why the Clipboard mode has nothing to list (it is off, nothing matches), if it has not
   let pins = $state(new Set<string>()); // the ids of everything pinned, to mark the rows
   let pinnedRows = $state<Entry[]>([]); // the pinned things that still exist, in the order pinned: the bar's empty state
+  let quick = $state<Entry[]>([]); // the quick-open row under the empty bar: number keys 1 to its length open one
+  const showQuick = $derived(quick.length > 0); // beside the bar while it is open, so the bar does not change width as you type
+  // The tiles are as tall as the bar beside them (Glass's bar is the slim one: its .bar is 50 px, see the style below).
+  const quickSize = $derived((theme === "glass" ? 50 : BAR_HEIGHT) + RING * 2);
+  let cardWidth = $state(0);
   let keying = $state(false); // an arrow key moved the selection a moment ago: the list lifts the selected row and dims the rest
   let keyingTimer: ReturnType<typeof setTimeout> | undefined;
   const KEYING_MS = 900;
@@ -139,6 +148,24 @@
     else shrinkTimer = setTimeout(() => resizeWindow(height), MORPH_MS + 40);
   });
 
+  // Glass has a blur of the desktop under the card, put there by the launcher as a view of its own: it takes the card's place and
+  // size, and moves over the same time and easing as the card does.
+  const SIDE = 20; // clear window to the left and right of the card
+  // The bar's width with nothing beside it: what the panel (720) left it before the quick-open tiles. The panel is wider now (840), so the
+  // bar fills what the tiles leave, and without tiles it stays this wide, in the middle.
+  const BAR_WIDTH = 680;
+  $effect(() => {
+    if (theme !== "glass") {
+      Panel.Glass(false, 0, 0, 0, 0, 0, 0);
+      return;
+    }
+    const radius = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--radius")) || 32;
+    void windowWidth;
+    void showQuick;
+    const left = card ? card.getBoundingClientRect().left : SIDE; // the bar is in the middle when the tiles are not beside it
+    Panel.Glass(true, left, MARGIN_TOP, cardWidth || window.innerWidth - SIDE * 2, cardHeight, radius, MORPH_MS);
+  });
+
   function resizeWindow(height: number) {
     appliedHeight = height;
     Panel.Resize(height);
@@ -181,6 +208,7 @@
     if (performance.now() - filledAt < FILL_GRACE_MS) input.setSelectionRange(input.value.length, input.value.length);
     else input.select();
     refreshInfo();
+    loadQuick(); // the apps may have been scanned, or the settings changed, since the bar last opened
   }
 
   // A hotkey that opens the bar with text typed in ("clip: ") tells the page just before the bar is shown. The
@@ -217,13 +245,110 @@
   // The bar has closed: the next opening starts from everything, with the pinned things listed, and in the
   // next metal, chosen now, unseen.
   function closed() {
+    quickPick = -1;
     shut = true;
     mode = "all";
     effective = "all";
     query = "";
     clearAnswer();
     loadPins();
+    loadQuick();
     metal = nextMetal(metal, Math.random, rings.length);
+  }
+
+  // Glass: a soft light on the glass follows the pointer, as on a pane held up to a lamp. The card and the quick-open tiles are one
+  // sheet of glass: the light is placed from the card's top left, and each tile shows the part of it that falls on the tile.
+  let row: HTMLElement;
+  let windowWidth = $state(window.innerWidth);
+  function shine(event: PointerEvent) {
+    if (theme !== "glass" || !card) return;
+    const box = card.getBoundingClientRect();
+    row.style.setProperty("--mx", `${event.clientX - box.left}px`);
+    row.style.setProperty("--my", `${event.clientY - box.top}px`);
+  }
+
+  // Each quick-open tile shows the part of the pointer's light that falls on it (--ox, --oy: where the tile is from the card's top left),
+  // with the card's glass behind it as a pane of its own.
+  let card: HTMLElement;
+  let tiles: HTMLElement[] = $state([]);
+  $effect(() => {
+    void cardWidth;
+    void cardHeight;
+    const frosted = theme === "glass";
+    const count = quick.length;
+    tick().then(() => {
+      const shown = tiles.slice(0, count).filter(Boolean);
+      if (!card || !frosted || shown.length === 0) {
+        Panel.GlassPanes([], 0, 0);
+        return;
+      }
+      const origin = card.getBoundingClientRect();
+      for (const tile of shown) {
+        const box = tile.getBoundingClientRect();
+        tile.style.setProperty("--ox", `${box.left - origin.left}px`);
+        tile.style.setProperty("--oy", `${box.top - origin.top}px`);
+      }
+      const first = shown[0].getBoundingClientRect();
+      Panel.GlassPanes(
+        shown.map((tile) => Math.round(tile.getBoundingClientRect().left)),
+        Math.round(first.top),
+        Math.round(first.width),
+      );
+    });
+  });
+
+  // The quick-open row: the apps set in Settings and the ones suggested for now (worked out on this computer only).
+  async function loadQuick() {
+    try {
+      quick = (await Palette.QuickOpen()) ?? [];
+    } catch {
+      quick = [];
+    }
+  }
+
+  // With nothing typed, Left and Right walk through the quick-open tiles (from the bar: Right to the first, Left to the last, and
+  // past either end back to the bar), Return opens the one picked and Escape goes back to the bar. Once something is typed the
+  // arrows move the caret again. True when the key was used.
+  let quickPick = $state(-1);
+  $effect(() => {
+    if (query !== "" || quickPick >= quick.length) quickPick = -1;
+  });
+  function quickKey(event: KeyboardEvent): boolean {
+    if (quick.length === 0 || query !== "" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+    const n = quick.length;
+    switch (event.key) {
+      case "ArrowRight":
+        quickPick = quickPick === n - 1 ? -1 : quickPick + 1;
+        return true;
+      case "ArrowLeft":
+        quickPick = quickPick === -1 ? n - 1 : quickPick - 1;
+        return true;
+      case "Enter":
+        if (quickPick < 0) return false;
+        openQuick(quickPick);
+        quickPick = -1;
+        return true;
+      case "Escape":
+        if (quickPick < 0) return false;
+        quickPick = -1;
+        return true;
+    }
+    return false;
+  }
+
+  // Opens the app in the slot (0-based) of the quick-open row; the launch is remembered like any other.
+  function openQuick(slot: number) {
+    const app = quick[slot];
+    if (app) attempt(() => Palette.Do(app.ID, "open", ""));
+  }
+
+  // Cmd (Ctrl on Windows) with 1 to 3 (4) opens that quick-open slot; plain numbers are left to the search (a sum like 2+2). -1 for any other key.
+  function quickSlot(event: KeyboardEvent): number {
+    if (quick.length === 0 || event.altKey || event.shiftKey || !/^Digit[1-9]$/.test(event.code)) return -1;
+    const slot = Number(event.code.slice(5)) - 1;
+    if (slot >= quick.length) return -1;
+    const command = isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    return command ? slot : -1;
   }
 
   // What is pinned, for the empty bar and for the marks on rows. Asked again whenever it may have changed.
@@ -254,6 +379,18 @@
   const refreshInfo = () => Status.Info().then((i) => (info = i));
 
   let typingTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // The results fade in; in Glass they pour in, coming out of a blur as they slide down.
+  function pour(_: Element) {
+    const still = reduceMotion.matches;
+    if (theme !== "glass") return { duration: still ? 0 : 160, delay: 60, css: (t: number) => `opacity: ${t}` };
+    return {
+      duration: still ? 0 : 280,
+      delay: still ? 0 : 40,
+      easing: cubicOut,
+      css: (t: number, u: number) => `opacity: ${t}; filter: blur(${u * 6}px); transform: translateY(${u * -6}px)`,
+    };
+  }
 
   function onInput() {
     problem = "";
@@ -323,6 +460,11 @@
     answered = asked;
     selected = 0;
     expanded = new Set();
+    if (answer.State === "warming" && active) {
+      // The engine is starting (on demand, or just after launch): ask again until it answers, as typing more would.
+      refreshInfo();
+      timer = setTimeout(runSearch, WARMING_RETRY_MS);
+    }
   }
 
   // The panel acts on the row that was selected when it opened, even if the pointer wanders over
@@ -429,6 +571,16 @@
 
   function onKeydown(event: KeyboardEvent) {
     if (target || picker) return; // a panel has the keyboard
+    if (quickKey(event)) {
+      event.preventDefault();
+      return;
+    }
+    const slot = quickSlot(event);
+    if (slot >= 0) {
+      event.preventDefault();
+      openQuick(slot);
+      return;
+    }
     const command = keyCommand(event, {
       current,
       atEndOfText: atEndOfText(),
@@ -438,8 +590,8 @@
     event.preventDefault();
     switch (command.do) {
       case "settings":
+        Panel.HideForLaunch(); // first: Hide() would hand the keyboard to the previous app and leave Settings behind it
         SettingsWindow.Open();
-        Panel.Hide();
         break;
       case "escape": {
         const next = escapeStep(mode, query);
@@ -547,6 +699,7 @@
     });
     takeFocus();
     loadPins();
+    loadQuick();
     // The observer fires after layout, whenever what the card holds changes size (results arriving,
     // fonts loading); the card and the window follow.
     const observer = new ResizeObserver(([entry]) => (contentHeight = entry.borderBoxSize[0].blockSize));
@@ -561,13 +714,19 @@
   });
 </script>
 
-<svelte:window onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
+<svelte:window bind:innerWidth={windowWidth} onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
-<main>
-  <div class="card" style:height="{cardHeight}px" use:glass={30}>
-    {#if ring}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
+<main bind:this={row} style:--row-w="{showQuick ? Math.max(0, windowWidth - SIDE * 2) : cardWidth}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
+  <div class="card" class:ringed class:typing class:alone={!showQuick} style:max-width={showQuick ? null : `${BAR_WIDTH}px`} style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
+    {#if ringed}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
-      <Glow running={active} />
+      <div class="liquid" aria-hidden="true">
+        <div class="flow">
+          <span class="blob one"></span>
+          <span class="blob two"></span>
+          <span class="blob three"></span>
+        </div>
+      </div>
       <div class="content" class:acting={target || picker} class:shut bind:this={content}>
         <header class="bar">
           <span class="glass"><SearchGlyph size={22} busy={pending} /></span>
@@ -593,7 +752,7 @@
         </header>
 
         {#if showPanel}
-          <div class="panel" in:fade={{ duration: 160, delay: 60 }}>
+          <div class="panel" in:pour>
             {#each notes as note}
               <p class="note" class:problem={note.problem}>{note.text}</p>
             {/each}
@@ -651,6 +810,15 @@
       {/if}
     </div>
   </div>
+  {#if showQuick}
+    <div class="quick" role="group" aria-label="Quick open" style:height="{quickSize}px" style:--tile-size="{quickSize}px" transition:fade={{ duration: 160 }}>
+      {#each quick as app, index (app.ID)}
+        <button type="button" class="tile" class:picked={quickPick === index} aria-current={quickPick === index} title="{app.Title}  {isMac ? "⌘" : "Ctrl+"}{index + 1}" aria-label="Open {app.Title} ({isMac ? "Command" : "Control"} {index + 1})" onclick={() => openQuick(index)} bind:this={tiles[index]} use:glassPane>
+          <img src={app.Icon} alt="" draggable="false" />
+        </button>
+      {/each}
+    </div>
+  {/if}
   <p class="live" role="status" aria-live="polite">
     {#if results && items.length > 0}{items.length} results{/if}
   </p>
@@ -659,10 +827,15 @@
 <style>
   main {
     box-sizing: border-box;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     width: 100vw;
     padding: 12px 20px 40px;
   }
   .card {
+    flex: 1 1 auto;
+    min-width: 0;
     position: relative;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
@@ -670,16 +843,15 @@
        and it only runs for 240 ms when results appear or go. */
     transition: height 240ms var(--ease);
   }
+  .card.alone {
+    margin-inline: auto;
+  }
   .surface {
     position: absolute;
     inset: var(--ring);
     border-radius: calc(var(--radius) - var(--ring));
     background: var(--glass);
     isolation: isolate; /* the glow lies over the plate, under the bar */
-  }
-  /* The wallpaper glass (lib/glass.ts) lays its own tint on the card under the surface: a second one would darken the bar. */
-  :global(html[data-glass="wallpaper"]) .surface {
-    background: none;
   }
   .surface::after {
     content: "";
@@ -733,6 +905,9 @@
     transition: color 200ms var(--ease);
   }
   .bar:focus-within .glass {
+    color: var(--chrome);
+  }
+  :global(html[data-theme="glass"]) .bar:focus-within .glass {
     color: var(--chrome);
   }
   input {
@@ -941,6 +1116,338 @@
     border: 3px solid transparent;
     border-radius: 999px;
     background: color-mix(in srgb, var(--ink) 14%, transparent) padding-box;
+  }
+  /* Glass: no metal and no bevel, and a slimmer bar. The plate reaches the card's edge, which is a hairline in the accent (or nothing,
+     if the bar is set to have no edge), and the light under the text moves like a slow liquid: two faint blobs of the accent wander
+     over the whole card, results and all, and change shape as they go, each pass taking about a quarter of a minute, brighter while
+     the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from what is being typed. */
+  .liquid {
+    display: none;
+  }
+  :global(html[data-theme="glass"]) .card {
+    box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.5);
+  }
+  :global(html[data-theme="glass"]) .surface {
+    inset: 0;
+    border-radius: var(--radius);
+  }
+  :global(html[data-theme="glass"]) .content {
+    top: var(--ring); /* the card is still as tall as a ringed one: keep the bar in its middle */
+  }
+  :global(html[data-theme="glass"]) .bar {
+    height: 50px;
+    gap: 12px;
+    padding: 0 20px;
+  }
+  :global(html[data-theme="glass"]) input {
+    caret-color: var(--chrome);
+    font-size: 16.5px;
+    font-weight: 400;
+  }
+  :global(html[data-theme="glass"]) .surface::after {
+    box-shadow: none;
+    transition: box-shadow 900ms var(--ease);
+  }
+  /* Every state of the edge asks for it to be on, so hovering or typing never brings back an edge that was turned off. */
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .surface::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 22%, transparent);
+  }
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .card:hover .surface::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 25%, transparent);
+  }
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .card:focus-within .surface::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 38%, transparent);
+  }
+  :global(html[data-theme="glass"]) .liquid {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.22;
+    transition: opacity 1200ms var(--ease);
+  }
+  /* The flow is the whole row, card and quick-open tiles, placed from the card's top left; the card and each tile show their own part
+     of it. The blobs travel in shares of it (cqw, cqh), so they cross the card however tall the results make it and go on through the
+     tiles. */
+  .flow {
+    position: absolute;
+    left: calc(-1 * var(--ox, 0px));
+    top: calc(-1 * var(--oy, 0px));
+    width: var(--row-w, 100%);
+    height: var(--row-h, 100%);
+    container-type: size;
+  }
+  :global(html[data-theme="glass"]) main:has(.card:hover, .tile:hover) .liquid {
+    opacity: 0.27;
+  }
+  :global(html[data-theme="glass"]) main:has(.card:focus-within) .liquid {
+    opacity: 0.42;
+  }
+  :global(html[data-theme="glass"]) main:has(.card.typing) .liquid {
+    opacity: 0.55;
+    transition-duration: 500ms;
+  }
+  .blob {
+    position: absolute;
+    top: -70px; /* the blob's middle is the card's top left corner, from where the paths below move it */
+    left: -110px;
+    width: 220px;
+    height: 140px;
+    background: radial-gradient(closest-side, var(--chrome), transparent);
+    /* Soft, not a torch: without the blur each blob is a lit oval with a visible shape. It costs frames (see DESIGN.md). */
+    filter: blur(22px);
+    animation: wander 11s ease-in-out infinite alternate;
+  }
+  .blob.two {
+    width: 280px;
+    left: -140px;
+    animation-name: wander-back;
+    animation-duration: 15s;
+    animation-delay: -6s;
+  }
+  .blob.three {
+    width: 160px;
+    height: 110px;
+    left: -80px;
+    top: -55px;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--chrome) 55%, white), transparent);
+    animation-duration: 8s;
+    animation-delay: -3s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .blob {
+      animation: none;
+    }
+  }
+  @keyframes wander {
+    0% {
+      transform: translate(8cqw, 25cqh) scale(1);
+    }
+    33% {
+      transform: translate(45cqw, 80cqh) scale(1.28, 0.86);
+    }
+    66% {
+      transform: translate(72cqw, 20cqh) scale(1.1, 1.05);
+    }
+    100% {
+      transform: translate(95cqw, 65cqh) scale(0.86, 1.16);
+    }
+  }
+  @keyframes wander-back {
+    0% {
+      transform: translate(90cqw, 75cqh) scale(1.1, 0.9);
+    }
+    33% {
+      transform: translate(55cqw, 15cqh) scale(0.9, 1.15);
+    }
+    66% {
+      transform: translate(25cqw, 70cqh) scale(1.25, 0.9);
+    }
+    100% {
+      transform: translate(6cqw, 30cqh) scale(1, 1.1);
+    }
+  }
+  /* Liquid Glass: a lit rim that is brightest where light falls on a curved edge (top left, bottom right), a little depth
+     inside the pane, a highlight that follows the pointer, and the quick-open tiles as small panes of their own. */
+  :global(html[data-theme="glass"]) .surface {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+      inset 0 0 28px rgba(255, 255, 255, 0.05);
+  }
+  :global(html[data-theme="glass"]) .surface::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.62),
+      rgba(255, 255, 255, 0.12) 26%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(255, 255, 255, 0.08) 76%,
+      rgba(255, 255, 255, 0.38)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.75;
+  }
+  :global(html[data-theme="glass"]) .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: var(--radius);
+    pointer-events: none;
+    background: radial-gradient(360px circle at var(--mx, 30%) var(--my, 0%), rgba(255, 255, 255, 0.05), transparent 70%);
+    opacity: 0;
+    transition: opacity 1200ms var(--ease);
+  }
+  :global(html[data-theme="glass"]) main:has(.card:hover, .tile:hover) .card::after {
+    opacity: 1;
+  }
+  /* The quick-open tiles are made of the card's glass: the same blur behind (a pane of its own, from the launcher), plate, lit rim,
+     accent hairline, liquid and pointer light. They do not grow on hover, which would pull them off the blur behind them. */
+  :global(html[data-theme="glass"]) .tile {
+    position: relative;
+    isolation: isolate;
+    border-radius: 50%;
+    background: var(--glass);
+    box-shadow:
+      0 18px 40px -14px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+      inset 0 0 28px rgba(255, 255, 255, 0.05);
+  }
+  :global(html[data-theme="glass"]) .tile:hover,
+  :global(html[data-theme="glass"]) .tile.picked,
+  :global(html[data-theme="glass"]) .tile:active {
+    transform: none;
+  }
+  :global(html[data-theme="glass"]) .tile::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.62),
+      rgba(255, 255, 255, 0.12) 26%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(255, 255, 255, 0.08) 76%,
+      rgba(255, 255, 255, 0.38)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.75;
+  }
+  /* The pointer light (from the card's top left, moved to the tile's) and the accent hairline, which brightens under the pointer. */
+  :global(html[data-theme="glass"]) .tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      360px circle at calc(var(--mx, -999px) - var(--ox, 0px)) calc(var(--my, -999px) - var(--oy, 0px)),
+      rgba(255, 255, 255, 0.05),
+      transparent 70%
+    );
+    transition:
+      box-shadow 900ms var(--ease),
+      background-color 360ms var(--ease);
+  }
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .tile::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 22%, transparent);
+  }
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .tile:hover::after,
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .tile.picked::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 38%, transparent);
+  }
+  :global(html[data-theme="glass"]) .tile:hover::after {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  /* Picked with the arrow keys: lit like a hovered tile, a little more, and the icon lifts. */
+  :global(html[data-theme="glass"]) .tile.picked::after {
+    background-color: rgba(255, 255, 255, 0.09);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--chrome) 55%, transparent),
+      0 0 18px -2px color-mix(in srgb, var(--chrome) 45%, transparent);
+  }
+  :global(html[data-theme="glass"]) .tile.picked img {
+    transform: translateY(-1px) scale(1.06);
+  }
+  :global(html[data-theme="glass"]) .tile:active::after {
+    background-color: rgba(255, 255, 255, 0.1);
+    transition-duration: 0ms;
+  }
+  :global(html[data-theme="glass"]) .tile img {
+    position: relative;
+    z-index: 1;
+    transition: transform 220ms var(--ease);
+  }
+  :global(html[data-theme="glass"]) .tile:active img {
+    transform: scale(0.92);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    :global(html[data-theme="glass"]) .card::after,
+    :global(html[data-theme="glass"]) .surface::before,
+    :global(html[data-theme="glass"]) .tile::before {
+      display: none;
+    }
+  }
+  /* Rows hovered in Glass light up through the same liquid easing. */
+  :global(html[data-theme="glass"]) .results :global(.item) {
+    transition:
+      background-color 360ms var(--ease),
+      box-shadow 360ms var(--ease);
+  }
+  /* Quick open: a small rounded tile per app beside the bar, the icon and nothing else (the name is its tooltip). */
+  .quick {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+  }
+  .tile {
+    display: grid;
+    place-items: center;
+    width: var(--tile-size, 50px); /* as tall as the bar beside it */
+    height: var(--tile-size, 50px);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--plate);
+    box-shadow:
+      0 6px 14px -6px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1px var(--line);
+    cursor: pointer;
+    --wails-draggable: no-drag;
+    transition:
+      transform 220ms var(--ease),
+      box-shadow 220ms var(--ease);
+  }
+  .tile:hover,
+  .tile.picked {
+    transform: scale(1.04);
+  }
+  .tile:active {
+    transform: scale(0.96);
+  }
+  :global(html:not([data-theme="glass"])) .tile.picked {
+    box-shadow:
+      0 6px 14px -6px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1.5px var(--chrome);
+  }
+  .tile:focus-visible {
+    outline: 1px solid var(--chrome);
+    outline-offset: 2px;
+  }
+  .tile img {
+    width: calc(var(--tile-size, 50px) * 0.52); /* the circle is a plate round the icon, not a frame: room to breathe */
+    height: calc(var(--tile-size, 50px) * 0.52);
+    pointer-events: none;
   }
   .live {
     position: absolute;

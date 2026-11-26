@@ -235,7 +235,8 @@ func run(afterUpdate bool) error {
 		engine  *sidecar.Supervisor
 	)
 	refresh := func() {
-		icon.SetStatus(statusLine(bar.HotkeyError(), engine.Status(), indexer.Status(), store.Get().Search.HoldIndexing))
+		search := store.Get().Search
+		icon.SetStatus(statusLine(bar.HotkeyError(), engine.Status(), indexer.Status(), search.HoldIndexing, search.Enabled && search.Start == "search"))
 		icon.SetPaused(indexer.Status().Paused)
 	}
 	layout, err := enginesetup.Locate(cfg.Search.DataDir)
@@ -249,6 +250,13 @@ func run(afterUpdate bool) error {
 	// Turning file search on installs the engine in the background; when that has worked, file search is
 	// switched on, which starts the engine (the store's subscriber below).
 	var engineSwitch *sidecar.Switch // set below; an install that ends before the app has started finds it nil
+	var demand *sidecar.OnDemand     // set below with the switch; nil until then
+	// wake starts the engine for what the person just asked of file search, when it starts on demand (and does nothing otherwise).
+	wake := func() {
+		if demand != nil {
+			demand.Use()
+		}
+	}
 	setup := enginesetup.NewManager(enginesetup.NewInstaller(layout, engineSource), func(err error) {
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
@@ -321,13 +329,19 @@ func run(afterUpdate bool) error {
 			func() []string { return store.Get().Clipboard.Ignore }, strings.TrimSuffix(filepath.Base(self), ".exe")),
 		clipboard.NewPaster(app.Clipboard.SetText, bar.Previous, bar.Hide),
 		clipEnabled)
-	bar.OnShow = clips.Poll // a copy a moment before the bar opened is in the list
+	bar.OnShow = func() {
+		// a copy a moment before the bar opened is in the list
+		clips.Poll()
+		// the setup guide's "try it now" notices the bar opening
+		app.Event.Emit("bar:shown")
+	}
 	snips := snippets.New(func() []config.Snippet { return store.Get().Snippets },
 		clipboard.NewPaster(app.Clipboard.SetText, bar.Previous, bar.Hide),
 		func() string { clip, _ := clipboard.NewSource().Read(); return clip.Text })
 	settingsWindow := settingsui.NewWindow(app)
 	setupWindow := settingsui.NewSetupWindow(app)
 	notesWindow := settingsui.NewNotesWindow(app)
+	notesHistoryWindow := settingsui.NewNotesHistoryWindow(app)
 	timerWindow := settingsui.NewTimerWindow(app)
 	calendarWindow := settingsui.NewCalendarWindow(app)
 	mapWindow := settingsui.NewMapWindow(app)
@@ -352,6 +366,13 @@ func run(afterUpdate bool) error {
 	calendars := calendar.New(filepath.Join(dataDir, "calendar"), func() []config.CalendarFeed { return store.Get().Calendar.Feeds },
 		func(id string) (string, error) { return secrets.Get(calendarAddress(id)) }, log.Printf)
 	chatWindow := settingsui.NewChatWindow(app, func() bool { return store.Get().Chat.OnTop })
+	// The Glass theme's card windows have the system's blur behind them, as the bar does.
+	setGlass := func(on bool) {
+		for _, w := range []*settingsui.Window{settingsWindow, notesWindow, notesHistoryWindow, chatWindow, timerWindow, calendarWindow, mapWindow} {
+			w.SetGlass(on)
+		}
+	}
+	setGlass(store.Get().UI.Theme == "glass")
 	// A notes folder that cannot be opened (read-only, a strange profile) costs the notes, not the launcher.
 	noteStore, err := notes.Open(filepath.Join(filepath.Dir(path), "notes"))
 	var noteBook palette.NoteBook
@@ -475,6 +496,17 @@ func run(afterUpdate bool) error {
 	}
 	// The notes hotkey works the same way: it shows the window and closes it again when it is the one in use.
 	notesKey := hotkey.NewSlot(app.GlobalShortcut)
+	// The hotkeys the person made for apps, scripts and the like each run a row of the bar, as Enter on it would. The bar's
+	// service is made below; a hotkey is only pressed after the program has started.
+	var paletteSvc *palette.Service
+	keepPalette := func(s *palette.Service) *palette.Service { paletteSvc = s; return s }
+	shortcuts := hotkey.NewSet(app.GlobalShortcut, func(target string) {
+		go func() { // the hotkey arrives on the main thread, and launching waits for another program
+			if err := paletteSvc.Do(target, "open", ""); err != nil {
+				log.Printf("hotkey for %s: %v", target, err)
+			}
+		}()
+	})
 	// The timer lives here, not in its window: the window opens when one starts and closes when it ends.
 	countdown := timer.New(
 		func() config.Timer { return store.Get().Timer },
@@ -505,7 +537,7 @@ func run(afterUpdate bool) error {
 			indexer.Pause()
 		}
 	}
-	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, indexer.Rescan, togglePause)
+	icon = tray.New(app, bar.Show, notesWindow.Open, openChat, settingsWindow.Open, setupWindow.Open, func() { wake(); indexer.Rescan() }, togglePause)
 	for _, service := range []application.Service{
 		application.NewService(panel.NewService(bar)),
 		application.NewService(&glass.Service{}),
@@ -513,7 +545,8 @@ func run(afterUpdate bool) error {
 		application.NewService(fileSearch),
 		application.NewService(indexMap),
 		application.NewService(opener),
-		application.NewService(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
+		application.NewService(keepPalette(palette.With(palette.New(catalog, history, browser, opener, clips, snips, func(section string) { settingsWindow.OpenAt(section) }, bar.HideForLaunch), palette.Extras{
+			QuickOpen: func() config.QuickOpen { return store.Get().QuickOpen },
 			Copy: func(text string) error {
 				if !clipboard.OwnCopy(func() bool { return app.Clipboard.SetText(text) }) { // the history must not keep what this program copied
 					return errors.New("the clipboard is in use by another program; try again")
@@ -542,8 +575,8 @@ func run(afterUpdate bool) error {
 				Ready: func() bool { return engine.Status().State == sidecar.StateReady && !setup.State().NeedsUpdate },
 				OnCPU: func() bool { return engine.Status().Device == "cpu" },
 			},
-		})),
-		application.NewService(notes.NewService(noteStore, notesWindow.SetAlwaysOnTop)),
+		}))),
+		application.NewService(notes.NewService(noteStore, notes.Windows{SetOnTop: notesWindow.SetAlwaysOnTop, OpenNote: notesWindow.OpenAt, OpenHistory: notesHistoryWindow.Open})),
 		application.NewService(timer.NewService(countdown)),
 		application.NewService(calendar.NewService(calendars, browser.Open, func() { settingsWindow.OpenAt("calendar") })),
 		application.NewService(settingsui.NewCalendar(settingsui.CalendarOptions{
@@ -567,6 +600,15 @@ func run(afterUpdate bool) error {
 			SetTool:      chatSvc.SetTool,
 			SetAlwaysRun: chatSvc.SetAlwaysRun,
 			ScriptsDir:   filepath.Join(filepath.Dir(path), "scripts"),
+			AddScript: func(n scripts.New) (string, error) {
+				if scriptFolder == nil {
+					return "", errors.New("the scripts folder could not be opened")
+				}
+				return scriptFolder.Add(n)
+			},
+			PickScript: func() (string, error) {
+				return app.Dialog.OpenFile().CanChooseFiles(true).CanChooseDirectories(false).SetTitle("Choose a script to add").PromptForSingleSelection()
+			},
 			CustomKey:    customKey,
 			SetCustomKey: func(key string) error { return secrets.Set(customKeyName, key) },
 		})),
@@ -581,7 +623,19 @@ func run(afterUpdate bool) error {
 				return app.Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).
 					SetTitle("Choose a folder to search").PromptForSingleSelection()
 			},
-			Browsers:             web.Installed,
+			Browsers:    web.Installed,
+			Shortcuts:   shortcuts,
+			ForgetUsage: history.ForgetUses,
+			Apps: func() []settingsui.AppChoice {
+				var choices []settingsui.AppChoice
+				for _, a := range catalog.Index.All() {
+					choices = append(choices, settingsui.AppChoice{ID: "app:" + a.ID, Name: a.Name})
+				}
+				slices.SortFunc(choices, func(a, b settingsui.AppChoice) int {
+					return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+				})
+				return choices
+			},
 			OpenFolder:           openFolder,
 			Clipboard:            clips,
 			RebindClipboard:      func(accelerator string) error { return bar.RebindFill(accelerator, "clip: ") },
@@ -620,6 +674,15 @@ func run(afterUpdate bool) error {
 		st := setup.State()
 		return c.Search.Enabled && st.Installed && !st.NeedsUpdate && !st.Installing
 	}
+	// With "start when I search", the engine (and the video memory its model holds) waits for the first file search and ends after
+	// ten idle minutes; indexing in progress keeps it, and a restart finds the folders' changes by syncing on the way up.
+	demand = sidecar.NewOnDemand(engineSwitch,
+		func() bool { c := store.Get(); return c.Search.Start == "search" && engineWanted(c) },
+		func() bool { return engine.Status().State != sidecar.StateOff },
+		func() bool { return indexer.Status().State == indexing.Indexing },
+		10*time.Minute)
+	fileSearch.OnDemand(demand.Use)
+	go demand.Watch(ctx)
 
 	// The watcher follows the folders: it is started again whenever they change.
 	var watchMu sync.Mutex
@@ -641,8 +704,11 @@ func run(afterUpdate bool) error {
 	// first and only saves the change if that worked.
 	store.Subscribe(func(old, updated config.Config) {
 		browser.Update(updated.Browser, updated.SearchURL, updated.Quicklinks)
-		if old.UI.Theme != updated.UI.Theme || old.UI.Ring != updated.UI.Ring || old.UI.Accent != updated.UI.Accent || old.UI.Lights != updated.UI.Lights {
+		if old.UI != updated.UI {
 			app.Event.Emit("ui:look", updated.UI) // every open window repaints
+		}
+		if old.UI.Theme != updated.UI.Theme {
+			setGlass(updated.UI.Theme == "glass")
 		}
 		if old.Search.Pace != updated.Search.Pace {
 			indexer.SetPace(updated.Search.Pace)
@@ -655,15 +721,21 @@ func run(afterUpdate bool) error {
 		}
 		if old.Search.HoldIndexing != updated.Search.HoldIndexing {
 			refresh() // the tray says whether file search waits to be started
+			wake()    // "Start indexing" needs the engine
+		}
+		if old.Search.Start != updated.Search.Start {
+			refresh()
 		}
 		if indexOptions(old.Search) != indexOptions(updated.Search) {
 			indexer.SetOptions(indexOptions(updated.Search))
 			indexer.Rescan() // the engine processes again only the kinds of file whose choice changed
+			wake()
 		}
 		if !slices.Equal(old.Roots, updated.Roots) || !slices.Equal(old.Exclude, updated.Exclude) {
 			indexer.SetFolders(updated.Roots, updated.Exclude)
 			surveys.Set(updated.Roots, updated.Exclude)
 			watchFolders(updated.Roots)
+			wake()
 		}
 		if !reflect.DeepEqual(old.Chat, updated.Chat) {
 			chatSvc.Refresh()
@@ -692,11 +764,13 @@ func run(afterUpdate bool) error {
 			}
 		}
 		if want := engineWanted(updated); want != engineWanted(old) {
-			if want {
-				engineSwitch.On()
-			} else {
+			if !want {
 				engineSwitch.Off()
+			} else if updated.Search.Start != "search" {
+				engineSwitch.On()
 			}
+		} else if want && old.Search.Start != updated.Search.Start && updated.Search.Start != "search" {
+			engineSwitch.On() // back to starting with the launcher; the other way, the idle check ends the engine within a minute
 		}
 	})
 
@@ -722,7 +796,7 @@ func run(afterUpdate bool) error {
 			if err := setup.Start(); err != nil {
 				log.Printf("updating file search: %v", err)
 			}
-		} else if engineWanted(cfg) {
+		} else if engineWanted(cfg) && cfg.Search.Start != "search" {
 			engineSwitch.On()
 		} else {
 			engineSwitch.Off()
@@ -739,6 +813,9 @@ func run(afterUpdate bool) error {
 		}
 		icon.SetChat(cfg.Chat.Enabled)
 		go chatSvc.Housekeeping()
+		if len(cfg.Shortcuts) > 0 {
+			go shortcuts.Apply(settingsui.ShortcutBindings(cfg.Shortcuts)) // like the others: registering asks the main thread, which is running this handler
+		}
 		if hk := cfg.Notes.Hotkey; hk != "" {
 			go func() {
 				if err := notesKey.Rebind(hk, notesWindow.Toggle); err != nil {
@@ -806,10 +883,12 @@ func indexOptions(s config.Search) sidecar.IndexOptions {
 }
 
 // statusLine is the one sentence the tray shows about the launcher, most urgent problem first.
-func statusLine(hotkeyError string, engine sidecar.Status, index indexing.Status, held bool) string {
+func statusLine(hotkeyError string, engine sidecar.Status, index indexing.Status, held, asleep bool) string {
 	switch {
 	case hotkeyError != "":
 		return hotkeyError
+	case engine.State == sidecar.StateOff && asleep:
+		return "File search starts when you search for a file."
 	case engine.State == sidecar.StateOff:
 		return "File search is off. Open Settings to turn it on."
 	case engine.State == sidecar.StateFailed:

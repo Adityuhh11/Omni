@@ -83,10 +83,20 @@ func cloak(hwnd uintptr, on bool) {
 }
 
 // moveTopmost puts the window at r without activating it.
+//
+// r is already sized for the monitor it lands on, but moving a window onto a monitor with another dpi makes Windows send
+// WM_DPICHANGED, and Wails answers by resizing the window to Windows' suggested rect: the size it had, scaled once more
+// (a 100% monitor to a 150% one grew the bar, the other way shrank it). That handler runs inside the first SetWindowPos,
+// so a second one, with the window now on the right monitor and nothing left to rescale, puts the size right.
 func moveTopmost(hwnd uintptr, r Rect) {
 	hwndTopmost := ^uintptr(0) // HWND_TOPMOST is (HWND)-1
-	_, _, _ = procSetWindowPos.Call(hwnd, hwndTopmost,
-		uintptr(int32(r.X)), uintptr(int32(r.Y)), uintptr(int32(r.W)), uintptr(int32(r.H)), swpNoActivate)
+	for range 2 {
+		_, _, _ = procSetWindowPos.Call(hwnd, hwndTopmost,
+			uintptr(int32(r.X)), uintptr(int32(r.Y)), uintptr(int32(r.W)), uintptr(int32(r.H)), swpNoActivate)
+		if windowRect(hwnd) == r {
+			return
+		}
+	}
 }
 
 // cursorMonitor returns the usable area (taskbar excluded) and the dpi of the monitor that holds
@@ -130,3 +140,12 @@ func resizeHeight(hwnd uintptr, heightPx int) {
 	_, _, _ = procSetWindowPos.Call(hwnd, 0, 0, 0, uintptr(int32(width)), uintptr(int32(heightPx)),
 		swpNoMove|swpNoZOrder|swpNoActivate)
 }
+
+// setGlass does nothing on Windows: the page's own plate is the whole look there.
+func setGlass(uintptr, bool, int, int, int, int, int, int) {}
+
+// setGlassPanes does nothing on Windows either.
+func setGlassPanes(uintptr, []int, int, int) {}
+
+// setPageScale does nothing on Windows: WebView2 follows the monitor's own scale, which place() already sized the window by.
+func setPageScale(uintptr, uint32) {}

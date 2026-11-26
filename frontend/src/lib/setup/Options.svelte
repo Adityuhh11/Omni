@@ -24,7 +24,6 @@
   }
 </script>
 
-<h2>How thorough?</h2>
 <p class="lede">
   Pictures are what indexing time goes on: about 0.16 seconds each on a graphics card, about 5 seconds on a processor alone. Sound is
   cheaper: about a minute per hour of audio on a graphics card, 15 minutes on a processor.

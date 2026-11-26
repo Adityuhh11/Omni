@@ -43,12 +43,12 @@
   /* Opening: each window is built fresh, so its page rises into the card as it loads. The card stays put (its glass is the
      system's); fill only backwards, so no opacity or transform is left on the text afterwards. */
   .card > :global(*) {
-    animation: rise 240ms var(--ease) backwards;
+    animation: rise 110ms var(--ease) backwards;
   }
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(4px);
     }
   }
   @media (prefers-reduced-motion: reduce) {

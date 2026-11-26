@@ -11,9 +11,13 @@ int omniIsRunning(int pid);
 void omniActivate(int pid);
 void omniOrderFront(uintptr_t window);
 void omniOrderOut(uintptr_t window);
-void omniScreenUnderMouse(double *x, double *y, double *w, double *h);
+void omniScreenUnderMouse(double *x, double *y, double *w, double *h, double *zoom);
+void omniSetPageZoom(uintptr_t window, double zoom);
+double omniPageZoom(uintptr_t window);
 void omniWindowFrame(uintptr_t window, double *x, double *y, double *w, double *h);
 void omniSetFrame(uintptr_t window, double x, double y, double w, double h);
 void omniSetHeight(uintptr_t window, double h);
+void omniGlass(uintptr_t window, int on, double x, double top, double w, double h, double radius, double ms);
+void omniGlassPanes(uintptr_t window, const double *xs, int n, double top, double size);
 
 #endif

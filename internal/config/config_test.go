@@ -121,6 +121,11 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 		{"unknown photo mode", "[search]\npace = 'fast'\nphotos = 'pixels'\n", "photos"},
 		{"unknown video mode", "[search]\npace = 'fast'\nvideos = 'off'\n", "videos"},
 		{"unknown audio mode", "[search]\npace = 'fast'\naudio = 'on'\n", "audio"},
+		{"unknown start mode", "[search]\nstart = 'never'\n", "search start"},
+		{"shortcut without a hotkey", "[[shortcut]]\ntarget = 'app:x'\n", "needs a hotkey"},
+		{"shortcut without a target", "[[shortcut]]\nkeys = 'Ctrl+Alt+T'\n", "something to run"},
+		{"shortcut on the launcher's hotkey", "hotkey = 'Alt+Shift+Space'\n[[shortcut]]\nkeys = 'alt + shift + space'\ntarget = 'app:x'\n", "launcher's own"},
+		{"two shortcuts on one hotkey", "[[shortcut]]\nkeys = 'Ctrl+Alt+T'\ntarget = 'app:x'\n[[shortcut]]\nkeys = 'ctrl+alt+t'\ntarget = 'app:y'\n", "another shortcut's"},
 		{"unknown theme", "[ui]\ntheme = 'neon'\n", "ui theme"},
 		{"unknown accent", "[ui]\naccent = 'neon'\n", "ui accent"},
 	}
@@ -199,6 +204,28 @@ func TestTheRetiredSidecarTableLoadsAndIsNotWrittenBack(t *testing.T) {
 	}
 	if strings.Contains(string(saved), "sidecar") {
 		t.Fatalf("the retired table was written back:\n%s", saved)
+	}
+}
+
+func TestRetiredLookKeysLoadAndTheSecondGlassBecomesTheOnlyOne(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFile(t, path, "[ui]\ntheme = 'glass2'\naccent = 'blue'\nlights = true\nbar_accent = '#e5484d'\nbar_border = true\n")
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("a file with the retired lights and bar_accent keys must still load: %v", err)
+	}
+	if got.UI.Theme != "glass" || got.UI.Accent != "blue" {
+		t.Fatalf("got %+v, want the glass theme and the accent kept", got.UI)
+	}
+	if err := got.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(saved), "lights") || strings.Contains(string(saved), "bar_accent") {
+		t.Fatalf("a retired key was written back:\n%s", saved)
 	}
 }
 
@@ -387,7 +414,7 @@ pace = 'fast'
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.UI.SelectionEffect || !got.Search.GroupResults || !got.UI.Ring || got.UI.Accent != "none" {
+	if !got.UI.SelectionEffect || !got.Search.GroupResults || !got.UI.Ring || got.UI.Accent != Accents[0] {
 		t.Errorf("the feel settings must be on when the file lacks them: %+v %+v", got.UI, got.Search)
 	}
 	if !reflect.DeepEqual(got.Timer, Timer{FocusMinutes: 25, ShortBreakMinutes: 5, LongBreakMinutes: 15, Rounds: 4, PresetMinutes: []int{5, 10, 25, 45},

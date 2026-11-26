@@ -306,6 +306,16 @@ func TestPaceMustBeOneOfTheKnownSpeeds(t *testing.T) {
 	}
 }
 
+func TestTheEngineStartModeMustBeOneOfTheKnownModes(t *testing.T) {
+	h := newHarness(t)
+	if msg := h.svc.SetStart("never"); !strings.Contains(msg, "must be one of") {
+		t.Fatalf("message = %q", msg)
+	}
+	if msg := h.svc.SetStart("search"); msg != "" || h.store.Get().Search.Start != "search" {
+		t.Fatalf("SetStart(search) = %q, start %q", msg, h.store.Get().Search.Start)
+	}
+}
+
 func TestOpenFolderKnowsTheConfigAndLogFoldersOnly(t *testing.T) {
 	h := newHarness(t)
 	if msg := h.svc.OpenFolder("logs"); msg != "" || h.opened != testpath.P(`C:\logs`) {
@@ -805,5 +815,23 @@ func TestTheDailyHoursAndTheThemeAreSavedAndABadValueIsRefused(t *testing.T) {
 	}
 	if msg := h.svc.SetRing(false); msg != "" || h.svc.Look().Ring {
 		t.Fatalf("SetRing: %q", msg)
+	}
+}
+
+func TestAnAccentMayBeAnyColourAndTheBarEdgeIsSaved(t *testing.T) {
+	h := newHarness(t)
+	if look := h.svc.Look(); look.Accent != config.Accents[0] || !look.BarBorder {
+		t.Fatalf("a fresh install wears %+v", look)
+	}
+	if msg := h.svc.SetAccent(" #3E63DD "); msg != "" || h.svc.Look().Accent != "#3e63dd" {
+		t.Fatalf("SetAccent: %q, page shows %q", msg, h.svc.Look().Accent)
+	}
+	for _, bad := range []string{"red", "#fff", "#12345g", ""} {
+		if msg := h.svc.SetAccent(bad); msg == "" || h.svc.Look().Accent != "#3e63dd" {
+			t.Fatalf("the accent %q was accepted: %q", bad, msg)
+		}
+	}
+	if msg := h.svc.SetBarBorder(false); msg != "" || h.svc.Look().BarBorder {
+		t.Fatalf("SetBarBorder: %q", msg)
 	}
 }

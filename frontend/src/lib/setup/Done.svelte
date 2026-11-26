@@ -2,8 +2,11 @@
   import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
   import type { SearchView, View } from "../../../bindings/omni/internal/settingsui";
   import { duration } from "../format";
+  import Icon from "../Icon.svelte";
   import { keycaps } from "../keycaps";
+  import { combo, isMac } from "../platform";
   import IndexWindow from "../settings/IndexWindow.svelte";
+  import ProgressBar from "./ProgressBar.svelte";
 
   interface Props {
     view: View;
@@ -25,30 +28,40 @@
   // A first index of hours is worth offering the night for.
   const LONG = 2 * 3600;
 
+  const KEYS: [string, string][] = [
+    [combo("Tab"), "switches what is searched"],
+    [combo("Ctrl+K"), "shows actions for a row"],
+    [combo("Ctrl+,"), "opens Settings"],
+    [combo("Esc"), "closes the bar"],
+  ];
+
   async function start() {
     error = await Settings.StartIndexing();
     await refresh();
   }
 </script>
 
-<h2>You are all set</h2>
+<div class="hero">
+  <span class="seal"><Icon name="check" size={22} /></span>
+  <h2>You are all set</h2>
+  <p class="lede">
+    Press {#each keycaps(view.Hotkey) as part (part)}<kbd>{part}</kbd> {/each} in any program to open the bar. Omni stays in the {isMac ? "menu bar" : "notification area"}; closing this
+    window does not stop it.
+  </p>
+</div>
 
-<p class="lede">
-  Press {#each keycaps(view.Hotkey) as part (part)}<kbd>{part}</kbd> {/each} in any program to open the bar. Omni lives in the notification area, by the
-  clock; closing this window does not stop anything.
-</p>
+<ul class="keys">
+  {#each KEYS as [key, does] (key)}
+    <li><kbd>{key}</kbd><span>{does}</span></li>
+  {/each}
+</ul>
 
 {#if !files}
-  <p class="help">
-    File search is off, so only apps, the web, the clipboard and snippets are searched. Turn it on any time in Settings > File search; it is
-    the same download.
-  </p>
+  <p class="help note">File search is off. Turn it on any time in Settings, File search; it is the same download.</p>
 {:else if search.Installing}
   <div class="card">
     <p class="label">Downloading file search</p>
-    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent} aria-label={search.StepName}>
-      <div class="fill" style:transform="scaleX({(search.Total > 0 ? percent : 4) / 100})"></div>
-    </div>
+    <ProgressBar percent={search.Total > 0 ? percent : null} label={search.StepName} />
     <p class="help">
       Step {search.Step} of {search.Steps}: {search.StepName}{search.Total > 0 ? ` · ${megabytes(search.Done)} of ${megabytes(search.Total)} MB` : ""}.
       Nothing is indexed until you start it, so you can use Omni meanwhile.
@@ -95,22 +108,22 @@
     <p class="label">{search.IndexState === "uptodate" ? "Everything is indexed" : "Reading your files"}</p>
     <p class="help">{search.Paused ? "Indexing is paused." : search.IndexText}</p>
     {#if search.IndexState === "indexing" && search.IndexTotal > 0}
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax={search.IndexTotal} aria-valuenow={search.IndexDone} aria-label="Files indexed">
-        <div class="fill" style:transform="scaleX({search.IndexDone / search.IndexTotal})"></div>
-      </div>
+      <ProgressBar percent={Math.round((search.IndexDone / search.IndexTotal) * 100)} label="Files indexed" />
     {/if}
     <p class="help">You can search right away: results fill in as Omni reads your files, newest first. The notification-area icon shows how it is going.</p>
   </div>
 {/if}
 {#if error}<p class="error">{error}</p>{/if}
 
+<p class="help again">Open this guide again from the Omni icon, or in Settings, About.</p>
+
 <style>
   .card {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin: 4px 0 0;
-    padding: 16px;
+    margin: 18px 0 0;
+    padding: 14px 16px;
     border: 1px solid var(--line);
     border-radius: 12px;
     background: var(--tile);
@@ -119,17 +132,69 @@
     margin: 0;
     font: 600 13.5px/1.2 var(--sans);
   }
-  .bar {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--lift);
-    overflow: hidden;
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0 22px;
+    text-align: center;
   }
-  .fill {
-    height: 100%;
-    border-radius: 3px;
-    background: var(--chrome);
-    transform-origin: left;
-    transition: transform 0.4s var(--ease);
+  /* The accent, lit, with a small spring as it lands. */
+  .seal {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--chrome) 16%, transparent);
+    color: var(--chrome);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--chrome) 50%, transparent),
+      0 0 26px -6px var(--chrome);
+    animation: land 640ms var(--spring) both;
+  }
+  @keyframes land {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+  .hero h2 {
+    font-size: 22px;
+  }
+  .hero .lede {
+    margin-bottom: 0;
+  }
+  /* The four keys as a plain two-by-two: no boxes, the keycaps line up on their own column. */
+  .keys {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .keys li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-2);
+    font-size: 12.5px;
+  }
+  .keys kbd {
+    flex: none;
+    min-width: 52px;
+  }
+  .note {
+    margin-top: 20px;
+  }
+  .again {
+    margin-top: 8px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .seal {
+      animation: none;
+    }
   }
 </style>

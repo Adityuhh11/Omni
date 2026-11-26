@@ -39,12 +39,21 @@ func TestTypingSettingsOffersThePagesAndOnlyTheStartOfATitleCounts(t *testing.T)
 func TestChoosingASettingsRowOpensThatPageAndClosesTheBar(t *testing.T) {
 	s, dismissed := newService(t)
 	var opened []string
-	s.openSettings = func(section string) { opened = append(opened, section) }
+	var dismissedBeforeOpen bool
+	s.openSettings = func(section string) {
+		dismissedBeforeOpen = *dismissed == 1
+		opened = append(opened, section)
+	}
 	if err := s.Do("cmd:settings:search", "open", "settings file"); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Join(opened, "|") != "search" || *dismissed != 1 {
 		t.Fatalf("opened %v, dismissed %d", opened, *dismissed)
+	}
+	// The window must be built after the bar is gone: with the bar still up when it is shown, Windows hands the keyboard to
+	// the previous program when the bar goes and the window stays behind it.
+	if !dismissedBeforeOpen {
+		t.Fatal("the settings window was opened before the bar closed")
 	}
 	if err := s.Do("cmd:settings:search", "reveal", ""); err == nil {
 		t.Fatal("a settings row can only be opened")

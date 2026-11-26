@@ -56,7 +56,7 @@ function startsBlock(lines: string[], i: number, depth: number): boolean {
   return isBlank(line) || fence.test(line) || heading.test(line) || rule.test(line) || listItem.test(line) || isTable(lines, i) || (quote.test(line) && depth < MAX_DEPTH);
 }
 
-/** Renders markdown to HTML. A task's box carries `data-line`, the line of the source it came from (see toggleTask). */
+/** Renders markdown to HTML. A task's box carries `data-line`, the line of the source it came from. */
 export function render(markdown: string, firstLine = 0, depth = 0): string {
   const lines = markdown.replace(/\r\n?/g, "\n").replaceAll("\u0000", "").split("\n");
   const out: string[] = [];
@@ -96,7 +96,7 @@ export function render(markdown: string, firstLine = 0, depth = 0): string {
       const start = i;
       const body: string[] = [];
       while (i < lines.length && quote.test(lines[i])) body.push(lines[i++].match(quote)![1]);
-      // The quoted lines keep their place in the note, so a task inside a quote toggles its own line (see toggleTask).
+      // The quoted lines keep their place in the note, so a task inside a quote carries its own line.
       out.push(`<blockquote>${render(body.join("\n"), firstLine + start, depth + 1)}</blockquote>`);
     } else if (listItem.test(line)) {
       i = list(lines, i, firstLine, depth, out);
@@ -159,15 +159,4 @@ function list(lines: string[], i: number, firstLine: number, depth: number, out:
   const start = ordered ? parseInt(marker, 10) : 1;
   out.push(ordered ? `<ol${start !== 1 ? ` start="${start}"` : ""}>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
   return i;
-}
-
-/** The note with the task on this line (0-based) ticked if it was open, or unticked if it was done. Other lines are left alone. */
-export function toggleTask(markdown: string, line: number): string {
-  const lines = markdown.split("\n");
-  const at = lines[line];
-  if (at === undefined) return markdown;
-  const toggled = at.replace(/^(\s*(?:>\s?)*[-*+]\s+)\[([ xX])\]/, (_, before, mark) => `${before}[${mark === " " ? "x" : " "}]`);
-  if (toggled === at) return markdown;
-  lines[line] = toggled;
-  return lines.join("\n");
 }
