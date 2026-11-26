@@ -57,6 +57,8 @@ type Config struct {
 	Calendar Calendar `toml:"calendar"`
 	// Snippets are texts kept to be pasted from the bar (internal/snippets).
 	Snippets []Snippet `toml:"snippet,omitempty"`
+	// Shortcuts are hotkeys that each run one row of the bar from anywhere: an app, a script, a settings page.
+	Shortcuts []Shortcut `toml:"shortcut,omitempty"`
 	// Sidecar is the retired [sidecar] table (where the engine lived in the repository). Load reads
 	// it so old files still open and then clears it, so it is never written back.
 	Sidecar *retiredSidecar `toml:"sidecar,omitempty"`
@@ -130,6 +132,15 @@ type Snippet struct {
 	// Keyword, if set, is one word that shows the snippet in the bar when it is typed exactly.
 	Keyword string `toml:"keyword,omitempty"`
 	Text    string `toml:"text"`
+}
+
+// Shortcut is a hotkey that runs one row of the bar from anywhere, as pressing Enter on that row would.
+type Shortcut struct {
+	Keys string `toml:"keys"`
+	// Target is the id of the row it runs ("app:...", "script:...", "cmd:settings:about", "timer:pomodoro").
+	Target string `toml:"target"`
+	// Title is the name the settings list shows for it, kept so the list still reads well when the row is gone (an app that was removed).
+	Title string `toml:"title,omitempty"`
 }
 
 // Clipboard holds the settings of the clipboard history.
@@ -319,6 +330,7 @@ func (c Config) Clone() Config {
 	c.Quicklinks = slices.Clone(c.Quicklinks)
 	c.Clipboard.Ignore = slices.Clone(c.Clipboard.Ignore)
 	c.Snippets = slices.Clone(c.Snippets)
+	c.Shortcuts = slices.Clone(c.Shortcuts)
 	c.Calendar.Feeds = slices.Clone(c.Calendar.Feeds)
 	c.Timer.BlockSites = slices.Clone(c.Timer.BlockSites)
 	c.Timer.BlockApps = slices.Clone(c.Timer.BlockApps)
@@ -445,6 +457,15 @@ func (c Config) validateHotkeys() error {
 		{"clipboard", "the clipboard's", c.Clipboard.Hotkey},
 		{"chat", "the chat's", c.Chat.Hotkey},
 		{"notes", "the notes'", c.Notes.Hotkey},
+	}
+	for _, s := range c.Shortcuts {
+		switch {
+		case strings.TrimSpace(s.Keys) == "":
+			return fmt.Errorf("a shortcut needs a hotkey")
+		case strings.TrimSpace(s.Target) == "":
+			return fmt.Errorf("the shortcut %q needs something to run", s.Keys)
+		}
+		jobs = append(jobs, struct{ name, owner, keys string }{"shortcut", "another shortcut's", s.Keys})
 	}
 	squeeze := func(keys string) string { return strings.ToLower(strings.ReplaceAll(keys, " ", "")) }
 	for i, job := range jobs {

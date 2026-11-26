@@ -121,6 +121,10 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 		{"unknown photo mode", "[search]\npace = 'fast'\nphotos = 'pixels'\n", "photos"},
 		{"unknown video mode", "[search]\npace = 'fast'\nvideos = 'off'\n", "videos"},
 		{"unknown audio mode", "[search]\npace = 'fast'\naudio = 'on'\n", "audio"},
+		{"shortcut without a hotkey", "[[shortcut]]\ntarget = 'app:x'\n", "needs a hotkey"},
+		{"shortcut without a target", "[[shortcut]]\nkeys = 'Ctrl+Alt+T'\n", "something to run"},
+		{"shortcut on the launcher's hotkey", "hotkey = 'Alt+Shift+Space'\n[[shortcut]]\nkeys = 'alt + shift + space'\ntarget = 'app:x'\n", "launcher's own"},
+		{"two shortcuts on one hotkey", "[[shortcut]]\nkeys = 'Ctrl+Alt+T'\ntarget = 'app:x'\n[[shortcut]]\nkeys = 'ctrl+alt+t'\ntarget = 'app:y'\n", "another shortcut's"},
 		{"unknown theme", "[ui]\ntheme = 'neon'\n", "ui theme"},
 		{"unknown accent", "[ui]\naccent = 'neon'\n", "ui accent"},
 	}
