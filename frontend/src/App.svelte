@@ -67,10 +67,8 @@
   let pinnedRows = $state<Entry[]>([]); // the pinned things that still exist, in the order pinned: the bar's empty state
   let quick = $state<Entry[]>([]); // the quick-open row under the empty bar: number keys 1 to its length open one
   const showQuick = $derived(quick.length > 0); // beside the bar while it is open, so the bar does not change width as you type
-  // The row is as tall as the bar beside it (Glass's bar is the slim one: its .bar is 50 px, see the style below) and the tiles sit in its
-  // middle: small, so the bar keeps most of the width.
-  const TILE = 38;
-  const quickRow = $derived((theme === "glass" ? 50 : BAR_HEIGHT) + RING * 2);
+  // The tiles are as tall as the bar beside them (Glass's bar is the slim one: its .bar is 50 px, see the style below).
+  const quickSize = $derived((theme === "glass" ? 50 : BAR_HEIGHT) + RING * 2);
   let cardWidth = $state(0);
   let keying = $state(false); // an arrow key moved the selection a moment ago: the list lifts the selected row and dims the rest
   let keyingTimer: ReturnType<typeof setTimeout> | undefined;
@@ -263,9 +261,8 @@
     row.style.setProperty("--my", `${event.clientY - box.top}px`);
   }
 
-  // Each quick-open tile is a window onto the card's liquid (--ox, --oy: where the tile is from the card's top left), with the
-  // card's glass behind it as a pane of its own. The blobs in every window run on one clock, so one blob moves out of the card and
-  // on through the tiles instead of each tile having a copy of its own.
+  // Each quick-open tile shows the part of the pointer's light that falls on it (--ox, --oy: where the tile is from the card's top left),
+  // with the card's glass behind it as a pane of its own.
   let card: HTMLElement;
   let tiles: HTMLElement[] = $state([]);
   $effect(() => {
@@ -291,16 +288,8 @@
         Math.round(first.top),
         Math.round(first.width),
       );
-      requestAnimationFrame(syncBlobs);
     });
   });
-  const SHARED_MOTION = new Set(["wander", "wander-back", "sweep", "rim"]);
-  function syncBlobs() {
-    if (!row) return;
-    for (const animation of row.getAnimations({ subtree: true })) {
-      if (animation instanceof CSSAnimation && SHARED_MOTION.has(animation.animationName)) animation.startTime = 0;
-    }
-  }
 
   // The quick-open row: the apps set in Settings and the ones suggested for now (worked out on this computer only).
   async function loadQuick() {
@@ -385,7 +374,7 @@
 
   let typingTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // The results fade in; in Glass they pour in, coming out of a blur as they slide down.
+  // The results fade in; in Glass they slide down as they fade in.
   function pour(_: Element) {
     const still = reduceMotion.matches;
     if (theme !== "glass") return { duration: still ? 0 : 160, delay: 60, css: (t: number) => `opacity: ${t}` };
@@ -393,7 +382,7 @@
       duration: still ? 0 : 280,
       delay: still ? 0 : 40,
       easing: cubicOut,
-      css: (t: number, u: number) => `opacity: ${t}; filter: blur(${u * 6}px); transform: translateY(${u * -6}px)`,
+      css: (t: number, u: number) => `opacity: ${t}; transform: translateY(${u * -6}px)`,
     };
   }
 
@@ -816,16 +805,9 @@
     </div>
   </div>
   {#if showQuick}
-    <div class="quick" role="group" aria-label="Quick open" style:height="{quickRow}px" style:--tile-size="{TILE}px" transition:fade={{ duration: 160 }}>
+    <div class="quick" role="group" aria-label="Quick open" style:height="{quickSize}px" style:--tile-size="{quickSize}px" transition:fade={{ duration: 160 }}>
       {#each quick as app, index (app.ID)}
         <button type="button" class="tile" class:picked={quickPick === index} aria-current={quickPick === index} title="{app.Title}  {isMac ? "⌘" : "Ctrl+"}{index + 1}" aria-label="Open {app.Title} ({isMac ? "Command" : "Control"} {index + 1})" onclick={() => openQuick(index)} bind:this={tiles[index]} use:glassPane>
-          <span class="liquid" aria-hidden="true">
-            <span class="flow">
-              <span class="blob one"></span>
-              <span class="blob two"></span>
-              <span class="blob three"></span>
-            </span>
-          </span>
           <img src={app.Icon} alt="" draggable="false" />
         </button>
       {/each}
@@ -1205,7 +1187,6 @@
     width: 220px;
     height: 140px;
     background: radial-gradient(closest-side, var(--chrome), transparent);
-    filter: blur(22px);
     animation: wander 11s ease-in-out infinite alternate;
   }
   .blob.two {
@@ -1224,75 +1205,36 @@
     animation-duration: 8s;
     animation-delay: -3s;
   }
-  /* A soft band of light, as off a curved pane, that glides across the whole row now and then: through the bar, then the tiles. */
-  .flow::after {
-    content: "";
-    position: absolute;
-    top: -20%;
-    left: 0;
-    width: 90px;
-    height: 140%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-    filter: blur(14px);
-    transform: translateX(-30cqw) skewX(-18deg);
-    animation: sweep 9s cubic-bezier(0.45, 0, 0.2, 1) infinite;
-  }
-  @keyframes sweep {
-    0%,
-    55% {
-      transform: translateX(-30cqw) skewX(-18deg);
-    }
-    100% {
-      transform: translateX(130cqw) skewX(-18deg);
-    }
-  }
   @media (prefers-reduced-motion: reduce) {
-    .blob,
-    .flow::after {
+    .blob {
       animation: none;
-    }
-  }
-  @keyframes rim {
-    from {
-      --rim-angle: 135deg;
-    }
-    to {
-      --rim-angle: 215deg;
     }
   }
   @keyframes wander {
     0% {
-      border-radius: 42% 58% 61% 39% / 47% 41% 59% 53%;
       transform: translate(8cqw, 25cqh) scale(1);
     }
     33% {
-      border-radius: 61% 39% 44% 56% / 58% 62% 38% 42%;
       transform: translate(45cqw, 80cqh) scale(1.28, 0.86);
     }
     66% {
-      border-radius: 50% 50% 36% 64% / 44% 60% 40% 56%;
       transform: translate(72cqw, 20cqh) scale(1.1, 1.05);
     }
     100% {
-      border-radius: 37% 63% 52% 48% / 40% 55% 45% 60%;
       transform: translate(95cqw, 65cqh) scale(0.86, 1.16);
     }
   }
   @keyframes wander-back {
     0% {
-      border-radius: 37% 63% 52% 48% / 40% 55% 45% 60%;
       transform: translate(90cqw, 75cqh) scale(1.1, 0.9);
     }
     33% {
-      border-radius: 58% 42% 47% 53% / 52% 38% 62% 48%;
       transform: translate(55cqw, 15cqh) scale(0.9, 1.15);
     }
     66% {
-      border-radius: 42% 58% 61% 39% / 47% 41% 59% 53%;
       transform: translate(25cqw, 70cqh) scale(1.25, 0.9);
     }
     100% {
-      border-radius: 61% 39% 44% 56% / 58% 62% 38% 42%;
       transform: translate(6cqw, 30cqh) scale(1, 1.1);
     }
   }
@@ -1313,7 +1255,7 @@
     border-radius: inherit;
     pointer-events: none;
     background: linear-gradient(
-      var(--rim-angle),
+      155deg,
       rgba(255, 255, 255, 0.62),
       rgba(255, 255, 255, 0.12) 26%,
       rgba(255, 255, 255, 0) 50%,
@@ -1329,7 +1271,6 @@
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0.75;
-    animation: rim 14s ease-in-out infinite alternate;
   }
   :global(html[data-theme="glass"]) .card::after {
     content: "";
@@ -1372,7 +1313,7 @@
     border-radius: inherit;
     pointer-events: none;
     background: linear-gradient(
-      var(--rim-angle),
+      155deg,
       rgba(255, 255, 255, 0.62),
       rgba(255, 255, 255, 0.12) 26%,
       rgba(255, 255, 255, 0) 50%,
@@ -1388,7 +1329,6 @@
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0.75;
-    animation: rim 14s ease-in-out infinite alternate;
   }
   /* The pointer light (from the card's top left, moved to the tile's) and the accent hairline, which brightens under the pointer. */
   :global(html[data-theme="glass"]) .tile::after {
@@ -1457,13 +1397,13 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .tile {
     display: grid;
     place-items: center;
-    width: var(--tile-size, 38px);
-    height: var(--tile-size, 38px);
+    width: var(--tile-size, 50px); /* as tall as the bar beside it */
+    height: var(--tile-size, 50px);
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -1494,8 +1434,8 @@
     outline-offset: 2px;
   }
   .tile img {
-    width: calc(var(--tile-size, 38px) * 0.66);
-    height: calc(var(--tile-size, 38px) * 0.66);
+    width: calc(var(--tile-size, 50px) * 0.52); /* the circle is a plate round the icon, not a frame: room to breathe */
+    height: calc(var(--tile-size, 50px) * 0.52);
     pointer-events: none;
   }
   .live {

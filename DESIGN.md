@@ -20,10 +20,12 @@ Three choices in Settings, General change this, and every window follows at once
   faint text shadow. Where the system cannot blur (Windows' energy saver: nearly opaque) or the person asked for less transparency
   (opaque), the plate is dense again. What floats inside a card is denser and blurs what it covers (`--glass-raised`, `--glass-blur`).
   No ring: the bar is slimmer (50 px), its edge a hairline in the accent (`[ui] bar_border` turns it off), and its rim lit brightest at
-  the top left, the angle turning slowly. Motion is one sheet across the bar and the tiles: three accent blobs drift and change shape, a
-  soft band of light glides through every few seconds, and a faint light follows the pointer; it grows brighter while the bar has the
-  keyboard and while you type, and stops for reduced motion. The tiles do not grow on hover, which would pull them off the glass
-  behind them.
+  the top left. Motion is three accent blobs drifting through the card, brighter while the bar has the keyboard and while you type, and a
+  faint light that follows the pointer; results slide in as they fade. It stops for reduced motion. All of it is transforms and
+  opacity, which the compositor runs without repainting: a blurred filter, a gradient that turns, or a shape that changes outline
+  every frame held the bar to half its frame rate on 2026-11-26 (104 fps idle and 85 typing against 144 and 138 without them, on a
+  144 Hz screen). The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
+  on hover, which would pull them off the glass behind them.
 - **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.
 - **An accent** takes the place of the chrome where it marks something: focus, the caret, the bar's icon and edge, filled buttons,
