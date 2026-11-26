@@ -1,4 +1,4 @@
-/* Glass 2's lit rim turns as light moves over the pane: an angle that can be animated. */
+/* Glass's lit rim turns as light moves over the pane: an angle that can be animated. */
 @property --rim-angle {
   syntax: "<angle>";
   inherits: false;
@@ -34,8 +34,6 @@
   --text-3: #8a8c93;
   /* The bright accent: the focus ring, the caret, filled buttons (--on-chrome is their text, --chrome-hot their hover). */
   --chrome: #e6e8ec;
-  /* The Glass 2 search bar's own colour (its icon, caret, glow and edge), chosen in Settings and set on the page by lib/theme.ts. */
-  --bar-accent: #e5484d;
   --chrome-hot: #fff;
   --on-chrome: #000;
   --danger: #e0877f;
@@ -52,10 +50,11 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1); /* exponential ease-out */
   --spring: cubic-bezier(0.34, 1.4, 0.64, 1); /* a small overshoot: the selection and pressed icons settle like a spring */
 
-  /* The words you type and the placeholder: a geometric, open face, the one voice that is not Geist. */
-  --display: "Sora Variable", "Segoe UI Variable Display", system-ui, sans-serif;
-  --sans: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --mono: "Geist Mono Variable", "Cascadia Mono", Consolas, monospace;
+  /* The system's own typeface (SF Pro on a Mac, Segoe UI Variable on Windows): nothing to bundle, and it reads as part of the system. It
+     picks its Text or Display cut by size (font-optical-sizing, below), as the system's own controls do. */
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
 
   color-scheme: dark;
 }
@@ -67,7 +66,6 @@ body {
   overflow: hidden;
   color: var(--text);
   font: 450 14px/1.4 var(--sans);
-  font-feature-settings: "calt", "ss01";
   -webkit-font-smoothing: antialiased;
   user-select: none;
   cursor: default;
@@ -222,60 +220,16 @@ html[data-theme="coral"] {
   color-scheme: light;
 }
 
-/* Glass: frosted cards. The system blurs what is behind each card (lib/glass.ts, internal/glass) and the plate, part see-through,
-   tints it dark enough to read over a white page; what floats inside a card blurs what it covers itself. Where the system cannot
-   blur, or the person asked it for less transparency, the plate is opaque again. */
-html[data-theme="glass"] {
-  --ring-fallback: linear-gradient(135deg, #565963, #e4e8f0 45%, #565963 70%, #c9ced9);
-  --plate: #0b0c11;
-  --glass: color-mix(in srgb, var(--plate) 40%, transparent); /* a light frost: more of what is behind shows through */
-  --glass-raised: color-mix(in srgb, var(--plate) 84%, transparent);
-  --glass-blur: blur(24px) saturate(150%);
-  --card-rim: 24%;
-  --card-edge: 14%;
-  --bar-rim: 22%;
-  --bar-edge: 8%;
-  /* The chat's composer: a pane of frosted glass lying on the card, lit from above (a brighter top, a highlight on its top edge),
-     rather than a dark slot cut in it; its own blur keeps the messages scrolling under it unreadable. */
-  --well: linear-gradient(180deg, color-mix(in srgb, var(--ink) 7%, transparent), color-mix(in srgb, var(--ink) 3%, transparent));
-  --well-blur: blur(26px) saturate(160%);
-  --well-shine: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 6px 18px rgb(0 0 0 / 0.16);
-  --text: #f1f2f5;
-  --text-2: #c4c6cc;
-  --text-3: #a3a6ae; /* lighter than black's: the glass under it is lighter than #000 */
-}
-/* The light frost lets a bright page through: a faint shadow keeps the text readable on it. */
-html[data-theme="glass"]:not([data-glass="off"]) {
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
-}
-html[data-theme="glass"][data-glass="off"] {
-  --glass: var(--plate);
-  --glass-raised: var(--plate);
-  --well: var(--plate);
-  --well-shine: 0 0 #0000;
-}
-/* Windows' energy saver stops the system's blur: the plate stays a little see-through, without a blur, dark enough to read over
-   whatever is behind. The composer's frost and the menus' own blur blur only the page, so they stay. */
-html[data-theme="glass"][data-glass="tint"] {
-  --glass: color-mix(in srgb, var(--plate) 88%, transparent);
-  --glass-raised: color-mix(in srgb, var(--plate) 94%, transparent);
-}
-@media (prefers-reduced-transparency: reduce) {
-  html[data-theme="glass"] {
-    --glass: var(--plate);
-    --glass-raised: var(--plate);
-    --well: var(--plate);
-    --well-shine: 0 0 #0000;
-  }
-}
-
 /* Accents: what the chrome marks (focus, the caret, filled buttons, switches, the selection and the selected row) in a colour of
-   the person's choosing, a light shade on the dark themes and a deep one on the light themes. "none" keeps the chrome. */
+   the person's choosing, a light shade on the dark themes and a deep one on the light themes. "none" keeps the chrome. A colour of their own
+   (data-accent="#rrggbb") is set on the page by lib/theme.ts. */
+html[data-accent="ember"] { --chrome: #f2601d; --chrome-hot: #ff7a3d; --on-chrome: #0b0c0e; }
 html[data-accent="blue"] { --chrome: #8ab4ff; --chrome-hot: #b3ceff; --on-chrome: #04122e; }
 html[data-accent="violet"] { --chrome: #bba6ff; --chrome-hot: #d6caff; --on-chrome: #160a33; }
 html[data-accent="green"] { --chrome: #7fdcae; --chrome-hot: #aeeccc; --on-chrome: #032115; }
 html[data-accent="amber"] { --chrome: #f4c071; --chrome-hot: #f8d7a3; --on-chrome: #2b1a02; }
 html[data-accent="rose"] { --chrome: #f59ab6; --chrome-hot: #f9c1d2; --on-chrome: #33061a; }
+html[data-accent="ember"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #c2410c; --chrome-hot: #9a3412; --on-chrome: #fff; }
 html[data-accent="blue"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #1f56c4; --chrome-hot: #123e96; --on-chrome: #fff; }
 html[data-accent="violet"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #5b3cc4; --chrome-hot: #432a96; --on-chrome: #fff; }
 html[data-accent="green"]:is([data-theme="cream"], [data-theme="blush"], [data-theme="coral"]) { --chrome: #17784c; --chrome-hot: #0f5636; --on-chrome: #fff; }
@@ -287,10 +241,10 @@ html[data-accent]:not([data-accent="none"]) {
   --lift-keyed: color-mix(in srgb, var(--chrome) 20%, transparent);
 }
 
-/* Glass 2: a clear plate over a blur of what is behind the window (the blur is the system's: on a Mac the launcher's Liquid Glass,
-   panel.Glass; on Windows the compositor's, internal/glass), set in the system's own typeface (SF Pro, Segoe UI Variable). Colours are the UI Component Library's dark tokens; the ember accent lives only here. */
-html[data-theme="glass2"] {
-  --ring-fallback: linear-gradient(135deg, #c94d14, #ffb08a 45%, #f2601d 70%, #e8f26b);
+/* Glass: a clear plate over a blur of what is behind the window (the blur is the system's: on a Mac the launcher's Liquid Glass,
+   panel.Glass; on Windows the compositor's, internal/glass). Colours are the UI Component Library's dark tokens. Its accent is the
+   person's, as in every theme: the bar's icon, caret, edge and glow follow --chrome. */
+html[data-theme="glass"] {
   --plate: rgba(22, 23, 27, 0.2); /* the Liquid Glass under it (panel.Glass) carries its own dark tint */
   --lift: rgba(255, 255, 255, 0.16);
   --tile: rgba(255, 255, 255, 0.08);
@@ -298,87 +252,82 @@ html[data-theme="glass2"] {
   --text: #ffffff;
   --text-2: #d2d3d8;
   --text-3: #a6a7ae;
-  --chrome: #f2601d;
-  --chrome-hot: #ff7a3d;
-  --on-chrome: #0b0c0e;
   --danger: #ff5a5f;
+  /* What floats inside a card (a menu, an event's details) blurs what it covers itself, over a plate dense enough to read. */
+  --glass-raised: rgba(22, 23, 27, 0.86);
+  --glass-blur: blur(24px) saturate(150%);
   --radius: 27px; /* half the slim bar's height: a pill, which the blur behind it (panel.Glass) copies */
-  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
 }
 /* Windows' blur carries no tint of its own (a Mac's Liquid Glass does), so the plate there is denser for the text to read over a
-   bright window, with the faint text shadow Glass uses. */
-html[data-theme="glass2"][data-system="windows"] {
+   bright window, with a faint text shadow. */
+html[data-theme="glass"][data-system="windows"] {
   --plate: rgba(18, 19, 23, 0.5);
 }
-html[data-theme="glass2"][data-system="windows"]:not([data-glass="off"]) {
+html[data-theme="glass"][data-system="windows"]:not([data-glass="off"]) {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
 }
-/* Where the system cannot blur (Windows' energy saver) or transparency is off, as in Glass: nearly opaque, then opaque. */
-html[data-theme="glass2"][data-glass="tint"] {
+/* Where the system cannot blur (Windows' energy saver) or transparency is off: nearly opaque, then opaque. */
+html[data-theme="glass"][data-glass="tint"] {
   --plate: rgba(22, 23, 27, 0.88);
+  --glass-raised: rgba(22, 23, 27, 0.94);
 }
-html[data-theme="glass2"][data-glass="off"] {
+html[data-theme="glass"][data-glass="off"] {
   --plate: #16171b;
+  --glass-raised: #16171b;
 }
 @media (prefers-reduced-transparency: reduce) {
-  html[data-theme="glass2"] {
+  html[data-theme="glass"] {
     --plate: #16171b;
+    --glass-raised: #16171b;
   }
 }
 /* Settings and the cards hold pages of text: their glass is frosted more heavily than the bar's, so what is behind stays a soft blur. */
-html[data-theme="glass2"]:is([data-surface="settings"], [data-surface="card"]):not([data-glass="off"], [data-glass="tint"]) {
+html[data-theme="glass"]:is([data-surface="settings"], [data-surface="card"]):not([data-glass="off"], [data-glass="tint"]) {
   --plate: rgba(20, 21, 25, 0.6);
   --tile: rgba(255, 255, 255, 0.07);
   --lift: rgba(255, 255, 255, 0.12);
 }
-/* SF Pro picks its Text or Display cut by size, as the system's own controls do. */
-html[data-theme="glass2"] body {
-  font-feature-settings: normal;
-  font-optical-sizing: auto;
-}
 /* The plate is clear and wears no ring: the blur behind it shows through, and its edge is the accent's hairline (App.svelte). */
-html[data-theme="glass2"]:not([data-surface]) .card {
+html[data-theme="glass"]:not([data-surface]) .card {
   background: none;
 }
 
-/* Glass 2 in the chat: the plate is clear, so what is drawn over it as "the plate's colour" cannot be a solid or a fade. The composer is a glass
+/* Glass in the chat: the plate is clear, so what is drawn over it as "the plate's colour" cannot be a solid or a fade. The composer is a glass
    tile with a hairline edge, the soft edges under the header and above the composer go (a gradient of a clear colour over a clear card
    only paints a band), and the history list, which sits over the messages, is dense enough that they do not show through. */
-html[data-theme="glass2"] .fade-top,
-html[data-theme="glass2"] .fade {
+html[data-theme="glass"] .fade-top,
+html[data-theme="glass"] .fade {
   display: none;
 }
 /* The composer is the search bar's twin: no metal, the plate out to the edge, and a hairline in the accent that brightens on hover and while
    the box has the keyboard (the bar's own rules are in App.svelte), in the bar's type. */
-html[data-theme="glass2"] .composer {
+html[data-theme="glass"] .composer {
   padding: 0;
   border-radius: var(--radius);
 }
-html[data-theme="glass2"] .composer .ring {
+html[data-theme="glass"] .composer .ring {
   display: none;
 }
-html[data-theme="glass2"] .composer .plate {
+html[data-theme="glass"] .composer .plate {
   border-radius: var(--radius);
   background: var(--plate);
   box-shadow: none;
   transition: box-shadow 900ms var(--ease);
 }
-html[data-theme="glass2"]:not([data-bar-border="false"]) .composer .plate {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 22%, transparent);
+html[data-theme="glass"]:not([data-bar-border="false"]) .composer .plate {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 22%, transparent);
 }
-html[data-theme="glass2"]:not([data-bar-border="false"]) .composer:hover .plate {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 30%, transparent);
+html[data-theme="glass"]:not([data-bar-border="false"]) .composer:hover .plate {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 30%, transparent);
 }
-html[data-theme="glass2"]:not([data-bar-border="false"]) .composer:focus-within .plate {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 38%, transparent);
+html[data-theme="glass"]:not([data-bar-border="false"]) .composer:focus-within .plate {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 38%, transparent);
 }
-html[data-theme="glass2"] .composer textarea {
+html[data-theme="glass"] .composer textarea {
   font: 400 16.5px/1.4 var(--display);
   letter-spacing: -0.01em;
-  caret-color: var(--bar-accent);
+  caret-color: var(--chrome);
 }
-html[data-theme="glass2"] .history {
+html[data-theme="glass"] .history {
   background: rgba(22, 23, 27, 0.86);
 }

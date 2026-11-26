@@ -1,17 +1,15 @@
 import { isMac } from "./platform";
 import { Service as Glass } from "../../bindings/omni/internal/glass";
 
-// The frosted glass behind a card, while the Glass theme is chosen. A page cannot blur what is behind its own window, so it tells the window where its card is
+// The frosted glass behind a card, while the Glass theme is chosen on Windows. A page cannot blur what is behind its own window, so it tells the window where its card is
 // (internal/glass) and the system blurs the desktop there; the page paints the tint (--glass) on top. The window says what the
 // glass is: while Windows' energy saver stops the blur the plate is nearly opaque (html[data-glass="tint"]); someone who asked the
 // system for less transparency, or a system that cannot do it, gets the plate opaque (html[data-glass="off"]).
 
 const reduced = matchMedia("(prefers-reduced-transparency: reduce)");
 
-// The themes whose cards this glass is under. Glass 2 on a Mac has the launcher's Liquid Glass instead (panel.Glass), so here only on
-// Windows, where it is this same blur.
-const themes = isMac ? ["glass"] : ["glass", "glass2"];
-const wanted = () => themes.includes(document.documentElement.dataset.theme ?? "");
+// A Mac has the launcher's Liquid Glass instead (panel.Glass, and the card windows' own), so this blur is Windows' only.
+const wanted = () => !isMac && document.documentElement.dataset.theme === "glass";
 
 // Panes drawn as the same glass beside a card (the bar's quick-open tiles), each round: the card's glass is asked for with them.
 const panes = new Set<HTMLElement>();
@@ -51,8 +49,7 @@ export function glass(node: HTMLElement, radius: number) {
       return;
     }
     const box = node.getBoundingClientRect();
-    // Only Glass 2 draws its tiles as glass; the other themes give them their plate.
-    const beside = [...(document.documentElement.dataset.theme === "glass2" ? panes : [])].map((pane) => ({ pane, box: pane.getBoundingClientRect() }));
+    const beside = [...panes].map((pane) => ({ pane, box: pane.getBoundingClientRect() }));
     const shapes = [
       { X: box.left, Y: box.top, W: box.width, H: box.height, R: radius },
       ...beside.map(({ box }) => ({ X: box.left, Y: box.top, W: box.width, H: box.height, R: Math.min(box.width, box.height) / 2 })),

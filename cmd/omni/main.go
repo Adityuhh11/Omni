@@ -360,13 +360,13 @@ func run(afterUpdate bool) error {
 	calendars := calendar.New(filepath.Join(dataDir, "calendar"), func() []config.CalendarFeed { return store.Get().Calendar.Feeds },
 		func(id string) (string, error) { return secrets.Get(calendarAddress(id)) }, log.Printf)
 	chatWindow := settingsui.NewChatWindow(app, func() bool { return store.Get().Chat.OnTop })
-	// The Glass 2 theme's card windows have the system's blur behind them, as the bar does.
+	// The Glass theme's card windows have the system's blur behind them, as the bar does.
 	setGlass := func(on bool) {
 		for _, w := range []*settingsui.Window{settingsWindow, notesWindow, chatWindow, timerWindow, calendarWindow, mapWindow} {
 			w.SetGlass(on)
 		}
 	}
-	setGlass(store.Get().UI.Theme == "glass2")
+	setGlass(store.Get().UI.Theme == "glass")
 	// A notes folder that cannot be opened (read-only, a strange profile) costs the notes, not the launcher.
 	noteStore, err := notes.Open(filepath.Join(filepath.Dir(path), "notes"))
 	var noteBook palette.NoteBook
@@ -702,7 +702,7 @@ func run(afterUpdate bool) error {
 			app.Event.Emit("ui:look", updated.UI) // every open window repaints
 		}
 		if old.UI.Theme != updated.UI.Theme {
-			setGlass(updated.UI.Theme == "glass2")
+			setGlass(updated.UI.Theme == "glass")
 		}
 		if old.Search.Pace != updated.Search.Pace {
 			indexer.SetPace(updated.Search.Pace)

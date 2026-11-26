@@ -153,5 +153,5 @@ own licenses; they are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.
 
 Omni stands on [llama.cpp](https://github.com/ggml-org/llama.cpp) (runs both models), [Wails](https://wails.io) (the desktop shell), [Svelte](https://svelte.dev),
 [uv](https://github.com/astral-sh/uv), [SQLite](https://sqlite.org), [FastAPI](https://fastapi.tiangolo.com), [PDFium](https://pdfium.googlesource.com/pdfium/) through
-[pypdfium2](https://github.com/pypdfium2-team/pypdfium2), [PyAV](https://github.com/PyAV-Org/PyAV), and the Geist and Sora typefaces.
+[pypdfium2](https://github.com/pypdfium2-team/pypdfium2), [PyAV](https://github.com/PyAV-Org/PyAV).
 Thanks to the people who built them, and to Google and Liquid AI for releasing their models.

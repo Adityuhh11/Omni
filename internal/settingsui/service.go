@@ -161,7 +161,6 @@ type View struct {
 	Theme           string
 	Ring            bool
 	Accent          string
-	Lights          bool
 	Timer           config.Timer
 	UpdateFound     string // the version of a newer release the last check saw, or ""
 	// UpdateInstallable says that release has a zip that can be checked, so the page can offer to install it.
@@ -177,7 +176,7 @@ func (s *Service) View() View {
 	return View{
 		Hotkey: c.Hotkey, DefaultHotkey: config.DefaultHotkey, Browser: c.Browser, SearchURL: c.SearchURL, Quicklinks: c.Quicklinks, Snippets: c.Snippets, Shortcuts: c.Shortcuts, ShortcutErrors: s.shortcutErrors(),
 		Roots: c.Roots, Off: c.Off, FileSearch: c.Search.Enabled, Pace: c.Search.Pace,
-		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Lights: c.UI.Lights, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
+		Autostart: s.o.Autostart(), CheckUpdates: c.CheckUpdates, SelectionEffect: c.UI.SelectionEffect, Theme: c.UI.Theme, Ring: c.UI.Ring, Accent: c.UI.Accent, Timer: c.Timer, UpdateFound: s.updateFound(), UpdateInstallable: s.updateInstallable(),
 		ConfigPath: s.o.Store.Path(), LogDir: s.o.LogDir, Version: s.o.Version,
 	}
 }
@@ -235,18 +234,18 @@ func (s *Service) SetTheme(name string) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Theme = name }))
 }
 
-// SetLights turns the wandering lights inside the bar (Glass theme) on or off.
-func (s *Service) SetLights(on bool) string {
-	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Lights = on }))
-}
-
 // SetRing shows or hides the metal ring around the bar and the chat's box.
 func (s *Service) SetRing(on bool) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Ring = on }))
 }
 
-// SetAccent changes the colour of focus, filled buttons and the selection; a name that is not one of config.Accents is refused.
+// SetAccent changes the colour of focus, the bar's icon and edge, filled buttons and the selection; anything that is neither one of
+// config.Accents nor a "#rrggbb" colour is refused.
 func (s *Service) SetAccent(name string) string {
+	name = strings.TrimSpace(name)
+	if strings.HasPrefix(name, "#") {
+		name = strings.ToLower(name) // what a colour picker may give in capitals
+	}
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Accent = name }))
 }
 
@@ -286,12 +285,7 @@ func (s *Service) ForgetUsage() string {
 	return ""
 }
 
-// SetBarAccent changes the colour of the Glass 2 bar's icon, caret, glow and edge; anything but "#rrggbb" is refused.
-func (s *Service) SetBarAccent(hex string) string {
-	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.BarAccent = strings.ToLower(strings.TrimSpace(hex)) }))
-}
-
-// SetBarBorder shows or hides the thin edge round the Glass 2 search bar.
+// SetBarBorder shows or hides the thin edge round the Glass search bar.
 func (s *Service) SetBarBorder(on bool) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.BarBorder = on }))
 }

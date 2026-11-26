@@ -5,7 +5,7 @@
   import type { AppChoice, ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
   import type { QuickOpen } from "../../../bindings/omni/internal/config";
   import HotkeyField from "./HotkeyField.svelte";
-  import { ACCENTS, applyLook, BAR_ACCENTS, THEMES } from "../theme";
+  import { ACCENTS, applyLook, THEMES } from "../theme";
 
   let { view }: { view: View } = $props();
 
@@ -25,10 +25,7 @@
   // svelte-ignore state_referenced_locally
   let ring = $state(view.Ring);
   // svelte-ignore state_referenced_locally
-  let lights = $state(view.Lights);
-  // svelte-ignore state_referenced_locally
   let accent = $state(view.Accent);
-  let barAccent = $state<string>(BAR_ACCENTS[0].hex);
   let barBorder = $state(true);
   let quick = $state<QuickOpen | null>(null);
   let appChoices = $state<AppChoice[]>([]);
@@ -64,7 +61,7 @@
 
   onMount(async () => {
     loadHotkeys();
-    Settings.Look().then((look) => ((barAccent = look.BarAccent || barAccent), (barBorder = look.BarBorder)));
+    Settings.Look().then((look) => (barBorder = look.BarBorder));
     Settings.QuickOpen().then((q) => (quick = q));
     Settings.QuickOpenApps().then((list) => (appChoices = list ?? []));
     browsers = (await Settings.Browsers()) ?? [];
@@ -151,12 +148,6 @@
     } else flashSaved();
   }
 
-  async function saveLights() {
-    applyLook({ Lights: lights });
-    error = await Settings.SetLights(lights);
-    if (error !== "") applyLook({ Lights: (lights = !lights) });
-  }
-
   async function saveRing() {
     applyLook({ Ring: ring });
     error = await Settings.SetRing(ring);
@@ -175,19 +166,9 @@
     } else flashSaved();
   }
 
-  // The Glass 2 bar follows the colour while the picker is still open; it is saved when the picker lets go.
-  const previewBarAccent = (hex: string) => applyLook({ BarAccent: hex });
-
-  async function saveBarAccent(hex: string) {
-    const before = barAccent;
-    barAccent = hex.toLowerCase();
-    previewBarAccent(barAccent);
-    error = await Settings.SetBarAccent(barAccent);
-    if (error !== "") {
-      barAccent = before;
-      previewBarAccent(before);
-    } else flashSaved();
-  }
+  // A colour of their own is shown on the page while the picker is still open, and saved when it lets go.
+  const previewAccent = (hex: string) => applyLook({ Accent: hex });
+  const isCustom = $derived(!ACCENTS.some((a) => a.id === accent));
 
   async function saveBarBorder() {
     applyLook({ BarBorder: barBorder });
@@ -236,58 +217,33 @@
           {a.label}
         </button>
       {/each}
+      <label class="custom" class:on={isCustom} title="Any colour">
+        <span class="dot" style:background={isCustom ? accent : "conic-gradient(#e5484d, #f5d90a, #46a758, #5bb8d0, #3e63dd, #8e4ec6, #d6409f, #e5484d)"}></span>
+        Custom
+        <input
+          type="color"
+          value={isCustom ? accent : "#f2601d"}
+          aria-label="Any colour"
+          oninput={(e) => previewAccent(e.currentTarget.value)}
+          onchange={(e) => saveAccent(e.currentTarget.value)}
+        />
+      </label>
     </div>
   </div>
-  <label class="item">
-    <span class="text">
-      <span class="name">Metal ring</span>
-      <span class="sub">The flowing ring around the search bar and the Omni AI box</span>
-    </span>
-    <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
-  </label>
+  {#if theme !== "glass"}
+    <label class="item">
+      <span class="text">
+        <span class="name">Metal ring</span>
+        <span class="sub">The flowing ring around the search bar and the Omni AI box</span>
+      </span>
+      <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
+    </label>
+  {/if}
   {#if theme === "glass"}
     <label class="item">
       <span class="text">
-        <span class="name">Floating lights</span>
-        <span class="sub">Two faint lights in the accent's colour drifting inside the search bar</span>
-      </span>
-      <input type="checkbox" class="switch" bind:checked={lights} onchange={saveLights} />
-    </label>
-  {/if}
-  {#if theme === "glass2"}
-    <div class="item stack">
-      <span class="text">
-        <span class="name" id="bar-accent-label">Bar accent</span>
-        <span class="sub">The colour of the Glass 2 search bar's icon, caret, glow and edge</span>
-      </span>
-      <div class="accents" role="radiogroup" aria-labelledby="bar-accent-label">
-        {#each BAR_ACCENTS as a (a.hex)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={barAccent === a.hex}
-            aria-label={a.label}
-            title={a.label}
-            class:on={barAccent === a.hex}
-            style:--dot={a.hex}
-            onclick={() => saveBarAccent(a.hex)}
-          ></button>
-        {/each}
-        <label class="custom" class:on={!BAR_ACCENTS.some((a) => a.hex === barAccent)} title="Any colour" style:--dot={barAccent}>
-          <input
-            type="color"
-            value={barAccent}
-            aria-label="Any colour"
-            oninput={(e) => previewBarAccent(e.currentTarget.value)}
-            onchange={(e) => saveBarAccent(e.currentTarget.value)}
-          />
-        </label>
-      </div>
-    </div>
-    <label class="item">
-      <span class="text">
         <span class="name">Bar edge</span>
-        <span class="sub">A thin line in the bar accent; off, the bar only glows while you type</span>
+        <span class="sub">A thin line in the accent colour round the search bar; off, the bar only glows while you type</span>
       </span>
       <input type="checkbox" class="switch" bind:checked={barBorder} onchange={saveBarBorder} />
     </label>
@@ -449,41 +405,31 @@
     border-radius: 50%;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
   }
-  .accents {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-  }
-  .accents button,
-  .custom {
+  .themes .custom {
     position: relative;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: var(--dot);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px 5px 5px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--tile);
+    color: var(--text-2);
+    font: 500 13px/1 var(--sans);
     cursor: pointer;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
-    transition: transform 220ms var(--ease), box-shadow 220ms var(--ease);
   }
-  .accents button:hover,
-  .custom:hover {
-    transform: scale(1.12);
+  .themes .custom:hover {
+    background: var(--lift);
   }
-  .accents .on {
-    box-shadow:
-      0 0 0 2px var(--plate),
-      0 0 0 3.5px var(--dot);
+  .themes .custom.on {
+    border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
+    color: var(--text);
   }
-  /* The free colour: a rainbow ring round whatever was picked, the browser's own picker behind it. */
-  .custom {
-    background:
-      radial-gradient(circle, var(--dot) 0 44%, transparent 46%),
-      conic-gradient(#e5484d, #f5d90a, #46a758, #5bb8d0, #3e63dd, #8e4ec6, #d6409f, #e5484d);
+  .themes .custom:focus-within {
+    outline: 1px solid var(--chrome);
+    outline-offset: 2px;
   }
+  /* The browser's own colour picker, laid invisibly over the chip. */
   .custom input {
     position: absolute;
     inset: 0;
@@ -501,11 +447,5 @@
   }
   label.item {
     cursor: pointer;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .accents button,
-    .custom {
-      transition: none;
-    }
   }
 </style>

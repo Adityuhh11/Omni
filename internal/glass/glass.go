@@ -1,8 +1,8 @@
 // Package glass gives the windows that draw a card frosted glass: the system blurs what is behind the window, inside the rounded
 // shape the page says its card has, and the page paints its theme's plate, part see-through, on top. A web page cannot blur what
 // is behind its own window, so this is the system's work: a compositor visual with the blurred backdrop, clipped to the shape, on
-// Windows (glass_windows.go), a visual effect view masked to the shape behind the page on a Mac (glass_darwin.go). While Windows'
-// energy saver stops the system's blur there is no glass: the cards are nearly opaque (Tint).
+// Windows (glass_windows.go). A Mac has the launcher's Liquid Glass instead (internal/panel, internal/settingsui), so nothing is
+// done here (glass_darwin.go). While Windows' energy saver stops the system's blur there is no glass: the cards are nearly opaque (Tint).
 package glass
 
 import (
@@ -44,7 +44,7 @@ func logOnce(err error, outcome string) {
 
 // Shape puts the glass behind the calling window's card, and behind anything beside it drawn as the same glass (the bar's quick-open
 // tiles): each a rounded rectangle in CSS pixels from the window's top left. No shapes takes it away. dark says whether the page's
-// theme is dark, which picks the Mac's material; Windows' blur has no colour of its own. It says what the glass is.
+// theme is dark; Windows' blur has no colour of its own. It says what the glass is.
 func (s *Service) Shape(ctx context.Context, shapes []Rect, dark bool) (Glass, error) {
 	win, ok := ctx.Value(application.WindowKey).(application.Window)
 	if !ok || win == nil {

@@ -8,33 +8,29 @@ The visual system of the launcher panel, recorded from the built page (`frontend
 Pure black and chrome. The plate is flat `#000`, like an OLED screen or black paint on a sports car: no gradient,
 no texture (a brushed grain, a band of light, a graphite gradient and frosted glass were all tried on 2026-10-16 and
 dropped; they read as stray lines or turned the plate grey). The premium comes from a lit top rim and a hairline edge, and
-from the ring. It is opaque, so it stays black whatever is behind the panel. The interface itself has no accent hue unless the
-person picks one (emphasis is weight and brightness); the only colour is the ring, a metal that changes every time the panel closes.
+from the ring. It is opaque, so it stays black whatever is behind the panel. The interface has one accent hue,
+ember orange until the person picks another (emphasis is weight and brightness); the only other colour is the ring, a metal that changes every time the panel closes.
 
 Three choices in Settings, General change this, and every window follows at once (`ui:look`):
 
-- **Glass theme.** Frosted cards, chosen by the owner on 2026-11-04 from five studies (black plate, frosted, clear liquid glass,
-  smoked, frosted with flowing liquid). The system blurs what is behind each card, cut to its exact rounded shape
-  (`internal/glass`; a page cannot blur what is behind its own window), and the plate (`#0b0c11`) at 40% tints it lightly
-  (`--glass`; 55% until 2026-11-08 read as Mica, not glass); a faint text shadow keeps the text readable over a white page. What floats inside a card is denser and blurs what it covers (`--glass-raised`,
-  `--glass-blur`). Where the system cannot blur, or the person asked it for less transparency, the plate is opaque again. The
-  other themes are untouched: for them `--glass` is the plate. **Floating lights** (a switch, off by default, `[ui] lights`): two
-  faint ovals in the accent's colour drift inside the bar at one slow constant pace with gentle turns (`lib/Glow.svelte`,
-  `lib/drift.ts`); only in the bar, only while it is open and the system blurs.
-- **Glass 2** (`glass2`): Liquid Glass. On a Mac the system's `NSGlassEffectView` (macOS 26+) under the bar, its quick-open tiles and
-  the card windows, the plate at 20% in the bar and 60% in Settings and the cards, where text must stay readable over busy windows. On
-  Windows the compositor's blur (`internal/glass`, as for Glass), which has no tint of its own: the plate at 50%, with Glass's text
-  shadow, and Glass's fallbacks (energy saver: nearly opaque; transparency off: opaque). The system's own font (SF Pro, Segoe UI
-  Variable). No ring: the bar is slimmer (50 px), its edge a hairline in its own colour (`[ui] bar_accent`, `bar_border`),
-  and its rim lit brightest at the top left, the angle turning slowly. Motion is one sheet across the bar and the tiles: three accent blobs
-  drift and change shape, a soft band of light glides through every few seconds, and a faint light follows the pointer; it grows
-  brighter while the bar has the keyboard and while you type, and stops for reduced motion. The tiles do not grow on hover, which would
-  pull them off the glass behind them.
+- **Glass theme**: Liquid Glass, the owner's pick of the two glass studies (2026-11-26; the first Glass, a frosted plate with floating
+  lights, is gone). A clear plate over a blur of what is behind the window. On a Mac the system's `NSGlassEffectView` (macOS 26+) under the
+  bar, its quick-open tiles and the card windows, the plate at 20% in the bar and 60% in Settings and the cards, where text must stay
+  readable over busy windows. On Windows the compositor's blur (`internal/glass`), which has no tint of its own: the plate at 50% with a
+  faint text shadow. Where the system cannot blur (Windows' energy saver: nearly opaque) or the person asked for less transparency
+  (opaque), the plate is dense again. What floats inside a card is denser and blurs what it covers (`--glass-raised`, `--glass-blur`).
+  No ring: the bar is slimmer (50 px), its edge a hairline in the accent (`[ui] bar_border` turns it off), and its rim lit brightest at
+  the top left, the angle turning slowly. Motion is one sheet across the bar and the tiles: three accent blobs drift and change shape, a
+  soft band of light glides through every few seconds, and a faint light follows the pointer; it grows brighter while the bar has the
+  keyboard and while you type, and stops for reduced motion. The tiles do not grow on hover, which would pull them off the glass
+  behind them.
 - **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.
-- **An accent** (blue, violet, green, amber, rose) takes the place of the chrome where it marks something: focus, the caret,
-  filled buttons, switches, the text selection, and a little of it in the selected row. A light shade on the dark themes, a deep
-  one on the light themes. "Chrome" is the default and keeps the interface without a hue.
+- **An accent** takes the place of the chrome where it marks something: focus, the caret, the bar's icon and edge, filled buttons,
+  switches, the text selection, and a little of it in the selected row. Ember orange (`#f2601d`) is the default, chosen by the owner on
+  2026-11-26; blue, violet, green, amber and rose are the other presets, "Chrome" keeps the interface without a hue, and any colour
+  can be picked (`[ui] accent` holds a preset's name or `#rrggbb`). A light shade on the dark themes, a deep one on the light themes;
+  a colour of the person's own is used as picked, with dark or white text on filled buttons, whichever reads better.
 
 ## Shape and motion
 
@@ -112,10 +108,10 @@ Three choices in Settings, General change this, and every window follows at once
 
 ## Type
 
-Geist Variable for text, Geist Mono Variable for paths, locations, counts and key caps (measurement and data only), and
-Sora Variable (19 px / 400, tracking -0.01em) for the one thing you type and its placeholder, chosen by the owner from six
-candidates on 2026-10-16 (Bricolage Grotesque was tried first).
-All three are bundled from `@fontsource-variable` (OFL), never loaded from a network. Scale: names 14.5 / 520,
+The system's own typeface everywhere (SF Pro on a Mac, Segoe UI Variable on Windows; Cascadia Mono or SF Mono for paths, locations,
+counts and key caps, which are measurement and data only), chosen by the owner on 2026-11-26 from Glass's look in place of Geist and
+Sora. Nothing is bundled or loaded from a network, and the OS picks the Text or Display cut by size. The bar's input is 16.5 px / 400,
+tracking -0.01em. Scale: names 14.5 / 520,
 snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 11.5.
 
 ## Components
@@ -158,8 +154,8 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
 
 - Nothing animated may run while the panel is closed; nothing may delay the hotkey path (the opening rise starts once the panel
   is shown and focused, and the input takes keys at once).
-- No accent color in the interface unless the person picks one, and then only where the chrome would be. Emphasis by weight and
-  brightness; the ring is the one coloured thing.
+- One accent colour in the interface, the person's, and only where the chrome would be. Emphasis by weight and
+  brightness; the ring is the one other coloured thing.
 - The ring is real shader output, never a CSS imitation (the static gradient behind it is only the no-WebGL fallback). It is masked to
   its rim, so it never shows through the glass.
 - Nothing inside a card paints a band of the plate's colour to fade content (it shows as a stripe on glass): fade with a mask.

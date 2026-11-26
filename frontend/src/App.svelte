@@ -17,7 +17,6 @@
   import Hints from "./lib/Hints.svelte";
   import SearchGlyph from "./lib/SearchGlyph.svelte";
   import LiquidRing from "./lib/LiquidRing.svelte";
-  import Glow from "./lib/Glow.svelte";
   import { glass, glassPane } from "./lib/glass";
   import { showUnexpectedIn } from "./lib/oops";
   import Loader from "./lib/Loader.svelte";
@@ -52,8 +51,8 @@
   let ring = $state(currentLook().Ring); // the metal ring, or a plain edge
   let metal = $state(0); // which of the theme's rings the bar wears; changes whenever the panel closes
   const rings = $derived(ringsFor(theme));
-  // Glass 2 has no metal: its edge is a hairline in the bar's accent. The other themes wear the ring unless it is turned off.
-  const ringed = $derived(theme !== "glass2" && ring);
+  // Glass has no metal: its edge is a hairline in the bar's accent. The other themes wear the ring unless it is turned off.
+  const ringed = $derived(theme !== "glass" && ring);
   let pending = $state(false); // a search is in flight
   let typing = $state(false); // a key was pressed in the last moment
   let target = $state<Item | null>(null); // the row the open action panel acts on (null: panel closed)
@@ -68,8 +67,10 @@
   let pinnedRows = $state<Entry[]>([]); // the pinned things that still exist, in the order pinned: the bar's empty state
   let quick = $state<Entry[]>([]); // the quick-open row under the empty bar: number keys 1 to its length open one
   const showQuick = $derived(quick.length > 0); // beside the bar while it is open, so the bar does not change width as you type
-  // The tiles are as tall as the bar beside them: Glass 2's bar is the slim one (its .bar is 50 px, see the style below).
-  const quickSize = $derived((theme === "glass2" ? 50 : BAR_HEIGHT) + RING * 2);
+  // The row is as tall as the bar beside it (Glass's bar is the slim one: its .bar is 50 px, see the style below) and the tiles sit in its
+  // middle: small, so the bar keeps most of the width.
+  const TILE = 38;
+  const quickRow = $derived((theme === "glass" ? 50 : BAR_HEIGHT) + RING * 2);
   let cardWidth = $state(0);
   let keying = $state(false); // an arrow key moved the selection a moment ago: the list lifts the selected row and dims the rest
   let keyingTimer: ReturnType<typeof setTimeout> | undefined;
@@ -149,11 +150,11 @@
     else shrinkTimer = setTimeout(() => resizeWindow(height), MORPH_MS + 40);
   });
 
-  // Glass 2 has a blur of the desktop under the card, put there by the launcher as a view of its own: it takes the card's place and
+  // Glass has a blur of the desktop under the card, put there by the launcher as a view of its own: it takes the card's place and
   // size, and moves over the same time and easing as the card does.
   const SIDE = 20; // clear window to the left and right of the card
   $effect(() => {
-    if (theme !== "glass2") {
+    if (theme !== "glass") {
       Panel.Glass(false, 0, 0, 0, 0, 0, 0);
       return;
     }
@@ -251,12 +252,12 @@
     metal = nextMetal(metal, Math.random, rings.length);
   }
 
-  // Glass 2: a soft light on the glass follows the pointer, as on a pane held up to a lamp. The card and the quick-open tiles are one
+  // Glass: a soft light on the glass follows the pointer, as on a pane held up to a lamp. The card and the quick-open tiles are one
   // sheet of glass: the light is placed from the card's top left, and each tile shows the part of it that falls on the tile.
   let row: HTMLElement;
   let windowWidth = $state(window.innerWidth);
   function shine(event: PointerEvent) {
-    if (theme !== "glass2" || !card) return;
+    if (theme !== "glass" || !card) return;
     const box = card.getBoundingClientRect();
     row.style.setProperty("--mx", `${event.clientX - box.left}px`);
     row.style.setProperty("--my", `${event.clientY - box.top}px`);
@@ -270,11 +271,11 @@
   $effect(() => {
     void cardWidth;
     void cardHeight;
-    const glass2 = theme === "glass2";
+    const frosted = theme === "glass";
     const count = quick.length;
     tick().then(() => {
       const shown = tiles.slice(0, count).filter(Boolean);
-      if (!card || !glass2 || shown.length === 0) {
+      if (!card || !frosted || shown.length === 0) {
         Panel.GlassPanes([], 0, 0);
         return;
       }
@@ -384,10 +385,10 @@
 
   let typingTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // The results fade in; in Glass 2 they pour in, coming out of a blur as they slide down.
+  // The results fade in; in Glass they pour in, coming out of a blur as they slide down.
   function pour(_: Element) {
     const still = reduceMotion.matches;
-    if (theme !== "glass2") return { duration: still ? 0 : 160, delay: 60, css: (t: number) => `opacity: ${t}` };
+    if (theme !== "glass") return { duration: still ? 0 : 160, delay: 60, css: (t: number) => `opacity: ${t}` };
     return {
       duration: still ? 0 : 280,
       delay: still ? 0 : 40,
@@ -721,10 +722,9 @@
 <svelte:window bind:innerWidth={windowWidth} onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
 <main bind:this={row} style:--row-w="{Math.max(0, windowWidth - SIDE * 2)}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
-  <div class="card" class:ringed class:typing style:height="{cardHeight}px" use:glass={theme === "glass2" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
+  <div class="card" class:ringed class:typing style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
     {#if ringed}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
-      <Glow running={active} />
       <div class="liquid" aria-hidden="true">
         <div class="flow">
           <span class="blob one"></span>
@@ -816,7 +816,7 @@
     </div>
   </div>
   {#if showQuick}
-    <div class="quick" role="group" aria-label="Quick open" style:height="{quickSize}px" style:--tile-size="{quickSize}px" transition:fade={{ duration: 160 }}>
+    <div class="quick" role="group" aria-label="Quick open" style:height="{quickRow}px" style:--tile-size="{TILE}px" transition:fade={{ duration: 160 }}>
       {#each quick as app, index (app.ID)}
         <button type="button" class="tile" class:picked={quickPick === index} aria-current={quickPick === index} title="{app.Title}  {isMac ? "⌘" : "Ctrl+"}{index + 1}" aria-label="Open {app.Title} ({isMac ? "Command" : "Control"} {index + 1})" onclick={() => openQuick(index)} bind:this={tiles[index]} use:glassPane>
           <span class="liquid" aria-hidden="true">
@@ -916,8 +916,8 @@
   .bar:focus-within .glass {
     color: var(--chrome);
   }
-  :global(html[data-theme="glass2"]) .bar:focus-within .glass {
-    color: var(--bar-accent);
+  :global(html[data-theme="glass"]) .bar:focus-within .glass {
+    color: var(--chrome);
   }
   input {
     flex: 1;
@@ -1126,48 +1126,48 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--ink) 14%, transparent) padding-box;
   }
-  /* Glass 2: no metal and no bevel, and a slimmer bar. The plate reaches the card's edge, which is a hairline in the accent (or nothing,
+  /* Glass: no metal and no bevel, and a slimmer bar. The plate reaches the card's edge, which is a hairline in the accent (or nothing,
      if the bar is set to have no edge), and the light under the text moves like a slow liquid: two faint blobs of the accent wander
      over the whole card, results and all, and change shape as they go, each pass taking about a quarter of a minute, brighter while
      the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from what is being typed. */
   .liquid {
     display: none;
   }
-  :global(html[data-theme="glass2"]) .card {
+  :global(html[data-theme="glass"]) .card {
     box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.5);
   }
-  :global(html[data-theme="glass2"]) .surface {
+  :global(html[data-theme="glass"]) .surface {
     inset: 0;
     border-radius: var(--radius);
   }
-  :global(html[data-theme="glass2"]) .content {
+  :global(html[data-theme="glass"]) .content {
     top: var(--ring); /* the card is still as tall as a ringed one: keep the bar in its middle */
   }
-  :global(html[data-theme="glass2"]) .bar {
+  :global(html[data-theme="glass"]) .bar {
     height: 50px;
     gap: 12px;
     padding: 0 20px;
   }
-  :global(html[data-theme="glass2"]) input {
-    caret-color: var(--bar-accent);
+  :global(html[data-theme="glass"]) input {
+    caret-color: var(--chrome);
     font-size: 16.5px;
     font-weight: 400;
   }
-  :global(html[data-theme="glass2"]) .surface::after {
+  :global(html[data-theme="glass"]) .surface::after {
     box-shadow: none;
     transition: box-shadow 900ms var(--ease);
   }
   /* Every state of the edge asks for it to be on, so hovering or typing never brings back an edge that was turned off. */
-  :global(html[data-theme="glass2"]:not([data-bar-border="false"])) .surface::after {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 22%, transparent);
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .surface::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 22%, transparent);
   }
-  :global(html[data-theme="glass2"]:not([data-bar-border="false"])) .card:hover .surface::after {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 25%, transparent);
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .card:hover .surface::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 25%, transparent);
   }
-  :global(html[data-theme="glass2"]:not([data-bar-border="false"])) .card:focus-within .surface::after {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 38%, transparent);
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .card:focus-within .surface::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 38%, transparent);
   }
-  :global(html[data-theme="glass2"]) .liquid {
+  :global(html[data-theme="glass"]) .liquid {
     display: block;
     position: absolute;
     inset: 0;
@@ -1188,13 +1188,13 @@
     height: var(--row-h, 100%);
     container-type: size;
   }
-  :global(html[data-theme="glass2"]) main:has(.card:hover, .tile:hover) .liquid {
+  :global(html[data-theme="glass"]) main:has(.card:hover, .tile:hover) .liquid {
     opacity: 0.27;
   }
-  :global(html[data-theme="glass2"]) main:has(.card:focus-within) .liquid {
+  :global(html[data-theme="glass"]) main:has(.card:focus-within) .liquid {
     opacity: 0.42;
   }
-  :global(html[data-theme="glass2"]) main:has(.card.typing) .liquid {
+  :global(html[data-theme="glass"]) main:has(.card.typing) .liquid {
     opacity: 0.55;
     transition-duration: 500ms;
   }
@@ -1204,7 +1204,7 @@
     left: -110px;
     width: 220px;
     height: 140px;
-    background: radial-gradient(closest-side, var(--bar-accent), transparent);
+    background: radial-gradient(closest-side, var(--chrome), transparent);
     filter: blur(22px);
     animation: wander 11s ease-in-out infinite alternate;
   }
@@ -1220,7 +1220,7 @@
     height: 110px;
     left: -80px;
     top: -55px;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--bar-accent) 55%, white), transparent);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--chrome) 55%, white), transparent);
     animation-duration: 8s;
     animation-delay: -3s;
   }
@@ -1298,13 +1298,13 @@
   }
   /* Liquid Glass: a lit rim that is brightest where light falls on a curved edge (top left, bottom right), a little depth
      inside the pane, a highlight that follows the pointer, and the quick-open tiles as small panes of their own. */
-  :global(html[data-theme="glass2"]) .surface {
+  :global(html[data-theme="glass"]) .surface {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.24),
       inset 0 -1px 0 rgba(0, 0, 0, 0.2),
       inset 0 0 28px rgba(255, 255, 255, 0.05);
   }
-  :global(html[data-theme="glass2"]) .surface::before {
+  :global(html[data-theme="glass"]) .surface::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -1331,7 +1331,7 @@
     opacity: 0.75;
     animation: rim 14s ease-in-out infinite alternate;
   }
-  :global(html[data-theme="glass2"]) .card::after {
+  :global(html[data-theme="glass"]) .card::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -1342,12 +1342,12 @@
     opacity: 0;
     transition: opacity 1200ms var(--ease);
   }
-  :global(html[data-theme="glass2"]) main:has(.card:hover, .tile:hover) .card::after {
+  :global(html[data-theme="glass"]) main:has(.card:hover, .tile:hover) .card::after {
     opacity: 1;
   }
   /* The quick-open tiles are made of the card's glass: the same blur behind (a pane of its own, from the launcher), plate, lit rim,
      accent hairline, liquid and pointer light. They do not grow on hover, which would pull them off the blur behind them. */
-  :global(html[data-theme="glass2"]) .tile {
+  :global(html[data-theme="glass"]) .tile {
     position: relative;
     isolation: isolate;
     border-radius: 50%;
@@ -1358,12 +1358,12 @@
       inset 0 -1px 0 rgba(0, 0, 0, 0.2),
       inset 0 0 28px rgba(255, 255, 255, 0.05);
   }
-  :global(html[data-theme="glass2"]) .tile:hover,
-  :global(html[data-theme="glass2"]) .tile.picked,
-  :global(html[data-theme="glass2"]) .tile:active {
+  :global(html[data-theme="glass"]) .tile:hover,
+  :global(html[data-theme="glass"]) .tile.picked,
+  :global(html[data-theme="glass"]) .tile:active {
     transform: none;
   }
-  :global(html[data-theme="glass2"]) .tile::before {
+  :global(html[data-theme="glass"]) .tile::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -1391,7 +1391,7 @@
     animation: rim 14s ease-in-out infinite alternate;
   }
   /* The pointer light (from the card's top left, moved to the tile's) and the accent hairline, which brightens under the pointer. */
-  :global(html[data-theme="glass2"]) .tile::after {
+  :global(html[data-theme="glass"]) .tile::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -1407,47 +1407,47 @@
       box-shadow 900ms var(--ease),
       background-color 360ms var(--ease);
   }
-  :global(html[data-theme="glass2"]:not([data-bar-border="false"])) .tile::after {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 22%, transparent);
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .tile::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 22%, transparent);
   }
-  :global(html[data-theme="glass2"]:not([data-bar-border="false"])) .tile:hover::after,
-  :global(html[data-theme="glass2"]:not([data-bar-border="false"])) .tile.picked::after {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 38%, transparent);
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .tile:hover::after,
+  :global(html[data-theme="glass"]:not([data-bar-border="false"])) .tile.picked::after {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome) 38%, transparent);
   }
-  :global(html[data-theme="glass2"]) .tile:hover::after {
+  :global(html[data-theme="glass"]) .tile:hover::after {
     background-color: rgba(255, 255, 255, 0.05);
   }
   /* Picked with the arrow keys: lit like a hovered tile, a little more, and the icon lifts. */
-  :global(html[data-theme="glass2"]) .tile.picked::after {
+  :global(html[data-theme="glass"]) .tile.picked::after {
     background-color: rgba(255, 255, 255, 0.09);
     box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 55%, transparent),
-      0 0 18px -2px color-mix(in srgb, var(--bar-accent) 45%, transparent);
+      inset 0 0 0 1px color-mix(in srgb, var(--chrome) 55%, transparent),
+      0 0 18px -2px color-mix(in srgb, var(--chrome) 45%, transparent);
   }
-  :global(html[data-theme="glass2"]) .tile.picked img {
+  :global(html[data-theme="glass"]) .tile.picked img {
     transform: translateY(-1px) scale(1.06);
   }
-  :global(html[data-theme="glass2"]) .tile:active::after {
+  :global(html[data-theme="glass"]) .tile:active::after {
     background-color: rgba(255, 255, 255, 0.1);
     transition-duration: 0ms;
   }
-  :global(html[data-theme="glass2"]) .tile img {
+  :global(html[data-theme="glass"]) .tile img {
     position: relative;
     z-index: 1;
     transition: transform 220ms var(--ease);
   }
-  :global(html[data-theme="glass2"]) .tile:active img {
+  :global(html[data-theme="glass"]) .tile:active img {
     transform: scale(0.92);
   }
   @media (prefers-reduced-transparency: reduce) {
-    :global(html[data-theme="glass2"]) .card::after,
-    :global(html[data-theme="glass2"]) .surface::before,
-    :global(html[data-theme="glass2"]) .tile::before {
+    :global(html[data-theme="glass"]) .card::after,
+    :global(html[data-theme="glass"]) .surface::before,
+    :global(html[data-theme="glass"]) .tile::before {
       display: none;
     }
   }
-  /* Rows hovered in Glass 2 light up through the same liquid easing. */
-  :global(html[data-theme="glass2"]) .results :global(.item) {
+  /* Rows hovered in Glass light up through the same liquid easing. */
+  :global(html[data-theme="glass"]) .results :global(.item) {
     transition:
       background-color 360ms var(--ease),
       box-shadow 360ms var(--ease);
@@ -1457,13 +1457,13 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
   .tile {
     display: grid;
     place-items: center;
-    width: var(--tile-size, 50px); /* as tall as the bar beside it */
-    height: var(--tile-size, 50px);
+    width: var(--tile-size, 38px);
+    height: var(--tile-size, 38px);
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -1484,7 +1484,7 @@
   .tile:active {
     transform: scale(0.96);
   }
-  :global(html:not([data-theme="glass2"])) .tile.picked {
+  :global(html:not([data-theme="glass"])) .tile.picked {
     box-shadow:
       0 6px 14px -6px rgba(0, 0, 0, 0.55),
       inset 0 0 0 1.5px var(--chrome);
@@ -1494,8 +1494,8 @@
     outline-offset: 2px;
   }
   .tile img {
-    width: calc(var(--tile-size, 50px) * 0.62);
-    height: calc(var(--tile-size, 50px) * 0.62);
+    width: calc(var(--tile-size, 38px) * 0.66);
+    height: calc(var(--tile-size, 38px) * 0.66);
     pointer-events: none;
   }
   .live {
