@@ -24,7 +24,7 @@ Three choices in Settings, General change this, and every window follows at once
   faint light that follows the pointer; results slide in as they fade. It stops for reduced motion. All of it is transforms and
   opacity, which the compositor runs without repainting: a blurred filter, a gradient that turns, or a shape that changes outline
   every frame held the bar to half its frame rate on 2026-11-26 (104 fps idle and 85 typing against 144 and 138 without them, on a
-  144 Hz screen). The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
+  144 Hz screen). The panel is 840 wide: with the quick-open tiles the bar fills what they leave (611 px beside three), without them it is the 680 px it was before the tiles, in the middle. The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
   on hover, which would pull them off the glass behind them.
 - **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.

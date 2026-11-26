@@ -151,13 +151,19 @@
   // Glass has a blur of the desktop under the card, put there by the launcher as a view of its own: it takes the card's place and
   // size, and moves over the same time and easing as the card does.
   const SIDE = 20; // clear window to the left and right of the card
+  // The bar's width with nothing beside it: what the panel (720) left it before the quick-open tiles. The panel is wider now (840), so the
+  // bar fills what the tiles leave, and without tiles it stays this wide, in the middle.
+  const BAR_WIDTH = 680;
   $effect(() => {
     if (theme !== "glass") {
       Panel.Glass(false, 0, 0, 0, 0, 0, 0);
       return;
     }
     const radius = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--radius")) || 32;
-    Panel.Glass(true, SIDE, MARGIN_TOP, cardWidth || window.innerWidth - SIDE * 2, cardHeight, radius, MORPH_MS);
+    void windowWidth;
+    void showQuick;
+    const left = card ? card.getBoundingClientRect().left : SIDE; // the bar is in the middle when the tiles are not beside it
+    Panel.Glass(true, left, MARGIN_TOP, cardWidth || window.innerWidth - SIDE * 2, cardHeight, radius, MORPH_MS);
   });
 
   function resizeWindow(height: number) {
@@ -710,8 +716,8 @@
 
 <svelte:window bind:innerWidth={windowWidth} onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
-<main bind:this={row} style:--row-w="{Math.max(0, windowWidth - SIDE * 2)}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
-  <div class="card" class:ringed class:typing style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
+<main bind:this={row} style:--row-w="{showQuick ? Math.max(0, windowWidth - SIDE * 2) : cardWidth}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
+  <div class="card" class:ringed class:typing class:alone={!showQuick} style:max-width={showQuick ? null : `${BAR_WIDTH}px`} style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
     {#if ringed}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
       <div class="liquid" aria-hidden="true">
@@ -836,6 +842,9 @@
     /* Height is animated on purpose: one small element, its content is absolutely positioned inside,
        and it only runs for 240 ms when results appear or go. */
     transition: height 240ms var(--ease);
+  }
+  .card.alone {
+    margin-inline: auto;
   }
   .surface {
     position: absolute;
