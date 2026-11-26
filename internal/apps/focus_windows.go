@@ -17,7 +17,18 @@ var (
 	procIsIconic       = user32.NewProc("IsIconic")
 	procShowWindow     = user32.NewProc("ShowWindow")
 	procSetForeground  = user32.NewProc("SetForegroundWindow")
+	procGetClassName   = user32.NewProc("GetClassNameW")
 )
+
+// coreWindowClass is the class of the window a Store app keeps, hidden, for as long as its process lives (Settings, Calculator): it
+// exists whether or not the app has a window open, and the window the person sees is a frame owned by ApplicationFrameHost.
+const coreWindowClass = "Windows.UI.Core.CoreWindow"
+
+func className(hwnd windows.HWND) string {
+	buf := make([]uint16, 64)
+	n, _, _ := procGetClassName.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	return windows.UTF16ToString(buf[:n])
+}
 
 const (
 	gwOwner                        = 4
@@ -93,6 +104,9 @@ func isMainWindow(hwnd windows.HWND) bool {
 	}
 	if owner, _, _ := procGetWindow.Call(uintptr(hwnd), gwOwner); owner != 0 {
 		return false
+	}
+	if className(hwnd) == coreWindowClass {
+		return false // asking it to the front shows nothing, and it hid a minimized Settings from Enter
 	}
 	style, _, _ := procGetWindowLongW.Call(uintptr(hwnd), uintptr(gwlExStyle&0xffffffff))
 	return style&wsExToolWindow == 0
