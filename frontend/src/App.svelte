@@ -683,10 +683,6 @@
     background: var(--glass);
     isolation: isolate; /* the glow lies over the plate, under the bar */
   }
-  /* The wallpaper glass (lib/glass.ts) lays its own tint on the card under the surface: a second one would darken the bar. */
-  :global(html[data-glass="wallpaper"]) .surface {
-    background: none;
-  }
   .surface::after {
     content: "";
     position: absolute;

@@ -32,9 +32,11 @@ Three choices in Settings, General change this, and every window follows at once
 - **Capsule to card.** At rest the bar is a 680 x 65 capsule (radius 32.5 px, a perfect semicircle end). Results grow it
   into a card of the same width and the same corner radius; only the height animates (240 ms, exponential ease-out), and the
   list fades in and drops 6 px as it appears (not on every keystroke). Opening, the card is there at once and its content rises
-  5 px into it (200 ms); the notes, chat, settings and calendar pages rise 6 px into their cards (240 ms), starting once the window knows
-  what its glass is (`data-glass-ready`, set by `lib/glass.ts`; until then the card is clear and its page hidden, with a 500 ms limit),
-  so the tint, the blur and the page arrive together. Settings' sections rise 6 px into the page when chosen (180 ms). Only the
+  5 px into it (200 ms); the notes, chat, settings and calendar pages rise 4 px into their cards (110 ms), and Settings' sections rise
+  4 px into the page when chosen (100 ms): motion here is short, because a window that is slow to appear is worse than one with
+  no animation. The settings and calendar windows are built ahead of time, hidden, once they have been opened (`warm` in
+  `internal/settingsui/window.go`), so every opening after the first shows a page that is already loaded: the card is up in about
+  50 ms instead of 200. Where Windows' energy saver stops the blur the glass is the nearly opaque plate, and Settings says so. Only the
   content moves: the glass is the system's and cannot be animated. All of it fills backwards only, so no opacity or transform
   stays on the text, and none of it with reduced motion.
   The window around it is clear and transparent (`BackgroundTypeTransparent`), 20 px wider on each side and 12 px above

@@ -52,7 +52,12 @@
     document.documentElement.dataset.surface = "card";
     reload();
     window.addEventListener("hashchange", follow);
-    return () => window.removeEventListener("hashchange", follow);
+    // A window made ahead of time (internal/settingsui/window.go) was loaded before it was shown: read the settings again when it is.
+    window.addEventListener("focus", reload);
+    return () => {
+      window.removeEventListener("hashchange", follow);
+      window.removeEventListener("focus", reload);
+    };
   });
 </script>
 
@@ -199,12 +204,12 @@
     max-width: 640px;
   }
   .pane {
-    animation: pane-in 180ms var(--ease) backwards;
+    animation: pane-in 100ms var(--ease) backwards;
   }
   @keyframes pane-in {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(4px);
     }
   }
   @media (prefers-reduced-motion: reduce) {

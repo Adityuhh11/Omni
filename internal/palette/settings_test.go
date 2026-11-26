@@ -75,3 +75,18 @@ func TestASettingsPageCanBePinned(t *testing.T) {
 		t.Fatalf("pinned = %+v", pinned)
 	}
 }
+
+func TestTypingTheWordSettingsSelectsOmnisSettingsNotTheSystemsSettingsApp(t *testing.T) {
+	s, _ := newService(t, "Settings", "Settings Sync Helper")
+	items := s.Query("settings", ModeAll).Items
+	if len(items) == 0 || items[0].ID != "cmd:settings:general" {
+		t.Fatalf("first row is %+v: Enter would not open Omni's Settings", items)
+	}
+	if got := titles(s.Query("settings", ModeAll)); !strings.Contains(got, "Settings") {
+		t.Fatalf("the system's Settings app was dropped: %q", got)
+	}
+	// Part of the word is still an app search: "set" must not hide the apps behind Omni's pages.
+	if first := s.Query("set", ModeAll).Items[0]; first.Kind != "app" {
+		t.Fatalf("typing set put %+v first", first)
+	}
+}

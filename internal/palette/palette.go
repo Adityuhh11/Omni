@@ -180,6 +180,12 @@ func (s *Service) Query(raw, mode string) Answer {
 	if text == "" {
 		return answer
 	}
+	// The whole word "settings" asks for Omni's own Settings, not the system's Settings app that the Start Menu also has: Enter must
+	// open the window the person means. A part of the word ("set") is still an app search.
+	settingsFirst := mode == ModeAll && strings.HasPrefix(words(text), "settings")
+	if settingsFirst {
+		answer.Items = append(answer.Items, settingsItems(text)...)
+	}
 	if mode == ModeAll {
 		answer.Items = append(answer.Items, calcItems(text)...) // a sum is the answer to a sum, ahead of anything it also spells
 		answer.Items = append(answer.Items, s.timerItems(text)...)
@@ -203,7 +209,9 @@ func (s *Service) Query(raw, mode string) Answer {
 	}
 	if mode == ModeAll {
 		answer.Items = append(answer.Items, commandItems(text)...)
-		answer.Items = append(answer.Items, settingsItems(text)...)
+		if !settingsFirst {
+			answer.Items = append(answer.Items, settingsItems(text)...)
+		}
 		answer.Items = append(answer.Items, systemItems(text)...)
 	}
 	if (mode == ModeAll || mode == ModeWeb) && utf8.RuneCountInString(text) >= webMinLength {
