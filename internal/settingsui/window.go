@@ -34,7 +34,7 @@ var (
 	settingsSpec = windowSpec{name: "settings", title: "Omni Settings", route: "settings", width: 860, height: 620, minWidth: 680, minHeight: 480, card: true, warm: true}
 	setupSpec    = windowSpec{name: "setup", title: "Set up Omni", route: "setup", width: 760, height: 700, minWidth: 640, minHeight: 560}
 	// The notes and the chat are as wide as the search bar (720) and shorter than they are wide.
-	notesSpec = windowSpec{name: "notes", title: "Omni Notes", route: "notes", width: 720, height: 520, minWidth: 480, minHeight: 340, onTop: true, card: true}
+	notesSpec = windowSpec{name: "notes", title: "Omni Notes", route: "notes", width: 920, height: 580, minWidth: 640, minHeight: 360, onTop: true, card: true}
 	chatSpec  = windowSpec{name: "chat", title: "Omni AI", route: "chat", width: 720, height: 540, minWidth: 520, minHeight: 380, onTop: true, card: true}
 	// The calendar shows a week: seven columns want more width than the notes.
 	calendarSpec = windowSpec{name: "calendar", title: "Omni Calendar", route: "calendar", width: 980, height: 660, minWidth: 720, minHeight: 460, card: true, warm: true}

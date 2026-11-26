@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/markdown.test.ts (Node strips the types itself)
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { render, toggleTask } from "./markdown.ts";
+import { render } from "./markdown.ts";
 
 test("block elements", () => {
   assert.equal(render("# Title"), "<h1>Title</h1>");
@@ -71,16 +71,6 @@ test("task lists carry the line they came from and keep their state", () => {
   assert.match(html, /<li>plain<\/li>/);
 });
 
-test("toggleTask flips one line and only a task line", () => {
-  const note = "intro\n\n- [ ] open\n- [x] done\n  * [X] nested";
-  assert.equal(toggleTask(note, 2), "intro\n\n- [x] open\n- [x] done\n  * [X] nested");
-  assert.equal(toggleTask(note, 3), "intro\n\n- [ ] open\n- [ ] done\n  * [X] nested");
-  assert.equal(toggleTask(note, 4), "intro\n\n- [ ] open\n- [x] done\n  * [ ] nested");
-  assert.equal(toggleTask(note, 0), note);
-  assert.equal(toggleTask(note, 99), note);
-  assert.equal(toggleTask("a\r\n- [ ] b", 1), "a\r\n- [x] b");
-});
-
 test("windows line endings render like unix ones", () => {
   assert.equal(render("# a\r\n\r\n- b\r\n"), render("# a\n\n- b\n"));
 });
@@ -89,7 +79,6 @@ test("a task inside a quote carries its own line of the note", () => {
   const note = "- [ ] top\n\n> - [ ] quoted\n> - [x] done";
   const html = render(note);
   assert.deepEqual([...html.matchAll(/data-line="(\d+)"/g)].map((m) => Number(m[1])), [0, 2, 3]);
-  assert.equal(toggleTask(note, 2), "- [ ] top\n\n> - [ ] quoted\n> - [x] done".replace("> - [ ]", "> - [x]"));
 });
 
 test("emphasis marks inside a link or a code span do not reach its address", () => {

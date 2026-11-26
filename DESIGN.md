@@ -137,6 +137,11 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
   An event opens a panel at the bottom right: the title beside a 3 px bar of its colour, then time (with "in 12 min" or "Now"),
   place and calendar as icon rows, a wide Join button tinted with the event's colour that names the service (Zoom, Google Meet,
   Teams, Webex), and the notes rendered as markdown (HTML from Google or Outlook is turned into markdown first).
+- **Notes window:** two panes. The notes on the left (a search field and a round accent "+" over the list: title, a line of the text,
+  when; the open one lit with an accent edge), the open note on the right, no mode to switch. The note renders as you type, as in
+  Obsidian's live preview (CodeMirror 6, `lib/notes/live.ts`): headings are large, bold is bold, links, tasks (a box that ticks), bullets and
+  rules are drawn, and the markup shows only on the line or in the span the caret is in. The text stays the note's markdown, character for
+  character. Enter goes on with a list. A link opens with Ctrl (Cmd on a Mac) held. Tables stay as written, in the mono face.
 - **Map window:** night (`#0e0f12`) whatever the look, so every hue reads the same. Each chunk is a solid dot with a thin dark rim,
   coloured by its folder or its file type: the eight categorical hues of the dark data palette in a fixed order (validated
   on the night for colour-blind separation and contrast), grey for a ninth group on, "other" and a folder no longer
