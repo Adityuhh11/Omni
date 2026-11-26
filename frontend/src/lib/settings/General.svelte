@@ -2,9 +2,10 @@
   import { isMac, words } from "../platform";
   import { onMount } from "svelte";
   import { OmniAI, Service as Settings } from "../../../bindings/omni/internal/settingsui";
-  import type { ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
+  import type { AppChoice, ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
+  import type { QuickOpen } from "../../../bindings/omni/internal/config";
   import HotkeyField from "./HotkeyField.svelte";
-  import { ACCENTS, applyLook, THEMES } from "../theme";
+  import { ACCENTS, applyLook, BAR_ACCENTS, THEMES } from "../theme";
 
   let { view }: { view: View } = $props();
 
@@ -27,6 +28,11 @@
   let lights = $state(view.Lights);
   // svelte-ignore state_referenced_locally
   let accent = $state(view.Accent);
+  let barAccent = $state<string>(BAR_ACCENTS[0].hex);
+  let barBorder = $state(true);
+  let quick = $state<QuickOpen | null>(null);
+  let appChoices = $state<AppChoice[]>([]);
+  let forgotten = $state(false);
   let browsers = $state<string[]>([]);
   // The other hotkeys live on pages of their own services; they are shown here, beside the search bar's, and saved there.
   let clipboard = $state<ClipboardView | null>(null);
@@ -58,8 +64,39 @@
 
   onMount(async () => {
     loadHotkeys();
+    Settings.Look().then((look) => ((barAccent = look.BarAccent || barAccent), (barBorder = look.BarBorder)));
+    Settings.QuickOpen().then((q) => (quick = q));
+    Settings.QuickOpenApps().then((list) => (appChoices = list ?? []));
     browsers = (await Settings.Browsers()) ?? [];
   });
+
+  // The slot's app as the picker shows it: "" is "Suggested".
+  const slotApp = (q: QuickOpen, slot: number) => q.Apps?.[slot] ?? "";
+
+  async function saveQuick(change: Partial<QuickOpen>) {
+    if (!quick) return;
+    const before = quick;
+    const next: QuickOpen = { ...quick, ...change };
+    quick = next;
+    error = await Settings.SaveQuickOpen(next);
+    if (error !== "") quick = before;
+    else flashSaved();
+  }
+
+  function setSlot(slot: number, id: string) {
+    if (!quick) return;
+    const apps = Array.from({ length: Math.max(quick.Apps?.length ?? 0, slot + 1) }, (_, i) => slotApp(quick!, i));
+    apps[slot] = id;
+    saveQuick({ Apps: apps });
+  }
+
+  async function forgetUsage() {
+    error = await Settings.ForgetUsage();
+    if (error === "") {
+      forgotten = true;
+      setTimeout(() => (forgotten = false), 2400);
+    }
+  }
 
   function flashSaved() {
     saved = true;
@@ -138,6 +175,27 @@
     } else flashSaved();
   }
 
+  // The Glass 2 bar follows the colour while the picker is still open; it is saved when the picker lets go.
+  const previewBarAccent = (hex: string) => applyLook({ BarAccent: hex });
+
+  async function saveBarAccent(hex: string) {
+    const before = barAccent;
+    barAccent = hex.toLowerCase();
+    previewBarAccent(barAccent);
+    error = await Settings.SetBarAccent(barAccent);
+    if (error !== "") {
+      barAccent = before;
+      previewBarAccent(before);
+    } else flashSaved();
+  }
+
+  async function saveBarBorder() {
+    applyLook({ BarBorder: barBorder });
+    error = await Settings.SetBarBorder(barBorder);
+    if (error !== "") applyLook({ BarBorder: (barBorder = !barBorder) });
+    else flashSaved();
+  }
+
   async function saveStartup() {
     error = await Settings.SetAutostart(startup);
     if (error !== "") startup = !startup;
@@ -196,6 +254,44 @@
       <input type="checkbox" class="switch" bind:checked={lights} onchange={saveLights} />
     </label>
   {/if}
+  {#if theme === "glass2"}
+    <div class="item stack">
+      <span class="text">
+        <span class="name" id="bar-accent-label">Bar accent</span>
+        <span class="sub">The colour of the Glass 2 search bar's icon, caret, glow and edge</span>
+      </span>
+      <div class="accents" role="radiogroup" aria-labelledby="bar-accent-label">
+        {#each BAR_ACCENTS as a (a.hex)}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={barAccent === a.hex}
+            aria-label={a.label}
+            title={a.label}
+            class:on={barAccent === a.hex}
+            style:--dot={a.hex}
+            onclick={() => saveBarAccent(a.hex)}
+          ></button>
+        {/each}
+        <label class="custom" class:on={!BAR_ACCENTS.some((a) => a.hex === barAccent)} title="Any colour" style:--dot={barAccent}>
+          <input
+            type="color"
+            value={barAccent}
+            aria-label="Any colour"
+            oninput={(e) => previewBarAccent(e.currentTarget.value)}
+            onchange={(e) => saveBarAccent(e.currentTarget.value)}
+          />
+        </label>
+      </div>
+    </div>
+    <label class="item">
+      <span class="text">
+        <span class="name">Bar edge</span>
+        <span class="sub">A thin line in the bar accent; off, the bar only glows while you type</span>
+      </span>
+      <input type="checkbox" class="switch" bind:checked={barBorder} onchange={saveBarBorder} />
+    </label>
+  {/if}
   <label class="item">
     <span class="text">
       <span class="name">Lift the selected result</span>
@@ -204,6 +300,56 @@
     <input type="checkbox" class="switch" bind:checked={lift} onchange={saveLift} />
   </label>
 </div>
+
+{#if quick}
+  <h3 class="group-title">Quick open</h3>
+  <div class="group">
+    <label class="item">
+      <span class="text">
+        <span class="name">Show app shortcuts beside the bar</span>
+        <span class="sub">{isMac ? "⌘1" : "Ctrl+1"} to {isMac ? "⌘" : "Ctrl+"}{quick.Count} opens them, typing or not</span>
+      </span>
+      <input type="checkbox" class="switch" checked={quick.Enabled} onchange={(e) => saveQuick({ Enabled: e.currentTarget.checked })} />
+    </label>
+    {#if quick.Enabled}
+      <div class="item">
+        <label class="name" for="quick-count">Number of apps</label>
+        <select id="quick-count" value={quick.Count} onchange={(e) => saveQuick({ Count: Number(e.currentTarget.value) })}>
+          <option value={3}>3</option>
+          <option value={4}>4</option>
+        </select>
+      </div>
+      {#each Array.from({ length: quick.Count }, (_, i) => i) as slot (slot)}
+        <div class="item">
+          <label class="name" for="quick-slot-{slot}">Slot {slot + 1}</label>
+          <select id="quick-slot-{slot}" value={slotApp(quick, slot)} onchange={(e) => setSlot(slot, e.currentTarget.value)}>
+            <option value="">{quick.Suggest ? "Suggested for you" : "Empty"}</option>
+            {#each appChoices as app (app.ID)}
+              <option value={app.ID}>{app.Name}</option>
+            {/each}
+          </select>
+        </div>
+      {/each}
+      <label class="item">
+        <span class="text">
+          <span class="name">Suggest apps from how I use Omni</span>
+          <span class="sub">
+            Fills the open slots with the apps you usually open at this time of day. It is worked out on this {isMac ? "Mac" : "PC"} from
+            when you opened apps through Omni, and nothing is sent anywhere.
+          </span>
+        </span>
+        <input type="checkbox" class="switch" checked={quick.Suggest} onchange={(e) => saveQuick({ Suggest: e.currentTarget.checked })} />
+      </label>
+    {/if}
+    <div class="item">
+      <span class="text">
+        <span class="name">Forget my usage history</span>
+        <span class="sub">Clears the launch times Omni keeps for suggestions and ranking. Pins and tags stay.</span>
+      </span>
+      <button type="button" class="btn quiet" onclick={forgetUsage}>{forgotten ? "Forgotten" : "Forget"}</button>
+    </div>
+  </div>
+{/if}
 
 <h3 class="group-title">Hotkeys</h3>
 <div class="group">
@@ -303,6 +449,47 @@
     border-radius: 50%;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
   }
+  .accents {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .accents button,
+  .custom {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--dot);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
+    transition: transform 220ms var(--ease), box-shadow 220ms var(--ease);
+  }
+  .accents button:hover,
+  .custom:hover {
+    transform: scale(1.12);
+  }
+  .accents .on {
+    box-shadow:
+      0 0 0 2px var(--plate),
+      0 0 0 3.5px var(--dot);
+  }
+  /* The free colour: a rainbow ring round whatever was picked, the browser's own picker behind it. */
+  .custom {
+    background:
+      radial-gradient(circle, var(--dot) 0 44%, transparent 46%),
+      conic-gradient(#e5484d, #f5d90a, #46a758, #5bb8d0, #3e63dd, #8e4ec6, #d6409f, #e5484d);
+  }
+  .custom input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
   .swatch {
     display: grid;
     place-items: center;
@@ -314,5 +501,11 @@
   }
   label.item {
     cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .accents button,
+    .custom {
+      transition: none;
+    }
   }
 </style>
