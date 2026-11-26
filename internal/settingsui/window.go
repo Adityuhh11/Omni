@@ -121,7 +121,7 @@ func (w *Window) OpenAt(section string) {
 		win.Focus() // the timer must not take the keyboard from whatever is being worked in
 	}
 	if w.spec.warm {
-		w.goTo(win, section) // a new window was made on its section; a spare was made on none
+		w.goTo(win, section)                  // a new window was made on its section; a spare was made on none
 		time.AfterFunc(time.Second, w.refill) // after the window in use has settled
 	}
 }
