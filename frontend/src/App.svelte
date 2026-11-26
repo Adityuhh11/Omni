@@ -380,7 +380,7 @@
 
   let typingTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // The results fade in; in Glass they slide down as they fade in.
+  // The results fade in; in Glass they pour in, coming out of a blur as they slide down.
   function pour(_: Element) {
     const still = reduceMotion.matches;
     if (theme !== "glass") return { duration: still ? 0 : 160, delay: 60, css: (t: number) => `opacity: ${t}` };
@@ -388,7 +388,7 @@
       duration: still ? 0 : 280,
       delay: still ? 0 : 40,
       easing: cubicOut,
-      css: (t: number, u: number) => `opacity: ${t}; transform: translateY(${u * -6}px)`,
+      css: (t: number, u: number) => `opacity: ${t}; filter: blur(${u * 6}px); transform: translateY(${u * -6}px)`,
     };
   }
 
