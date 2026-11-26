@@ -21,6 +21,13 @@ Three choices in Settings, General change this, and every window follows at once
   other themes are untouched: for them `--glass` is the plate. **Floating lights** (a switch, off by default, `[ui] lights`): two
   faint ovals in the accent's colour drift inside the bar at one slow constant pace with gentle turns (`lib/Glow.svelte`,
   `lib/drift.ts`); only in the bar, only while it is open and the system blurs.
+- **Glass 2** (Mac only, `glass2`): Liquid Glass. The system's `NSGlassEffectView` (macOS 26+) under the bar, its quick-open tiles and the
+  card windows; the plate at 20% in the bar and 60% in Settings and the cards, where text must stay readable over busy windows. The
+  device's own font (SF Pro). No ring: the bar is slimmer (50 px), its edge a hairline in its own colour (`[ui] bar_accent`, `bar_border`),
+  and its rim lit brightest at the top left, the angle turning slowly. Motion is one sheet across the bar and the tiles: three accent blobs
+  drift and change shape, a soft band of light glides through every few seconds, and a faint light follows the pointer; it grows
+  brighter while the bar has the keyboard and while you type, and stops for reduced motion. The tiles do not grow on hover, which would
+  pull them off the glass behind them.
 - **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.
 - **An accent** (blue, violet, green, amber, rose) takes the place of the chrome where it marks something: focus, the caret,
