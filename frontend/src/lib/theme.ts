@@ -1,8 +1,9 @@
 import { Events } from "@wailsio/runtime";
 import { Service as Settings } from "../../bindings/omni/internal/settingsui";
+import { isMac } from "./platform";
 
-/** The themes, in the order the picker lists them; `plate` and `text` are what its swatch shows. Same names as `config.Themes`. */
-export const THEMES = [
+/** The themes every system has, in the order the picker lists them; `plate` and `text` are what its swatch shows. Same names as `config.Themes`. */
+const COMMON_THEMES = [
   { id: "black", label: "Black", plate: "#000000", text: "#eceef2" },
   { id: "midnight", label: "Midnight", plate: "#0a0f1e", text: "#e6ebf7" },
   { id: "forest", label: "Forest", plate: "#09140f", text: "#e4efe8" },
@@ -23,11 +24,30 @@ export const ACCENTS = [
   { id: "rose", label: "Rose", swatch: "#f28fae" },
 ] as const;
 
+/** Glass 2 needs the Mac's blur behind the window (panel.Glass), so only a Mac lists it. */
+const GLASS2 = { id: "glass2", label: "Glass 2", plate: "#1c1d21", text: "#ffffff" } as const;
+
+/** The themes this system offers, in the order the picker lists them. */
+export const THEMES: readonly { id: string; label: string; plate: string; text: string }[] = isMac ? [...COMMON_THEMES, GLASS2] : COMMON_THEMES;
+
+/** The Glass 2 bar's accents, offered beside its free colour; the first is a fresh install's (`config.DefaultBarAccent`). */
+export const BAR_ACCENTS = [
+  { hex: "#e5484d", label: "Red" },
+  { hex: "#f2601d", label: "Ember" },
+  { hex: "#f5d90a", label: "Yellow" },
+  { hex: "#46a758", label: "Green" },
+  { hex: "#5bb8d0", label: "Teal" },
+  { hex: "#3e63dd", label: "Blue" },
+  { hex: "#8e4ec6", label: "Violet" },
+  { hex: "#d6409f", label: "Pink" },
+] as const;
+const HEX = /^#[0-9a-f]{6}$/i;
+
 /** What every window wears; the launcher's config.UI. */
-export type Look = { Theme: string; Ring: boolean; Accent: string; Lights: boolean };
+export type Look = { Theme: string; Ring: boolean; Accent: string; Lights: boolean; BarAccent: string; BarBorder: boolean };
 
 const KEY = "omni.look";
-const DEFAULT: Look = { Theme: "black", Ring: true, Accent: "none", Lights: false };
+const DEFAULT: Look = { Theme: "black", Ring: true, Accent: "none", Lights: false, BarAccent: BAR_ACCENTS[0].hex, BarBorder: true };
 
 const listeners = new Set<(look: Look) => void>();
 
@@ -40,7 +60,14 @@ export function onLook(fn: (look: Look) => void): () => void {
 /** The look the page wears now. */
 export function currentLook(): Look {
   const d = document.documentElement.dataset;
-  return { Theme: d.theme ?? DEFAULT.Theme, Ring: d.ring !== "off", Accent: d.accent ?? DEFAULT.Accent, Lights: d.lights === "on" };
+  return {
+    Theme: d.theme ?? DEFAULT.Theme,
+    Ring: d.ring !== "off",
+    Accent: d.accent ?? DEFAULT.Accent,
+    Lights: d.lights === "on",
+    BarAccent: d.barAccent ?? DEFAULT.BarAccent,
+    BarBorder: d.barBorder !== "false",
+  };
 }
 
 /** Paints the page in a look and remembers it, so the next window starts in it without waiting for the launcher. Unknown names
@@ -52,13 +79,18 @@ export function applyLook(next: Partial<Look>) {
     Ring: next.Ring ?? before.Ring,
     Accent: ACCENTS.some((a) => a.id === next.Accent) ? next.Accent! : before.Accent,
     Lights: next.Lights ?? before.Lights,
+    BarAccent: next.BarAccent && HEX.test(next.BarAccent) ? next.BarAccent.toLowerCase() : before.BarAccent,
+    BarBorder: next.BarBorder ?? before.BarBorder,
   };
   const d = document.documentElement.dataset;
   d.theme = look.Theme;
   d.ring = look.Ring ? "on" : "off";
   d.accent = look.Accent;
   d.lights = look.Lights ? "on" : "off";
-  if (look.Theme !== before.Theme || look.Ring !== before.Ring || look.Accent !== before.Accent || look.Lights !== before.Lights) listeners.forEach((fn) => fn(look));
+  d.barAccent = look.BarAccent;
+  d.barBorder = String(look.BarBorder);
+  document.documentElement.style.setProperty("--bar-accent", look.BarAccent);
+  if ((Object.keys(look) as (keyof Look)[]).some((k) => look[k] !== before[k])) listeners.forEach((fn) => fn(look));
   try {
     localStorage.setItem(KEY, JSON.stringify(look));
   } catch {

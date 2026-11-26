@@ -1,3 +1,10 @@
+/* Glass 2's lit rim turns as light moves over the pane: an angle that can be animated. */
+@property --rim-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 155deg;
+}
+
 /* Pure black (the default theme; the others are at the end of this file): the plate is #000, flat, like an OLED screen or black paint on a sports car; the premium
    comes from the lit edge and the ring, not from texture or gradient. One metal for the ring. No accent hue unless the person picks one (data-accent); emphasis is
    weight and brightness. The plate is opaque, so it stays dark whatever is behind the panel; only the Glass theme (at the end) makes the cards see-through. */
@@ -27,6 +34,8 @@
   --text-3: #8a8c93;
   /* The bright accent: the focus ring, the caret, filled buttons (--on-chrome is their text, --chrome-hot their hover). */
   --chrome: #e6e8ec;
+  /* The Glass 2 search bar's own colour (its icon, caret, glow and edge), chosen in Settings and set on the page by lib/theme.ts. */
+  --bar-accent: #e5484d;
   --chrome-hot: #fff;
   --on-chrome: #000;
   --danger: #e0877f;
@@ -276,4 +285,80 @@ html[data-accent="rose"]:is([data-theme="cream"], [data-theme="blush"], [data-th
 html[data-accent]:not([data-accent="none"]) {
   --lift: color-mix(in srgb, var(--chrome) 14%, transparent);
   --lift-keyed: color-mix(in srgb, var(--chrome) 20%, transparent);
+}
+
+/* Glass 2: a clear plate over a blur of what is behind the window (the blur is the system's, put under the page by the launcher; see
+   panel.Glass), set in the Mac's own typeface. Colours are the UI Component Library's dark tokens; the ember accent lives only here. */
+html[data-theme="glass2"] {
+  --ring-fallback: linear-gradient(135deg, #c94d14, #ffb08a 45%, #f2601d 70%, #e8f26b);
+  --plate: rgba(22, 23, 27, 0.2); /* the Liquid Glass under it (panel.Glass) carries its own dark tint */
+  --lift: rgba(255, 255, 255, 0.16);
+  --tile: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.14);
+  --text: #ffffff;
+  --text-2: #d2d3d8;
+  --text-3: #a6a7ae;
+  --chrome: #f2601d;
+  --chrome-hot: #ff7a3d;
+  --on-chrome: #0b0c0e;
+  --danger: #ff5a5f;
+  --radius: 27px; /* half the slim bar's height: a pill, which the blur behind it (panel.Glass) copies */
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+/* Settings and the cards hold pages of text: their glass is frosted more heavily than the bar's, so what is behind stays a soft blur. */
+html[data-theme="glass2"]:is([data-surface="settings"], [data-surface="card"]) {
+  --plate: rgba(20, 21, 25, 0.6);
+  --tile: rgba(255, 255, 255, 0.07);
+  --lift: rgba(255, 255, 255, 0.12);
+}
+/* SF Pro picks its Text or Display cut by size, as the system's own controls do. */
+html[data-theme="glass2"] body {
+  font-feature-settings: normal;
+  font-optical-sizing: auto;
+}
+/* The plate is clear and wears no ring: the blur behind it shows through, and its edge is the accent's hairline (App.svelte). */
+html[data-theme="glass2"]:not([data-surface]) .card {
+  background: none;
+}
+
+/* Glass 2 in the chat: the plate is clear, so what is drawn over it as "the plate's colour" cannot be a solid or a fade. The composer is a glass
+   tile with a hairline edge, the soft edges under the header and above the composer go (a gradient of a clear colour over a clear card
+   only paints a band), and the history list, which sits over the messages, is dense enough that they do not show through. */
+html[data-theme="glass2"] .fade-top,
+html[data-theme="glass2"] .fade {
+  display: none;
+}
+/* The composer is the search bar's twin: no metal, the plate out to the edge, and a hairline in the accent that brightens on hover and while
+   the box has the keyboard (the bar's own rules are in App.svelte), in the bar's type. */
+html[data-theme="glass2"] .composer {
+  padding: 0;
+  border-radius: var(--radius);
+}
+html[data-theme="glass2"] .composer .ring {
+  display: none;
+}
+html[data-theme="glass2"] .composer .plate {
+  border-radius: var(--radius);
+  background: var(--plate);
+  box-shadow: none;
+  transition: box-shadow 900ms var(--ease);
+}
+html[data-theme="glass2"]:not([data-bar-border="false"]) .composer .plate {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 22%, transparent);
+}
+html[data-theme="glass2"]:not([data-bar-border="false"]) .composer:hover .plate {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 30%, transparent);
+}
+html[data-theme="glass2"]:not([data-bar-border="false"]) .composer:focus-within .plate {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-accent) 38%, transparent);
+}
+html[data-theme="glass2"] .composer textarea {
+  font: 400 16.5px/1.4 var(--display);
+  letter-spacing: -0.01em;
+  caret-color: var(--bar-accent);
+}
+html[data-theme="glass2"] .history {
+  background: rgba(22, 23, 27, 0.86);
 }
