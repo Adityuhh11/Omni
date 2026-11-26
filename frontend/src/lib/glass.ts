@@ -14,6 +14,14 @@ function off() {
 }
 
 /**
+ * Says the window knows what its glass is (blur, wallpaper, tint or none), so a card can be drawn at once with its glass behind it
+ * (Card.svelte waits for this). Without it a new window showed its tint first and the blur arrived a few frames later.
+ */
+function ready() {
+  document.documentElement.dataset.glassReady = "";
+}
+
+/**
  * Lays the blurred wallpaper of the window's screen in the card, under a layer of the tint, lined up with where the screen is;
  * or takes it away. The card's rounded corners cut it.
  */
@@ -43,6 +51,7 @@ export function glass(node: HTMLElement, radius: number) {
       // Another theme, or no transparency wanted: take away any blur this card had.
       if (last !== "none" && last !== "") Glass.Shape(0, 0, 0, 0, 0, true).catch((err) => console.warn("glass:", err));
       last = "none"; // a window that never had glass is not asked to remove it
+      ready();
       return;
     }
     const box = node.getBoundingClientRect();
@@ -56,11 +65,13 @@ export function glass(node: HTMLElement, radius: number) {
         if (look.Look === "blur") delete document.documentElement.dataset.glass;
         else document.documentElement.dataset.glass = look.Look;
         paint(node, look, box);
+        ready();
       },
       (err) => {
         console.warn("glass:", err);
         off();
         paint(node, null, box);
+        ready();
         last = ""; // tried again on the next change
       },
     );
@@ -69,6 +80,8 @@ export function glass(node: HTMLElement, radius: number) {
   const soon = () => (frame ||= requestAnimationFrame(send));
   const observer = new ResizeObserver(soon);
   observer.observe(node);
+  // A window that never hears from the system (a call that hangs) must not stay empty.
+  const fallback = setTimeout(ready, 500);
   // The glass comes and goes with the Glass theme.
   const themes = new MutationObserver(soon);
   themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -98,6 +111,7 @@ export function glass(node: HTMLElement, radius: number) {
       soon();
     },
     destroy() {
+      clearTimeout(fallback);
       observer.disconnect();
       themes.disconnect();
       removeEventListener("resize", soon);
