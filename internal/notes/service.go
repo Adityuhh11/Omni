@@ -8,14 +8,23 @@ var errUnavailable = errors.New("notes are not available: the notes folder could
 
 // Service is the store as the notes window uses it; its exported methods become TypeScript functions.
 type Service struct {
-	store    *Store
-	setOnTop func(bool)
+	store *Store
+	w     Windows
 }
 
-// NewService returns the service; setOnTop keeps the notes window above other windows, or lets it sink (it may be nil). A nil
-// store is allowed: every call then says that notes are not available.
-func NewService(store *Store, setOnTop func(bool)) *Service {
-	return &Service{store: store, setOnTop: setOnTop}
+// Windows are what the notes' two windows ask of the program; any of them may be nil.
+type Windows struct {
+	// SetOnTop keeps the note window above other windows, or lets it sink.
+	SetOnTop func(bool)
+	// OpenNote shows the note window on the note with this id ("new" for an empty one).
+	OpenNote func(id string)
+	// OpenHistory shows the window that lists every note.
+	OpenHistory func()
+}
+
+// NewService returns the service. A nil store is allowed: every call then says that notes are not available.
+func NewService(store *Store, windows Windows) *Service {
+	return &Service{store: store, w: windows}
 }
 
 // List returns the notes that contain every word of query, newest change first; an empty query returns all of them.
@@ -52,7 +61,21 @@ func (s *Service) Delete(id string) error {
 
 // SetOnTop keeps the notes window above other windows (on) or lets other windows cover it (off).
 func (s *Service) SetOnTop(on bool) {
-	if s.setOnTop != nil {
-		s.setOnTop(on)
+	if s.w.SetOnTop != nil {
+		s.w.SetOnTop(on)
+	}
+}
+
+// OpenNote shows the note window on a note ("new" for an empty one): what the history window does when a note is picked.
+func (s *Service) OpenNote(id string) {
+	if s.w.OpenNote != nil {
+		s.w.OpenNote(id)
+	}
+}
+
+// OpenHistory shows the window with every note in it: the note window's History button.
+func (s *Service) OpenHistory() {
+	if s.w.OpenHistory != nil {
+		s.w.OpenHistory()
 	}
 }

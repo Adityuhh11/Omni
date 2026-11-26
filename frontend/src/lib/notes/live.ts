@@ -176,7 +176,7 @@ const theme = EditorView.theme({
   "&": { height: "100%", color: "var(--text)", backgroundColor: "transparent", fontSize: "14.5px" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "var(--sans)", lineHeight: "1.7", overflow: "auto" },
-  ".cm-content": { padding: "18px 24px 48px", caretColor: "var(--chrome)" },
+  ".cm-content": { padding: "14px 18px 40px", caretColor: "var(--chrome)" },
   ".cm-line": { padding: "0" },
   "&.cm-focused .cm-cursor": { borderLeftColor: "var(--chrome)", borderLeftWidth: "2px" },
   ".cm-placeholder": { color: "var(--text-3)" },

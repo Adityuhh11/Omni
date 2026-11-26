@@ -336,6 +336,7 @@ func run(afterUpdate bool) error {
 	settingsWindow := settingsui.NewWindow(app)
 	setupWindow := settingsui.NewSetupWindow(app)
 	notesWindow := settingsui.NewNotesWindow(app)
+	notesHistoryWindow := settingsui.NewNotesHistoryWindow(app)
 	timerWindow := settingsui.NewTimerWindow(app)
 	calendarWindow := settingsui.NewCalendarWindow(app)
 	mapWindow := settingsui.NewMapWindow(app)
@@ -362,7 +363,7 @@ func run(afterUpdate bool) error {
 	chatWindow := settingsui.NewChatWindow(app, func() bool { return store.Get().Chat.OnTop })
 	// The Glass theme's card windows have the system's blur behind them, as the bar does.
 	setGlass := func(on bool) {
-		for _, w := range []*settingsui.Window{settingsWindow, notesWindow, chatWindow, timerWindow, calendarWindow, mapWindow} {
+		for _, w := range []*settingsui.Window{settingsWindow, notesWindow, notesHistoryWindow, chatWindow, timerWindow, calendarWindow, mapWindow} {
 			w.SetGlass(on)
 		}
 	}
@@ -570,7 +571,7 @@ func run(afterUpdate bool) error {
 				OnCPU: func() bool { return engine.Status().Device == "cpu" },
 			},
 		}))),
-		application.NewService(notes.NewService(noteStore, notesWindow.SetAlwaysOnTop)),
+		application.NewService(notes.NewService(noteStore, notes.Windows{SetOnTop: notesWindow.SetAlwaysOnTop, OpenNote: notesWindow.OpenAt, OpenHistory: notesHistoryWindow.Open})),
 		application.NewService(timer.NewService(countdown)),
 		application.NewService(calendar.NewService(calendars, browser.Open, func() { settingsWindow.OpenAt("calendar") })),
 		application.NewService(settingsui.NewCalendar(settingsui.CalendarOptions{
