@@ -1196,6 +1196,8 @@
     width: 220px;
     height: 140px;
     background: radial-gradient(closest-side, var(--chrome), transparent);
+    /* Soft, not a torch: without the blur each blob is a lit oval with a visible shape. It costs frames (see DESIGN.md). */
+    filter: blur(22px);
     animation: wander 11s ease-in-out infinite alternate;
   }
   .blob.two {

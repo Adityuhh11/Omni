@@ -1,6 +1,6 @@
 <script lang="ts">
   interface Props {
-    name: "code" | "text" | "image" | "video" | "audio" | "file" | "app" | "web" | "tag" | "pin" | "clip" | "snippet" | "settings" | "calc" | "system" | "note" | "timer" | "chat" | "plus" | "history" | "close" | "brain" | "send" | "stop" | "link" | "search" | "spark" | "info" | "calendar" | "clock" | "place" | "camera";
+    name: "code" | "text" | "image" | "video" | "audio" | "file" | "app" | "web" | "tag" | "pin" | "clip" | "snippet" | "settings" | "calc" | "system" | "note" | "timer" | "chat" | "plus" | "history" | "close" | "brain" | "send" | "stop" | "link" | "search" | "spark" | "info" | "calendar" | "clock" | "place" | "camera" | "check";
     size?: number;
   }
   let { name, size = 20 }: Props = $props();
@@ -40,6 +40,7 @@
     place: "M12 20.5s6-5.6 6-10.5a6 6 0 0 0-12 0c0 4.9 6 10.5 6 10.5z M12 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
     camera: "M4.5 7h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z M15.5 10.5l5-3v9l-5-3",
     app: "M5 5h5.5v5.5H5z M13.5 5H19v5.5h-5.5z M5 13.5h5.5V19H5z M13.5 13.5H19V19h-5.5z",
+    check: "M5 12.5l4.5 4.5L19 7.5",
   };
 </script>
 

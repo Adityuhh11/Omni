@@ -1,12 +1,11 @@
-/** The screens of the setup guide, in order. File search is optional: without it only the first four are visited. */
-export type Step = "welcome" | "keys" | "files" | "folders" | "options" | "done";
+/** The screens of the setup guide, in order. The folders screen is only visited when file search is on. */
+export type Step = "welcome" | "hotkey" | "look" | "features" | "files" | "done";
 
-const WITH_FILES: Step[] = ["welcome", "keys", "files", "folders", "options", "done"];
-const WITHOUT_FILES: Step[] = ["welcome", "keys", "files", "done"];
+const BASE: Step[] = ["welcome", "hotkey", "look", "features"];
 
-/** The screens to walk through, given whether the person is setting up file search. */
+/** The screens to walk through, given whether file search is on. */
 export function stepsFor(files: boolean): Step[] {
-  return files ? WITH_FILES : WITHOUT_FILES;
+  return files ? [...BASE, "files", "done"] : [...BASE, "done"];
 }
 
 /** The screen after `step`, or the same one at the end. */

@@ -32,7 +32,7 @@ type windowSpec struct {
 
 var (
 	settingsSpec = windowSpec{name: "settings", title: "Omni Settings", route: "settings", width: 860, height: 620, minWidth: 680, minHeight: 480, card: true, warm: true}
-	setupSpec    = windowSpec{name: "setup", title: "Set up Omni", route: "setup", width: 760, height: 700, minWidth: 640, minHeight: 560}
+	setupSpec    = windowSpec{name: "setup", title: "Set up Omni", route: "setup", width: 720, height: 660, minWidth: 600, minHeight: 520, card: true}
 	// A note is a window to keep in a corner while writing: small, and it can be made smaller. The notes' history is a page of its own.
 	notesSpec        = windowSpec{name: "notes", title: "Omni Notes", route: "notes", width: 560, height: 460, minWidth: 300, minHeight: 200, onTop: true, card: true}
 	notesHistorySpec = windowSpec{name: "notes-history", title: "Omni Notes history", route: "notes-history", width: 460, height: 560, minWidth: 340, minHeight: 300, card: true}

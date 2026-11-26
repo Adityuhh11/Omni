@@ -25,7 +25,9 @@ Three choices in Settings, General change this, and every window follows at once
   panel, which costs nothing measurable). It stops for reduced motion. What cost frames, on 2026-11-26, was a blur on every blob, a
   gradient that turned, a shape that changed outline every frame, a sweep band and a copy of all of it in each tile: 104 fps idle and
   85 typing against 144 and 138 without them, on a 144 Hz screen. Keep what moves to transforms and opacity, which the compositor runs
-  without repainting, and measure a new effect on its own before keeping it. The panel is 840 wide: with the quick-open tiles the bar fills what they leave (611 px beside three), without them it is the 680 px it was before the tiles, in the middle. The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
+  without repainting, and measure a new effect on its own before keeping it. The owner then brought back the blur on the three blobs
+  (`filter: blur(22px)`), because without it each is a lit oval whose shape shows over the results; that one filter is a choice made
+  for the look, and its frame cost has not been measured since. The panel is 840 wide: with the quick-open tiles the bar fills what they leave (611 px beside three), without them it is the 680 px it was before the tiles, in the middle. The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
   on hover, which would pull them off the glass behind them.
 - **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.
