@@ -818,17 +818,17 @@ func TestTheDailyHoursAndTheThemeAreSavedAndABadValueIsRefused(t *testing.T) {
 	}
 }
 
-func TestTheBarsAccentAndEdgeAreSavedAndABadColourIsRefused(t *testing.T) {
+func TestAnAccentMayBeAnyColourAndTheBarEdgeIsSaved(t *testing.T) {
 	h := newHarness(t)
-	if look := h.svc.Look(); look.BarAccent != config.DefaultBarAccent || !look.BarBorder {
+	if look := h.svc.Look(); look.Accent != config.Accents[0] || !look.BarBorder {
 		t.Fatalf("a fresh install wears %+v", look)
 	}
-	if msg := h.svc.SetBarAccent(" #3E63DD "); msg != "" || h.svc.Look().BarAccent != "#3e63dd" {
-		t.Fatalf("SetBarAccent: %q, page shows %q", msg, h.svc.Look().BarAccent)
+	if msg := h.svc.SetAccent(" #3E63DD "); msg != "" || h.svc.Look().Accent != "#3e63dd" {
+		t.Fatalf("SetAccent: %q, page shows %q", msg, h.svc.Look().Accent)
 	}
 	for _, bad := range []string{"red", "#fff", "#12345g", ""} {
-		if msg := h.svc.SetBarAccent(bad); msg == "" || h.svc.Look().BarAccent != "#3e63dd" {
-			t.Fatalf("the bar accent %q was accepted: %q", bad, msg)
+		if msg := h.svc.SetAccent(bad); msg == "" || h.svc.Look().Accent != "#3e63dd" {
+			t.Fatalf("the accent %q was accepted: %q", bad, msg)
 		}
 	}
 	if msg := h.svc.SetBarBorder(false); msg != "" || h.svc.Look().BarBorder {

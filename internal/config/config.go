@@ -74,15 +74,15 @@ type UI struct {
 	Theme string `toml:"theme"`
 	// Ring draws the flowing metal ring around the bar and the chat's box; off, they have a plain hairline edge.
 	Ring bool `toml:"ring"`
-	// Accent colours what the bright chrome marks (focus, the caret, filled buttons, switches, the selected row): one of Accents,
-	// "none" for the chrome itself.
+	// Accent colours what the bright chrome marks (focus, the caret, the bar's icon and edge, filled buttons, switches, the selected row):
+	// one of Accents, "none" for the chrome itself, or any colour written as "#rrggbb".
 	Accent string `toml:"accent"`
-	// Lights sets two faint lights in the accent's colour wandering inside the bar, in the Glass theme.
-	Lights bool `toml:"lights"`
-	// BarAccent is the colour of the search bar's icon, caret, glow and edge in the Glass 2 theme, as "#rrggbb".
-	BarAccent string `toml:"bar_accent"`
-	// BarBorder draws a thin edge in BarAccent round the search bar in the Glass 2 theme; off, the bar has no edge at all.
+	// BarBorder draws a thin edge in the accent round the search bar in the Glass theme; off, the bar has no edge at all.
 	BarBorder bool `toml:"bar_border"`
+	// Lights and BarAccent are retired keys (the Glass theme's floating lights, and the colour of the second Glass theme's bar, which
+	// the accent replaced). Load reads them so old files still open and then clears them, so they are never written back.
+	Lights    *bool   `toml:"lights,omitempty" json:"-"`
+	BarAccent *string `toml:"bar_accent,omitempty" json:"-"`
 }
 
 // QuickOpen is the row of apps shown under the bar while nothing is typed; 1 to Count (or Cmd/Ctrl with the number) opens one.
@@ -116,14 +116,11 @@ type CalendarFeed struct {
 	Name string `toml:"name"`
 }
 
-// DefaultBarAccent is the Glass 2 bar's accent on a fresh install.
-const DefaultBarAccent = "#e5484d"
-
 // Themes are the allowed values of UI.Theme, the default first. The page draws each one (frontend/src/theme.css).
-var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass", "glass2"}
+var Themes = []string{"black", "midnight", "forest", "burgundy", "cream", "blush", "coral", "glass"}
 
-// Accents are the allowed values of UI.Accent, the default first (frontend/src/theme.css).
-var Accents = []string{"none", "blue", "violet", "green", "amber", "rose"}
+// Accents are the named values of UI.Accent, the default first (frontend/src/theme.css); a colour written as "#rrggbb" is allowed as well.
+var Accents = []string{"ember", "none", "blue", "violet", "green", "amber", "rose"}
 
 // Timer holds the lengths of a pomodoro and how it goes on.
 type Timer struct {
@@ -326,6 +323,10 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	cfg.Sidecar = nil
+	cfg.UI.Lights, cfg.UI.BarAccent = nil, nil
+	if cfg.UI.Theme == "glass2" { // the theme that replaced the first Glass kept its short name
+		cfg.UI.Theme = "glass"
+	}
 	if slices.ContainsFunc(cfg.Roots, func(folder string) bool {
 		return slices.ContainsFunc(cfg.Roots, func(root string) bool { return Inside(folder, root) })
 	}) {
@@ -415,8 +416,8 @@ func (c Config) Validate() error {
 			return fmt.Errorf("quick_open app %q must be an app id (app:...)", id)
 		}
 	}
-	if !isHexColour(c.UI.BarAccent) {
-		return fmt.Errorf("ui bar_accent %q must be a colour written as #rrggbb", c.UI.BarAccent)
+	if !slices.Contains(Accents, c.UI.Accent) && !isHexColour(c.UI.Accent) {
+		return fmt.Errorf("ui accent %q must be one of %s, or a colour written as #rrggbb", c.UI.Accent, strings.Join(Accents, ", "))
 	}
 	if err := c.validateSnippets(); err != nil {
 		return err
@@ -437,7 +438,6 @@ func (c Config) Validate() error {
 		allowed     []string
 	}{
 		{"ui theme", c.UI.Theme, Themes},
-		{"ui accent", c.UI.Accent, Accents},
 		{"search pace", c.Search.Pace, Paces},
 		{"search start", c.Search.Start, StartModes},
 		{"pdf_pages", c.Search.PDFPages, PDFPageModes},
@@ -548,7 +548,6 @@ func (c Config) validateChat() error {
 	return nil
 }
 
-// validateWeb checks the browser settings: a typo in a quicklink should fail loudly, not give a dead row.
 // isHexColour says whether s is a colour written as "#rrggbb", the one form a colour picker gives and every page reads.
 func isHexColour(s string) bool {
 	if len(s) != 7 || s[0] != '#' {
@@ -562,6 +561,7 @@ func isHexColour(s string) bool {
 	return true
 }
 
+// validateWeb checks the browser settings: a typo in a quicklink should fail loudly, not give a dead row.
 func (c Config) validateWeb() error {
 	if c.SearchURL != "" {
 		if err := checkTemplate(c.SearchURL); err != nil {

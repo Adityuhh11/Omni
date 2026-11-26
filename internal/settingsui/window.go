@@ -33,9 +33,11 @@ type windowSpec struct {
 var (
 	settingsSpec = windowSpec{name: "settings", title: "Omni Settings", route: "settings", width: 860, height: 620, minWidth: 680, minHeight: 480, card: true, warm: true}
 	setupSpec    = windowSpec{name: "setup", title: "Set up Omni", route: "setup", width: 760, height: 700, minWidth: 640, minHeight: 560}
-	// The notes and the chat are as wide as the search bar (720) and shorter than they are wide.
-	notesSpec = windowSpec{name: "notes", title: "Omni Notes", route: "notes", width: 720, height: 520, minWidth: 480, minHeight: 340, onTop: true, card: true}
-	chatSpec  = windowSpec{name: "chat", title: "Omni AI", route: "chat", width: 720, height: 540, minWidth: 520, minHeight: 380, onTop: true, card: true}
+	// A note is a window to keep in a corner while writing: small, and it can be made smaller. The notes' history is a page of its own.
+	notesSpec        = windowSpec{name: "notes", title: "Omni Notes", route: "notes", width: 560, height: 460, minWidth: 300, minHeight: 200, onTop: true, card: true}
+	notesHistorySpec = windowSpec{name: "notes-history", title: "Omni Notes history", route: "notes-history", width: 460, height: 560, minWidth: 340, minHeight: 300, card: true}
+	// The chat is as wide as the search bar (720) and shorter than it is wide.
+	chatSpec = windowSpec{name: "chat", title: "Omni AI", route: "chat", width: 720, height: 540, minWidth: 520, minHeight: 380, onTop: true, card: true}
 	// The calendar shows a week: seven columns want more width than the notes.
 	calendarSpec = windowSpec{name: "calendar", title: "Omni Calendar", route: "calendar", width: 980, height: 660, minWidth: 720, minHeight: 460, card: true, warm: true}
 	// The map of the index: a card whose page is one canvas, larger than the calendar (more room, more map).
@@ -97,6 +99,11 @@ func NewSetupWindow(app *application.App) *Window { return &Window{app: app, spe
 
 // NewNotesWindow returns the Window of the notes: small, resizable and above other windows until the person says otherwise.
 func NewNotesWindow(app *application.App) *Window { return &Window{app: app, spec: notesSpec} }
+
+// NewNotesHistoryWindow returns the Window that lists every note.
+func NewNotesHistoryWindow(app *application.App) *Window {
+	return &Window{app: app, spec: notesHistorySpec}
+}
 
 // NewChatWindow returns the Window of Omni AI: resizable and above other windows until the person says otherwise.
 func NewChatWindow(app *application.App, onTop func() bool) *Window {

@@ -6,8 +6,9 @@ import "math"
 type Rect struct{ X, Y, W, H int }
 
 const (
-	// widthDIP is the panel width in device-independent pixels (96 per inch).
-	widthDIP = 720
+	// widthDIP is the panel width in device-independent pixels (96 per inch): wide enough that the bar keeps most of the row with the
+	// quick-open tiles (as tall as the bar) beside it.
+	widthDIP = 840
 	// topFraction puts the panel's top edge this far down the usable height of the screen.
 	topFraction = 0.18
 )

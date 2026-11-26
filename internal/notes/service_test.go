@@ -3,7 +3,7 @@ package notes
 import "testing"
 
 func TestAServiceWithoutAFolderSaysSoInsteadOfCrashing(t *testing.T) {
-	s := NewService(nil, nil)
+	s := NewService(nil, Windows{})
 	if _, err := s.List(""); err == nil {
 		t.Error("List")
 	}
@@ -17,11 +17,19 @@ func TestAServiceWithoutAFolderSaysSoInsteadOfCrashing(t *testing.T) {
 		t.Error("Delete")
 	}
 	s.SetOnTop(true) // nothing to move, nothing to fail
+	s.OpenNote("new")
+	s.OpenHistory()
 }
 
-func TestAServiceCarriesTheStoreAndTheOnTopSwitch(t *testing.T) {
+func TestAServiceCarriesTheStoreAndTheWindowsSwitches(t *testing.T) {
 	var onTop []bool
-	s := NewService(newStore(t), func(on bool) { onTop = append(onTop, on) })
+	var opened []string
+	history := 0
+	s := NewService(newStore(t), Windows{
+		SetOnTop:    func(on bool) { onTop = append(onTop, on) },
+		OpenNote:    func(id string) { opened = append(opened, id) },
+		OpenHistory: func() { history++ },
+	})
 	n, err := s.Save("", "hello")
 	if err != nil || n.ID == "" {
 		t.Fatalf("Save = %+v, %v", n, err)
@@ -32,5 +40,10 @@ func TestAServiceCarriesTheStoreAndTheOnTopSwitch(t *testing.T) {
 	s.SetOnTop(false)
 	if len(onTop) != 1 || onTop[0] {
 		t.Errorf("on top calls %v", onTop)
+	}
+	s.OpenNote(n.ID)
+	s.OpenHistory()
+	if len(opened) != 1 || opened[0] != n.ID || history != 1 {
+		t.Errorf("opened %v, history %d times", opened, history)
 	}
 }

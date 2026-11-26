@@ -1,17 +1,15 @@
 <script lang="ts">
   import { isMac, words } from "../platform";
   import { onMount } from "svelte";
-  import { OmniAI, Service as Settings } from "../../../bindings/omni/internal/settingsui";
-  import type { AppChoice, ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
+  import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
+  import type { AppChoice, View } from "../../../bindings/omni/internal/settingsui";
   import type { QuickOpen } from "../../../bindings/omni/internal/config";
-  import HotkeyField from "./HotkeyField.svelte";
-  import { ACCENTS, applyLook, BAR_ACCENTS, THEMES } from "../theme";
+  import { ACCENTS, applyLook, THEMES } from "../theme";
+  import ColorPicker from "./ColorPicker.svelte";
 
   let { view }: { view: View } = $props();
 
   // The form starts from the settings as they were when the page opened and then owns its own values.
-  // svelte-ignore state_referenced_locally
-  let hotkey = $state(view.Hotkey);
   // svelte-ignore state_referenced_locally
   let browser = $state(view.Browser);
   // svelte-ignore state_referenced_locally
@@ -25,19 +23,12 @@
   // svelte-ignore state_referenced_locally
   let ring = $state(view.Ring);
   // svelte-ignore state_referenced_locally
-  let lights = $state(view.Lights);
-  // svelte-ignore state_referenced_locally
   let accent = $state(view.Accent);
-  let barAccent = $state<string>(BAR_ACCENTS[0].hex);
   let barBorder = $state(true);
   let quick = $state<QuickOpen | null>(null);
   let appChoices = $state<AppChoice[]>([]);
   let forgotten = $state(false);
   let browsers = $state<string[]>([]);
-  // The other hotkeys live on pages of their own services; they are shown here, beside the search bar's, and saved there.
-  let clipboard = $state<ClipboardView | null>(null);
-  let chat = $state<OmniAIView | null>(null);
-  let notes = $state<NotesHotkeyView | null>(null);
   let error = $state("");
   let saved = $state(false);
   let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -58,13 +49,8 @@
   const options = $derived(browser === "" || browsers.includes(browser) ? browsers : [browser, ...browsers]);
   const QUERY = "{q}";
 
-  async function loadHotkeys() {
-    [clipboard, chat, notes] = await Promise.all([Settings.Clipboard(), OmniAI.View(), Settings.NotesHotkey()]);
-  }
-
   onMount(async () => {
-    loadHotkeys();
-    Settings.Look().then((look) => ((barAccent = look.BarAccent || barAccent), (barBorder = look.BarBorder)));
+    Settings.Look().then((look) => (barBorder = look.BarBorder));
     Settings.QuickOpen().then((q) => (quick = q));
     Settings.QuickOpenApps().then((list) => (appChoices = list ?? []));
     browsers = (await Settings.Browsers()) ?? [];
@@ -104,35 +90,11 @@
     savedTimer = setTimeout(() => (saved = false), 1800);
   }
 
+  // The bar's hotkey is saved with these two but lives on the Hotkeys page, which may have changed it since this window opened.
   async function save() {
-    error = await Settings.SaveGeneral(hotkey, browser, searchURL);
+    error = await Settings.SaveGeneral((await Settings.View()).Hotkey, browser, searchURL);
     if (error === "") flashSaved();
   }
-
-  // The hotkey field shows its own refusal ("that hotkey is taken"); the page only learns what was saved.
-  async function saveHotkey(accelerator: string): Promise<string> {
-    const refused = await Settings.SaveGeneral(accelerator, browser, searchURL);
-    if (refused === "") {
-      hotkey = accelerator;
-      flashSaved();
-    }
-    return refused;
-  }
-
-  // Each field shows its own refusal; the page reloads the hotkeys so an error from startup goes away once the key works.
-  async function afterKey(refused: string): Promise<string> {
-    if (refused === "") {
-      await loadHotkeys();
-      flashSaved();
-    }
-    return refused;
-  }
-  const saveClipboardKey = async (accelerator: string) => {
-    const now = await Settings.Clipboard();
-    return afterKey(await Settings.SaveClipboard(now.Enabled, now.Ignore ?? [], accelerator));
-  };
-  const saveChatKey = async (accelerator: string) => afterKey(await OmniAI.SetHotkey(accelerator));
-  const saveNotesKey = async (accelerator: string) => afterKey(await Settings.SetNotesHotkey(accelerator));
 
   async function saveLift() {
     error = await Settings.SetSelectionEffect(lift);
@@ -149,12 +111,6 @@
       theme = before;
       applyLook({ Theme: before });
     } else flashSaved();
-  }
-
-  async function saveLights() {
-    applyLook({ Lights: lights });
-    error = await Settings.SetLights(lights);
-    if (error !== "") applyLook({ Lights: (lights = !lights) });
   }
 
   async function saveRing() {
@@ -175,19 +131,13 @@
     } else flashSaved();
   }
 
-  // The Glass 2 bar follows the colour while the picker is still open; it is saved when the picker lets go.
-  const previewBarAccent = (hex: string) => applyLook({ BarAccent: hex });
-
-  async function saveBarAccent(hex: string) {
-    const before = barAccent;
-    barAccent = hex.toLowerCase();
-    previewBarAccent(barAccent);
-    error = await Settings.SetBarAccent(barAccent);
-    if (error !== "") {
-      barAccent = before;
-      previewBarAccent(before);
-    } else flashSaved();
-  }
+  // A colour of their own is shown on the page while the picker is still open, and saved when it lets go.
+  const previewAccent = (hex: string) => applyLook({ Accent: hex });
+  const isCustom = $derived(!ACCENTS.some((a) => a.id === accent));
+  let picking = $state(false);
+  const accentName = $derived(ACCENTS.find((a) => a.id === accent)?.label ?? accent);
+  // The picker opens on the colour in use: a custom one, or the preset's own.
+  const pickerStart = $derived(isCustom ? accent : (ACCENTS.find((a) => a.id === accent)?.swatch ?? "#f2601d"));
 
   async function saveBarBorder() {
     applyLook({ BarBorder: barBorder });
@@ -212,82 +162,61 @@
 <div class="group">
   <div class="item stack">
     <span class="name" id="theme-label">Theme</span>
-    <div class="themes" role="radiogroup" aria-labelledby="theme-label">
+    <div class="tiles" role="radiogroup" aria-labelledby="theme-label">
       {#each THEMES as t (t.id)}
         <button type="button" role="radio" aria-checked={theme === t.id} class:on={theme === t.id} onclick={() => saveTheme(t.id)}>
-          <span class="swatch" style:background={t.plate} style:color={t.text}>Aa</span>
-          {t.label}
+          <span class="preview" style:background={t.plate} style:color={t.text}>
+            Aa
+            <i></i>
+          </span>
+          <span class="label">{t.label}</span>
         </button>
       {/each}
     </div>
-    {#if theme === "glass" && !isMac}
-      <span class="sub">
-        Glass needs Windows' blur. While Energy saver (battery saver) is on, Windows turns the blur off and the cards go almost solid until
-        it is off again. With Transparency effects off (Personalization, Colors) they are solid.
-      </span>
-    {/if}
   </div>
   <div class="item stack">
-    <span class="name" id="accent-label">Accent</span>
-    <div class="themes" role="radiogroup" aria-labelledby="accent-label">
+    <div class="head">
+      <span class="name" id="accent-label">Accent</span>
+      <span class="sub" aria-live="polite">{accentName}</span>
+    </div>
+    <div class="swatches" role="radiogroup" aria-labelledby="accent-label">
       {#each ACCENTS as a (a.id)}
-        <button type="button" role="radio" aria-checked={accent === a.id} class:on={accent === a.id} onclick={() => saveAccent(a.id)}>
-          <span class="dot" style:background={a.swatch}></span>
-          {a.label}
-        </button>
+        <button type="button" role="radio" aria-checked={accent === a.id} aria-label={a.label} title={a.label} class:on={accent === a.id} style:--dot={a.swatch} onclick={() => saveAccent(a.id)}></button>
       {/each}
+      <span class="anchor">
+        <!-- the picker closes on a press anywhere outside it; this button's own press is not one, or its click would only reopen it -->
+        <button
+          type="button"
+          class="custom"
+          class:on={isCustom}
+          aria-label="Choose any colour"
+          title={picking ? undefined : "Any colour"}
+          aria-haspopup="dialog"
+          aria-expanded={picking}
+          style:--dot={isCustom ? accent : null}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={() => (picking = !picking)}
+        ></button>
+        {#if picking}
+          <ColorPicker value={pickerStart} onpreview={previewAccent} oncommit={saveAccent} onclose={() => (picking = false)} />
+        {/if}
+      </span>
     </div>
   </div>
-  <label class="item">
-    <span class="text">
-      <span class="name">Metal ring</span>
-      <span class="sub">The flowing ring around the search bar and the Omni AI box</span>
-    </span>
-    <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
-  </label>
+  {#if theme !== "glass"}
+    <label class="item">
+      <span class="text">
+        <span class="name">Metal ring</span>
+        <span class="sub">The flowing ring around the search bar and the Omni AI box</span>
+      </span>
+      <input type="checkbox" class="switch" bind:checked={ring} onchange={saveRing} />
+    </label>
+  {/if}
   {#if theme === "glass"}
     <label class="item">
       <span class="text">
-        <span class="name">Floating lights</span>
-        <span class="sub">Two faint lights in the accent's colour drifting inside the search bar</span>
-      </span>
-      <input type="checkbox" class="switch" bind:checked={lights} onchange={saveLights} />
-    </label>
-  {/if}
-  {#if theme === "glass2"}
-    <div class="item stack">
-      <span class="text">
-        <span class="name" id="bar-accent-label">Bar accent</span>
-        <span class="sub">The colour of the Glass 2 search bar's icon, caret, glow and edge</span>
-      </span>
-      <div class="accents" role="radiogroup" aria-labelledby="bar-accent-label">
-        {#each BAR_ACCENTS as a (a.hex)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={barAccent === a.hex}
-            aria-label={a.label}
-            title={a.label}
-            class:on={barAccent === a.hex}
-            style:--dot={a.hex}
-            onclick={() => saveBarAccent(a.hex)}
-          ></button>
-        {/each}
-        <label class="custom" class:on={!BAR_ACCENTS.some((a) => a.hex === barAccent)} title="Any colour" style:--dot={barAccent}>
-          <input
-            type="color"
-            value={barAccent}
-            aria-label="Any colour"
-            oninput={(e) => previewBarAccent(e.currentTarget.value)}
-            onchange={(e) => saveBarAccent(e.currentTarget.value)}
-          />
-        </label>
-      </div>
-    </div>
-    <label class="item">
-      <span class="text">
         <span class="name">Bar edge</span>
-        <span class="sub">A thin line in the bar accent; off, the bar only glows while you type</span>
+        <span class="sub">A thin line in the accent colour round the search bar; off, the bar only glows while you type</span>
       </span>
       <input type="checkbox" class="switch" bind:checked={barBorder} onchange={saveBarBorder} />
     </label>
@@ -351,32 +280,6 @@
   </div>
 {/if}
 
-<h3 class="group-title">Hotkeys</h3>
-<div class="group">
-  <div class="item">
-    <span class="name" id="hotkey-label">Search bar</span>
-    <HotkeyField labelId="hotkey-label" value={view.Hotkey} defaultValue={view.DefaultHotkey} onsave={saveHotkey} />
-  </div>
-  {#if clipboard && chat && notes}
-    <div class="item">
-      <span class="name" id="clip-hotkey-label">Clipboard history</span>
-      <HotkeyField labelId="clip-hotkey-label" value={clipboard.Hotkey} clearable onsave={saveClipboardKey} />
-    </div>
-    {#if clipboard.HotkeyError}<p class="item error">{clipboard.HotkeyError}</p>{/if}
-    <div class="item">
-      <span class="name" id="ai-hotkey-label">Omni AI</span>
-      <HotkeyField labelId="ai-hotkey-label" value={chat.Hotkey} clearable onsave={saveChatKey} />
-    </div>
-    {#if chat.HotkeyError}<p class="item error">{chat.HotkeyError}</p>{/if}
-    <div class="item">
-      <span class="name" id="notes-hotkey-label">Notes</span>
-      <HotkeyField labelId="notes-hotkey-label" value={notes.Hotkey} clearable onsave={saveNotesKey} />
-    </div>
-    {#if notes.Error}<p class="item error">{notes.Error}</p>{/if}
-  {/if}
-</div>
-{#if !isMac}<p class="group-note">Windows-key combinations go in config.toml.</p>{/if}
-
 <h3 class="group-title">Web</h3>
 <div class="group">
   <div class="item">
@@ -408,104 +311,127 @@
 {#if error}<p class="error">{error}</p>{/if}
 
 <style>
-  .item.error {
-    min-height: 0;
-    padding-top: 0;
-    border-top: 0;
-    font-size: 12px;
+  /* The themes as small previews of their plate and type: what a theme looks like is the whole choice. */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 16px 10px;
   }
-  .themes {
+  .tiles button {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .themes button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 12px 5px 5px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--tile);
+    flex-direction: column;
+    gap: 7px;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: var(--text-2);
-    font: 500 13px/1 var(--sans);
+    font: 500 12.5px/1 var(--sans);
+    text-align: left;
     cursor: pointer;
   }
-  .themes button:hover {
-    background: var(--lift);
+  .preview {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    height: 52px;
+    padding: 0 0 8px 11px;
+    border-radius: 11px;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent);
+    font: 620 15px/1 var(--sans);
+    transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
   }
-  .themes button.on {
-    border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
+  /* a stroke of the accent on each plate, as the bar's caret and edge wear it */
+  .preview i {
+    position: absolute;
+    top: 10px;
+    right: 11px;
+    width: 18px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--chrome);
+  }
+  .tiles button:hover .preview {
+    transform: translateY(-1px);
+  }
+  .tiles button.on {
     color: var(--text);
+    font-weight: 600;
   }
-  .themes button:focus-visible {
-    outline: 1px solid var(--chrome);
-    outline-offset: 2px;
+  .tiles button.on .preview {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent),
+      0 0 0 2px var(--chrome);
   }
-  .dot {
-    width: 14px;
-    height: 14px;
-    margin: 6px 0 6px 6px;
-    border-radius: 50%;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
+  .tiles button:focus-visible {
+    outline: none;
   }
-  .accents {
+  .tiles button:focus-visible .preview {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent),
+      0 0 0 2px var(--text-2);
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  /* The accents as round swatches, the chosen one ringed in its own colour, and any colour at the end. */
+  .swatches {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 12px;
   }
-  .accents button,
-  .custom {
-    position: relative;
-    width: 24px;
-    height: 24px;
+  .swatches button {
+    flex: none;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border: 0;
     border-radius: 50%;
     background: var(--dot);
-    cursor: pointer;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
-    transition: transform 220ms var(--ease), box-shadow 220ms var(--ease);
+    cursor: pointer;
+    transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
   }
-  .accents button:hover,
-  .custom:hover {
-    transform: scale(1.12);
+  .swatches button:hover {
+    transform: scale(1.1);
   }
-  .accents .on {
+  .swatches button.on {
     box-shadow:
       0 0 0 2px var(--plate),
-      0 0 0 3.5px var(--dot);
+      0 0 0 4px var(--dot);
   }
-  /* The free colour: a rainbow ring round whatever was picked, the browser's own picker behind it. */
-  .custom {
+  .swatches button:focus-visible {
+    outline: 2px solid var(--text-2);
+    outline-offset: 3px;
+  }
+  /* Any colour: a ring of hues, filled with the colour once one is chosen. */
+  .swatches .custom {
     background:
-      radial-gradient(circle, var(--dot) 0 44%, transparent 46%),
+      radial-gradient(circle, var(--dot, transparent) 0 46%, transparent 48%),
       conic-gradient(#e5484d, #f5d90a, #46a758, #5bb8d0, #3e63dd, #8e4ec6, #d6409f, #e5484d);
   }
-  .custom input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
+  .swatches .custom.on {
+    box-shadow:
+      0 0 0 2px var(--plate),
+      0 0 0 4px color-mix(in srgb, var(--dot) 80%, var(--text));
   }
-  .swatch {
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 26px;
-    border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
-    border-radius: 7px;
-    font: 620 12px/1 var(--sans);
+  .anchor {
+    position: relative;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .preview,
+    .swatches button {
+      transition: none;
+    }
+    .tiles button:hover .preview,
+    .swatches button:hover {
+      transform: none;
+    }
   }
   label.item {
     cursor: pointer;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .accents button,
-    .custom {
-      transition: none;
-    }
   }
 </style>

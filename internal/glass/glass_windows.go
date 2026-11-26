@@ -3,7 +3,6 @@ package glass
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"sync"
 	"syscall"
@@ -161,7 +160,6 @@ var (
 	compositor *object // ICompositor, made on the windows' thread on first use
 	panes      = map[uintptr]*pane{}
 	mu         sync.Mutex // the map; the compositor is only touched inside InvokeSync
-	lastLook   string     // what the glass was the last time a card asked; guarded by mu
 )
 
 func shape(hwnd uintptr, shapes []Rect, _ bool) (Glass, error) {
@@ -169,14 +167,6 @@ func shape(hwnd uintptr, shapes []Rect, _ bool) (Glass, error) {
 		return Glass{}, errors.New("glass: the window has no handle yet")
 	}
 	lk := look()
-	mu.Lock()
-	prev := lastLook
-	lastLook = lk
-	mu.Unlock()
-	if prev != lk && len(shapes) > 0 {
-		// A card that shows no blur is otherwise a mystery: this says whether Windows asked for it.
-		log.Printf("glass: %q (was %q); Windows' transparency effects and energy saver decide it", lk, prev)
-	}
 	var err error
 	application.InvokeSync(func() {
 		// A panic here would leave InvokeSync waiting for ever (Wails recovers it without finishing the call).

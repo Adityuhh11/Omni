@@ -97,7 +97,8 @@ main input[type="number"]:focus,
 main input[type="password"]:focus,
 main select:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--chrome) 45%, transparent);
+  border-color: color-mix(in srgb, var(--chrome) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome) 14%, transparent); /* a soft halo, so the focus is seen and not only felt */
 }
 main input::placeholder {
   color: var(--text-3);
@@ -169,10 +170,11 @@ main .check input:focus-visible {
 /* Settings pages are titled groups of rows: the name on the left, its control on the right, a line under the name only when it
    changes a decision (what is sent, what is deleted, how much space). */
 main .group-title {
-  margin: 28px 0 8px;
+  margin: 30px 0 9px;
   padding: 0 2px;
-  color: var(--text-3);
-  font: 560 12px/1.2 var(--sans);
+  color: var(--text-2);
+  font: 600 12px/1.2 var(--sans);
+  letter-spacing: 0.02em;
 }
 main h2 + .group-title,
 main .head-row + .group-title {

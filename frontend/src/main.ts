@@ -1,6 +1,3 @@
-import "@fontsource-variable/geist";
-import "@fontsource-variable/geist-mono";
-import "@fontsource-variable/sora";
 import "./theme.css";
 import { mount } from "svelte";
 import App from "./App.svelte";
@@ -22,6 +19,8 @@ window.addEventListener("resize", setLineWidth);
 const target = document.getElementById("app")!;
 if (location.hash.startsWith("#setup")) {
   import("./Setup.svelte").then(({ default: Setup }) => mount(Setup, { target }));
+} else if (location.hash.startsWith("#notes-history")) {
+  import("./NotesHistory.svelte").then(({ default: NotesHistory }) => mount(NotesHistory, { target }));
 } else if (location.hash.startsWith("#notes")) {
   import("./Notes.svelte").then(({ default: Notes }) => mount(Notes, { target }));
 } else if (location.hash.startsWith("#chat")) {
