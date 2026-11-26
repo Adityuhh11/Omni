@@ -138,14 +138,14 @@ snippets 12.5, notes 12.5, paths 11.5 mono, locations and chips 11 mono, hints 1
   place and calendar as icon rows, a wide Join button tinted with the event's colour that names the service (Zoom, Google Meet,
   Teams, Webex), and the notes rendered as markdown (HTML from Google or Outlook is turned into markdown first).
 - **Notes** are two windows, so a note can stay small in a corner while history stays out of the way (the owner, 2026-11-26: a first
-  two-pane window was too big to write in). **The note** is a small card (440 by 380, down to 300 by 200, above other windows until
+  two-pane window was too big to write in). **The note** is a small card (560 by 460 to start, down to 300 by 200, above other windows until
   unpinned): a slim header (History, a round accent "+" for a new note, Delete, Pin, Close), the note, a word count. It reopens on the
   note it had. The note renders as you type, as in Obsidian's live preview (CodeMirror 6, `lib/notes/live.ts`): headings are large, bold
   is bold, links, tasks (a box that ticks), bullets and rules are drawn, and the markup shows only on the line or in the span the caret
   is in. The text stays the note's markdown, character for character. Enter goes on with a list. A link opens with Ctrl (Cmd on a Mac)
   held. Tables stay as written, in the mono face. **History** is a card of its own, opened from the note's History button: a round search
   field with a round accent "+", the notes under Today, Yesterday, Earlier this week and so on (title, two lines of the text, when), the
-  arrow keys and Enter to open one; picking a note shows it in the note window and closes history.
+  arrow keys and Enter to open one; picking a note shows it in the note window and closes history. Select turns the rows into tick circles (accent when ticked; Shift-click ticks a range, Ctrl+A all) and the footer into a count, All and a danger Delete that asks once; a note deleted while it is open in the note window is dropped there too, so its next autosave cannot bring it back.
 - **Map window:** night (`#0e0f12`) whatever the look, so every hue reads the same. Each chunk is a solid dot with a thin dark rim,
   coloured by its folder or its file type: the eight categorical hues of the dark data palette in a fixed order (validated
   on the night for colour-blind separation and contrast), grey for a ninth group on, "other" and a folder no longer

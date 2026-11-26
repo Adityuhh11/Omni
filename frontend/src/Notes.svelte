@@ -7,6 +7,7 @@
   import Card from "./lib/Card.svelte";
   import Editor from "./lib/notes/Editor.svelte";
   import RoundButton from "./lib/RoundButton.svelte";
+  import { onGone } from "./lib/notes/gone";
 
   const SAVE_AFTER_MS = 400;
   const PIN_KEY = "omni-notes-on-top";
@@ -143,8 +144,13 @@
       } catch {
         // no storage: a new note
       }
-      if (last) await open(last);
-      else await begin({ id: "", text: "" });
+      try {
+        if (!last) throw new Error("no note to go back to");
+        await begin({ id: last, text: (await Notes.Get(last)).Text });
+      } catch {
+        remember(""); // it was deleted, or there was none: a new note, and no complaint
+        await begin({ id: "", text: "" });
+      }
     }
     history.replaceState(null, "", "#notes"); // handled: the next request for the same note is a new address, and is heard
   }
@@ -161,11 +167,18 @@
     const flushNow = () => void flush();
     // The window is closing: save what is waiting for the delay, and do not keep a note that was emptied.
     const leaving = () => void settle();
+    // The history window deleted notes: one of them may be this one, and saving it again would bring it back.
+    const stopGone = onGone((ids) => {
+      if (!editing || !ids.includes(editing.id)) return;
+      clearTimeout(timer);
+      begin({ id: "", text: "" });
+    });
     window.addEventListener("hashchange", follow);
     window.addEventListener("blur", flushNow);
     window.addEventListener("pagehide", leaving);
     document.addEventListener("visibilitychange", flushNow);
     return () => {
+      stopGone();
       window.removeEventListener("hashchange", follow);
       window.removeEventListener("blur", flushNow);
       window.removeEventListener("pagehide", leaving);

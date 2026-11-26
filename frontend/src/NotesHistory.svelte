@@ -6,6 +6,7 @@
   import "./lib/settings/forms.css";
   import { when } from "./lib/format";
   import { combo } from "./lib/platform";
+  import { announceGone } from "./lib/notes/gone";
   import { grouped } from "./lib/notes/groups";
   import Card from "./lib/Card.svelte";
   import Icon from "./lib/Icon.svelte";
@@ -18,8 +19,14 @@
   let cursor = $state(0);
   let search = $state<HTMLInputElement | undefined>();
   let listing = $state<HTMLElement | undefined>();
+  // Selecting: a click ticks a note instead of opening it, and the notes ticked can be deleted together.
+  let selecting = $state(false);
+  let picked = $state(new Set<string>());
+  let confirming = $state(false);
+  let anchor = -1; // the last note ticked, where a Shift-click's range starts
 
   const runs = $derived(grouped(list));
+  const count = $derived(picked.size);
 
   let asked = 0; // answers can arrive out of order; only the newest question's answer is shown
   async function load() {
@@ -31,6 +38,7 @@
       problem = "";
       loaded = true;
       cursor = Math.min(cursor, Math.max(0, found.length - 1));
+      picked = new Set([...picked].filter((id) => found.some((n) => n.ID === id))); // a note that is gone cannot stay ticked
     } catch (error) {
       problem = String((error as Error)?.message ?? error);
     }
@@ -42,6 +50,53 @@
     Window.Close();
   }
 
+  function toggle(index: number, range: boolean) {
+    const next = new Set(picked);
+    if (range && anchor >= 0) {
+      const [from, to] = [Math.min(anchor, index), Math.max(anchor, index)];
+      for (let i = from; i <= to; i++) next.add(list[i].ID);
+    } else if (next.has(list[index].ID)) next.delete(list[index].ID);
+    else next.add(list[index].ID);
+    anchor = index;
+    picked = next;
+    confirming = false;
+  }
+
+  function choose(index: number, event?: MouseEvent) {
+    cursor = index;
+    if (selecting) toggle(index, event?.shiftKey ?? false);
+    else open(list[index].ID);
+  }
+
+  function startSelecting() {
+    selecting = true;
+    anchor = -1;
+  }
+
+  function stopSelecting() {
+    selecting = false;
+    confirming = false;
+    picked = new Set();
+  }
+
+  const selectAll = () => {
+    picked = picked.size === list.length ? new Set() : new Set(list.map((n) => n.ID));
+    confirming = false;
+  };
+
+  async function removePicked() {
+    const ids = [...picked];
+    confirming = false;
+    try {
+      for (const id of ids) await Notes.Delete(id);
+    } catch (error) {
+      problem = String((error as Error)?.message ?? error);
+    }
+    announceGone(ids);
+    stopSelecting();
+    await load();
+  }
+
   async function move(to: number) {
     cursor = to;
     await tick();
@@ -50,7 +105,9 @@
 
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
-      if (query) {
+      if (confirming) confirming = false;
+      else if (selecting) stopSelecting();
+      else if (query) {
         query = "";
         cursor = 0;
         load();
@@ -60,10 +117,15 @@
       if (list.length > 0) move((cursor + (event.key === "ArrowDown" ? 1 : list.length - 1)) % list.length);
     } else if (event.key === "Enter" && list[cursor]) {
       event.preventDefault();
-      open(list[cursor].ID);
+      choose(cursor);
     } else if (event.ctrlKey && event.key.toLowerCase() === "n") {
       event.preventDefault();
       open("new");
+    } else if (event.ctrlKey && event.key.toLowerCase() === "a" && selecting && document.activeElement !== search) {
+      event.preventDefault();
+      selectAll();
+    } else if (event.key === "Delete" && selecting && count > 0 && document.activeElement !== search) {
+      confirming = true;
     }
   }
 
@@ -85,6 +147,11 @@
       <Icon name="search" size={16} />
       <input bind:this={search} bind:value={query} oninput={() => ((cursor = 0), load())} type="text" placeholder="Search your notes" aria-label="Search notes" spellcheck="false" autocomplete="off" />
     </label>
+    {#if list.length > 0 || selecting}
+      <button type="button" class="btn quiet" class:on={selecting} aria-pressed={selecting} onclick={() => (selecting ? stopSelecting() : startSelecting())}>
+        {selecting ? "Done" : "Select"}
+      </button>
+    {/if}
     <RoundButton icon="plus" look="solid" size={30} label="New note" title={`New note (${combo("Ctrl+N")})`} onclick={() => open("new")} />
     <RoundButton icon="close" label="Close" onclick={() => Window.Close()} />
   </header>
@@ -94,11 +161,23 @@
       <h2>{run.heading}</h2>
       <ul>
         {#each run.notes as note (note.ID)}
+          {@const index = list.indexOf(note)}
           <li>
-            <button type="button" class:on={list[cursor]?.ID === note.ID} onmousemove={() => (cursor = list.indexOf(note))} onclick={() => open(note.ID)}>
-              <span class="title">{note.Title}</span>
+            <button
+              type="button"
+              class:on={cursor === index}
+              class:picked={picked.has(note.ID)}
+              role={selecting ? "checkbox" : undefined}
+              aria-checked={selecting ? picked.has(note.ID) : undefined}
+              onmousemove={() => (cursor = index)}
+              onclick={(event) => choose(index, event)}
+            >
+              {#if selecting}<span class="box" aria-hidden="true"></span>{/if}
+              <span class="text">
+                <span class="title">{note.Title}</span>
+                {#if note.Preview}<span class="preview">{note.Preview}</span>{/if}
+              </span>
               <span class="when">{when(note.Modified)}</span>
-              {#if note.Preview}<span class="preview">{note.Preview}</span>{/if}
             </button>
           </li>
         {/each}
@@ -108,7 +187,25 @@
       <p class="none">{query ? `No note has “${query}” in it.` : "No notes yet. Press + to write the first."}</p>
     {/if}
   </div>
-  <footer>{loaded ? `${list.length} ${list.length === 1 ? "note" : "notes"}${query ? " found" : ""}` : ""}</footer>
+  <footer>
+    {#if selecting}
+      {#if confirming}
+        <span class="ask">Delete {count} {count === 1 ? "note" : "notes"}? This cannot be undone.</span>
+        <span class="acts">
+          <button type="button" class="btn danger" onclick={removePicked}>Delete</button>
+          <button type="button" class="btn quiet" onclick={() => (confirming = false)}>Keep</button>
+        </span>
+      {:else}
+        <span>{count === 0 ? "Pick the notes to delete" : `${count} selected`}</span>
+        <span class="acts">
+          <button type="button" class="btn quiet" onclick={selectAll}>{count === list.length && count > 0 ? "None" : "All"}</button>
+          <button type="button" class="btn danger" disabled={count === 0} onclick={() => (confirming = true)}>Delete{count > 0 ? ` ${count}` : ""}</button>
+        </span>
+      {/if}
+    {:else}
+      <span>{loaded ? `${list.length} ${list.length === 1 ? "note" : "notes"}${query ? " found" : ""}` : ""}</span>
+    {/if}
+  </footer>
 </main>
 </Card>
 
@@ -132,6 +229,10 @@
   header :global(button),
   header input {
     --wails-draggable: no-drag;
+  }
+  :global(main .btn.quiet.on) {
+    color: var(--text);
+    background: var(--lift);
   }
   .search {
     display: flex;
@@ -178,9 +279,9 @@
     list-style: none;
   }
   li button {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 3px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
     width: 100%;
     padding: 10px 12px;
     border: 0;
@@ -195,8 +296,18 @@
     background: var(--lift);
     box-shadow: inset 2px 0 0 var(--chrome);
   }
+  li button.picked {
+    background: color-mix(in srgb, var(--chrome) 14%, transparent);
+  }
   li button:active {
     background: var(--lift-keyed);
+  }
+  .text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
   }
   .title {
     overflow: hidden;
@@ -205,14 +316,14 @@
     font: 580 14px/1.35 var(--sans);
   }
   .when {
-    align-self: center;
+    flex: none;
+    margin-top: 2px;
     color: var(--text-3);
     font-size: 11.5px;
     font-variant-numeric: tabular-nums;
   }
   .preview {
     display: -webkit-box;
-    grid-column: 1 / -1;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -220,6 +331,32 @@
     color: var(--text-2);
     font-size: 12.5px;
     line-height: 1.45;
+  }
+  /* The tick box of a note while selecting: a ring that fills with the accent and shows a check. */
+  .box {
+    position: relative;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border: 1.5px solid var(--text-3);
+    border-radius: 50%;
+    transition: background-color 0.12s, border-color 0.12s;
+  }
+  .picked .box {
+    border-color: var(--chrome);
+    background: var(--chrome);
+  }
+  .picked .box::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid var(--on-chrome);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
   }
   .none {
     margin: 0;
@@ -232,10 +369,23 @@
     padding: 8px 14px 0;
   }
   footer {
-    padding: 5px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 40px;
+    box-sizing: border-box;
+    padding: 5px 12px 5px 14px;
     border-top: 1px solid var(--line);
     color: var(--text-3);
     font-size: 11.5px;
     font-variant-numeric: tabular-nums;
+  }
+  .ask {
+    color: var(--text);
+  }
+  .acts {
+    display: flex;
+    gap: 4px;
   }
 </style>
