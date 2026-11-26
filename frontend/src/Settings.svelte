@@ -15,7 +15,7 @@
   import General from "./lib/settings/General.svelte";
   import OmniAI from "./lib/settings/OmniAI.svelte";
   import Quicklinks from "./lib/settings/Quicklinks.svelte";
-  import Shortcuts from "./lib/settings/Shortcuts.svelte";
+  import Hotkeys from "./lib/settings/Hotkeys.svelte";
   import Snippets from "./lib/settings/Snippets.svelte";
   import TimerSettings from "./lib/settings/TimerSettings.svelte";
 
@@ -89,7 +89,7 @@
           {:else if section === "snippets"}
             <Snippets {view} />
           {:else if section === "hotkeys"}
-            <Shortcuts {view} />
+            <Hotkeys {view} />
           {:else if section === "search"}
             <FileSearch {view} {reload} />
           {:else if section === "clipboard"}

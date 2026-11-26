@@ -1,17 +1,14 @@
 <script lang="ts">
   import { isMac, words } from "../platform";
   import { onMount } from "svelte";
-  import { OmniAI, Service as Settings } from "../../../bindings/omni/internal/settingsui";
-  import type { AppChoice, ClipboardView, NotesHotkeyView, OmniAIView, View } from "../../../bindings/omni/internal/settingsui";
+  import { Service as Settings } from "../../../bindings/omni/internal/settingsui";
+  import type { AppChoice, View } from "../../../bindings/omni/internal/settingsui";
   import type { QuickOpen } from "../../../bindings/omni/internal/config";
-  import HotkeyField from "./HotkeyField.svelte";
   import { ACCENTS, applyLook, THEMES } from "../theme";
 
   let { view }: { view: View } = $props();
 
   // The form starts from the settings as they were when the page opened and then owns its own values.
-  // svelte-ignore state_referenced_locally
-  let hotkey = $state(view.Hotkey);
   // svelte-ignore state_referenced_locally
   let browser = $state(view.Browser);
   // svelte-ignore state_referenced_locally
@@ -31,10 +28,6 @@
   let appChoices = $state<AppChoice[]>([]);
   let forgotten = $state(false);
   let browsers = $state<string[]>([]);
-  // The other hotkeys live on pages of their own services; they are shown here, beside the search bar's, and saved there.
-  let clipboard = $state<ClipboardView | null>(null);
-  let chat = $state<OmniAIView | null>(null);
-  let notes = $state<NotesHotkeyView | null>(null);
   let error = $state("");
   let saved = $state(false);
   let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -55,12 +48,7 @@
   const options = $derived(browser === "" || browsers.includes(browser) ? browsers : [browser, ...browsers]);
   const QUERY = "{q}";
 
-  async function loadHotkeys() {
-    [clipboard, chat, notes] = await Promise.all([Settings.Clipboard(), OmniAI.View(), Settings.NotesHotkey()]);
-  }
-
   onMount(async () => {
-    loadHotkeys();
     Settings.Look().then((look) => (barBorder = look.BarBorder));
     Settings.QuickOpen().then((q) => (quick = q));
     Settings.QuickOpenApps().then((list) => (appChoices = list ?? []));
@@ -101,35 +89,11 @@
     savedTimer = setTimeout(() => (saved = false), 1800);
   }
 
+  // The bar's hotkey is saved with these two but lives on the Hotkeys page, which may have changed it since this window opened.
   async function save() {
-    error = await Settings.SaveGeneral(hotkey, browser, searchURL);
+    error = await Settings.SaveGeneral((await Settings.View()).Hotkey, browser, searchURL);
     if (error === "") flashSaved();
   }
-
-  // The hotkey field shows its own refusal ("that hotkey is taken"); the page only learns what was saved.
-  async function saveHotkey(accelerator: string): Promise<string> {
-    const refused = await Settings.SaveGeneral(accelerator, browser, searchURL);
-    if (refused === "") {
-      hotkey = accelerator;
-      flashSaved();
-    }
-    return refused;
-  }
-
-  // Each field shows its own refusal; the page reloads the hotkeys so an error from startup goes away once the key works.
-  async function afterKey(refused: string): Promise<string> {
-    if (refused === "") {
-      await loadHotkeys();
-      flashSaved();
-    }
-    return refused;
-  }
-  const saveClipboardKey = async (accelerator: string) => {
-    const now = await Settings.Clipboard();
-    return afterKey(await Settings.SaveClipboard(now.Enabled, now.Ignore ?? [], accelerator));
-  };
-  const saveChatKey = async (accelerator: string) => afterKey(await OmniAI.SetHotkey(accelerator));
-  const saveNotesKey = async (accelerator: string) => afterKey(await Settings.SetNotesHotkey(accelerator));
 
   async function saveLift() {
     error = await Settings.SetSelectionEffect(lift);
@@ -307,32 +271,6 @@
   </div>
 {/if}
 
-<h3 class="group-title">Hotkeys</h3>
-<div class="group">
-  <div class="item">
-    <span class="name" id="hotkey-label">Search bar</span>
-    <HotkeyField labelId="hotkey-label" value={view.Hotkey} defaultValue={view.DefaultHotkey} onsave={saveHotkey} />
-  </div>
-  {#if clipboard && chat && notes}
-    <div class="item">
-      <span class="name" id="clip-hotkey-label">Clipboard history</span>
-      <HotkeyField labelId="clip-hotkey-label" value={clipboard.Hotkey} clearable onsave={saveClipboardKey} />
-    </div>
-    {#if clipboard.HotkeyError}<p class="item error">{clipboard.HotkeyError}</p>{/if}
-    <div class="item">
-      <span class="name" id="ai-hotkey-label">Omni AI</span>
-      <HotkeyField labelId="ai-hotkey-label" value={chat.Hotkey} clearable onsave={saveChatKey} />
-    </div>
-    {#if chat.HotkeyError}<p class="item error">{chat.HotkeyError}</p>{/if}
-    <div class="item">
-      <span class="name" id="notes-hotkey-label">Notes</span>
-      <HotkeyField labelId="notes-hotkey-label" value={notes.Hotkey} clearable onsave={saveNotesKey} />
-    </div>
-    {#if notes.Error}<p class="item error">{notes.Error}</p>{/if}
-  {/if}
-</div>
-{#if !isMac}<p class="group-note">Windows-key combinations go in config.toml.</p>{/if}
-
 <h3 class="group-title">Web</h3>
 <div class="group">
   <div class="item">
@@ -364,12 +302,6 @@
 {#if error}<p class="error">{error}</p>{/if}
 
 <style>
-  .item.error {
-    min-height: 0;
-    padding-top: 0;
-    border-top: 0;
-    font-size: 12px;
-  }
   .themes {
     display: flex;
     flex-wrap: wrap;

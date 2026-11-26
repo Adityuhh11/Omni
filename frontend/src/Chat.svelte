@@ -872,9 +872,14 @@
       var(--well-shine, 0 0 #0000);
   }
   .line {
+    --one: 40px; /* what one line of text makes the box, in any theme's font */
     display: flex;
     align-items: flex-end;
     gap: 8px;
+  }
+  /* The buttons stay at the bottom as the box grows, centred on its last line: half of what the box has over a button, beneath each. */
+  .line > :global(:not(textarea)) {
+    margin-bottom: calc((var(--one) - 34px) / 2);
   }
   .pills {
     position: absolute;
@@ -968,8 +973,9 @@
     flex: 1;
     box-sizing: border-box; /* grow() sets the height to scrollHeight, which already holds the padding */
     min-width: 0;
+    min-height: var(--one);
     max-height: 150px;
-    padding: 8px 2px;
+    padding: calc((var(--one) - 1lh) / 2) 2px;
     border: 0;
     outline: 0;
     resize: none;
