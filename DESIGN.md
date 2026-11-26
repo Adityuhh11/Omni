@@ -34,6 +34,10 @@ Three choices in Settings, General change this, and every window follows at once
   2026-11-26; blue, violet, green, amber and rose are the other presets, "Chrome" keeps the interface without a hue, and any colour
   can be picked (`[ui] accent` holds a preset's name or `#rrggbb`). A light shade on the dark themes, a deep one on the light themes;
   a colour of the person's own is used as picked, with dark or white text on filled buttons, whichever reads better.
+  In Settings the accents are round swatches, the chosen one ringed in its own colour, and the last opens our own picker (a saturation
+  and brightness square, a hue slider and a hex field, `lib/settings/ColorPicker.svelte`; the browser's own would be unstyled): it
+  previews as it moves, saves when it lets go, and opens over the swatches when there is no room beneath them. The themes are small
+  previews of their plate and type, the chosen one ringed in the accent.
 
 ## Shape and motion
 

@@ -223,7 +223,12 @@
     gap: 8px;
   }
   .add {
+    justify-content: flex-start;
     gap: 12px;
+  }
+  .item.sub {
+    color: var(--text-3);
+    font-size: 12.5px;
   }
   .search {
     display: flex;

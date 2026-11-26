@@ -191,6 +191,10 @@
     color: var(--text);
     font-weight: 600;
   }
+  /* the page you are on: its icon wears the accent */
+  nav button.on :global(svg) {
+    color: var(--chrome);
+  }
   nav button:focus-visible {
     outline: 1px solid var(--chrome);
     outline-offset: -1px;
