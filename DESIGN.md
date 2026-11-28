@@ -20,14 +20,18 @@ Three choices in Settings, General change this, and every window follows at once
   faint text shadow. Where the system cannot blur (Windows' energy saver: nearly opaque) or the person asked for less transparency
   (opaque), the plate is dense again. What floats inside a card is denser and blurs what it covers (`--glass-raised`, `--glass-blur`).
   No ring: the bar is slimmer (50 px), its edge a hairline in the accent (`[ui] bar_border` turns it off), and its rim lit brightest at
-  the top left. Motion is three accent blobs drifting through the card, brighter while the bar has the keyboard and while you type, and a faint
-  light that follows the pointer; the results pour in, sliding down out of a 6 px blur as they fade in (one filter on the results
-  panel, which costs nothing measurable). It stops for reduced motion. What cost frames, on 2026-11-26, was a blur on every blob, a
+  the top left. Motion is three accent blobs of light, slow (a pass across the row takes 70 to 125 seconds), brighter while the bar has the keyboard and
+  while you type (opacity 0.18 at rest, 0.45 typing). They cross the card, results and all, and go on through the quick-open tiles: the card
+  and each tile run a copy, started on the same clock (`inStep`), so it reads as one flow. `[ui] liquid` ("Liquid light" in Settings, Glass
+  only) turns it off, and then nothing of it is in the page. A blob is a wide ellipse that falls away as (1 - r^2)^3, soft in the picture itself, with no
+  blur filter: a faint two-stop gradient showed its steps on Windows, where nothing tinted sits behind the glass, and the blur that hid
+  them cost frames. Three properties move it on separate, unrelated periods (`translate` across, `transform` up and down, `scale`), all on the
+  compositor. A faint light follows the pointer; the results pour in, sliding down out of a 6 px blur as they fade in (one filter on the
+  results panel, which costs nothing measurable). It stops for reduced motion. What cost frames, on 2026-11-26, was a blur on every blob, a
   gradient that turned, a shape that changed outline every frame, a sweep band and a copy of all of it in each tile: 104 fps idle and
-  85 typing against 144 and 138 without them, on a 144 Hz screen. Keep what moves to transforms and opacity, which the compositor runs
-  without repainting, and measure a new effect on its own before keeping it. The owner then brought back the blur on the three blobs
-  (`filter: blur(22px)`), because without it each is a lit oval whose shape shows over the results; that one filter is a choice made
-  for the look, and its frame cost has not been measured since. The panel is 840 wide: with the quick-open tiles the bar fills what they leave (611 px beside three), without them it is the 680 px it was before the tiles, in the middle. The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
+  85 typing against 144 and 138 without them, on a 144 Hz screen. The tile copies are back, without the blur or the changing outline, and their
+  frame cost has not been measured on a 144 Hz screen yet. Keep what moves to transforms and opacity, which the compositor runs
+  without repainting, and measure a new effect on its own before keeping it. The panel is 840 wide: with the quick-open tiles the bar fills what they leave (611 px beside three), without them it is the 680 px it was before the tiles, in the middle. The quick-open tiles are the bar's height, plain panes of the same glass with the accent hairline; they do not grow
   on hover, which would pull them off the glass behind them.
 - **Burgundy** (`#1a0609`), a deep dark red among the dark themes, with its own rings (garnet, ruby, wine, rose gold, ember).
 - **The ring** can be switched off: the bar and the chat's box then have a plain hairline edge and the plate fills the card.

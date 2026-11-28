@@ -48,6 +48,8 @@
   let problem = $state("");
   let active = $state(false); // the panel has the keyboard
   let theme = $state(currentLook().Theme);
+  let liquid = $state(currentLook().Liquid); // Settings: the slow light in Glass
+  const lit = $derived(theme === "glass" && liquid); // nothing of it is drawn, or animated, otherwise
   let ring = $state(currentLook().Ring); // the metal ring, or a plain edge
   let metal = $state(0); // which of the theme's rings the bar wears; changes whenever the panel closes
   const rings = $derived(ringsFor(theme));
@@ -254,6 +256,13 @@
     loadPins();
     loadQuick();
     metal = nextMetal(metal, Math.random, rings.length);
+  }
+
+  // The card and each quick-open tile run their own copy of the blobs. A copy starts when it appears, so each is given the time it
+  // started at (--t) to take away from its animation delay: they all then stand where the same clock puts them, and the light goes on
+  // from the card into the tiles as one flow.
+  function inStep(node: HTMLElement) {
+    node.style.setProperty("--t", `${Math.round(performance.now())}ms`);
   }
 
   // Glass: a soft light on the glass follows the pointer, as on a pane held up to a lamp. The card and the quick-open tiles are one
@@ -696,6 +705,7 @@
     const stopTheme = onLook((look) => {
       if (look.Theme !== theme) (theme = look.Theme), (metal = 0);
       ring = look.Ring;
+      liquid = look.Liquid;
     });
     takeFocus();
     loadPins();
@@ -716,17 +726,21 @@
 
 <svelte:window bind:innerWidth={windowWidth} onfocus={takeFocus} onblur={onBlur} onkeydown={onKeydown} />
 
+{#snippet light()}
+  <div class="liquid" aria-hidden="true">
+    <div class="flow" use:inStep>
+      <span class="blob one"></span>
+      <span class="blob two"></span>
+      <span class="blob three"></span>
+    </div>
+  </div>
+{/snippet}
+
 <main bind:this={row} style:--row-w="{showQuick ? Math.max(0, windowWidth - SIDE * 2) : cardWidth}px" style:--row-h="{cardHeight}px" role="presentation" onpointermove={shine}>
   <div class="card" class:ringed class:typing class:alone={!showQuick} style:max-width={showQuick ? null : `${BAR_WIDTH}px`} style:height="{cardHeight}px" use:glass={theme === "glass" ? 27 : 30} bind:this={card} bind:clientWidth={cardWidth}>
     {#if ringed}<LiquidRing speed={typing || pending ? 1.5 : 0.6} running={active} metal={rings[metal] ?? rings[0]} />{/if}
     <div class="surface">
-      <div class="liquid" aria-hidden="true">
-        <div class="flow">
-          <span class="blob one"></span>
-          <span class="blob two"></span>
-          <span class="blob three"></span>
-        </div>
-      </div>
+      {#if lit}{@render light()}{/if}
       <div class="content" class:acting={target || picker} class:shut bind:this={content}>
         <header class="bar">
           <span class="glass"><SearchGlyph size={22} busy={pending} /></span>
@@ -814,6 +828,7 @@
     <div class="quick" role="group" aria-label="Quick open" style:height="{quickSize}px" style:--tile-size="{quickSize}px" transition:fade={{ duration: 160 }}>
       {#each quick as app, index (app.ID)}
         <button type="button" class="tile" class:picked={quickPick === index} aria-current={quickPick === index} title="{app.Title}  {isMac ? "⌘" : "Ctrl+"}{index + 1}" aria-label="Open {app.Title} ({isMac ? "Command" : "Control"} {index + 1})" onclick={() => openQuick(index)} bind:this={tiles[index]} use:glassPane>
+          {#if lit}{@render light()}{/if}
           <img src={app.Icon} alt="" draggable="false" />
         </button>
       {/each}
@@ -1118,9 +1133,10 @@
     background: color-mix(in srgb, var(--ink) 14%, transparent) padding-box;
   }
   /* Glass: no metal and no bevel, and a slimmer bar. The plate reaches the card's edge, which is a hairline in the accent (or nothing,
-     if the bar is set to have no edge), and the light under the text moves like a slow liquid: two faint blobs of the accent wander
-     over the whole card, results and all, and change shape as they go, each pass taking about a quarter of a minute, brighter while
-     the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from what is being typed. */
+     if the bar is set to have no edge), and the light under the text moves like a slow liquid: three faint blobs of the accent drift
+     across the whole row, the card with its results and then the quick-open tiles, and change shape as they go, each pass taking a
+     minute or more, brighter while the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from
+     what is being typed. Settings can turn it off (`[ui] liquid`), and then none of it is in the page. */
   .liquid {
     display: none;
   }
@@ -1165,7 +1181,7 @@
     overflow: hidden;
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0.22;
+    opacity: 0.18;
     transition: opacity 1200ms var(--ease);
   }
   /* The flow is the whole row, card and quick-open tiles, placed from the card's top left; the card and each tile show their own part
@@ -1180,73 +1196,115 @@
     container-type: size;
   }
   :global(html[data-theme="glass"]) main:has(.card:hover, .tile:hover) .liquid {
-    opacity: 0.27;
+    opacity: 0.22;
   }
   :global(html[data-theme="glass"]) main:has(.card:focus-within) .liquid {
-    opacity: 0.42;
+    opacity: 0.34;
   }
   :global(html[data-theme="glass"]) main:has(.card.typing) .liquid {
-    opacity: 0.55;
+    opacity: 0.45;
     transition-duration: 500ms;
   }
+  /* A blob is a still picture that only moves: a wide ellipse that falls away like (1 - r^2)^3, so it has no core and no edge, and it is
+     soft in the picture itself (a blur filter on it did the same for a frame cost, and a faint two-stop gradient shows its steps on
+     a display with nothing tinted behind it, as Windows' is). Three separate properties move it, each on its own slow clock and
+     none of them with the others' period, so the path never comes round the same way twice: it crosses the row from beyond one
+     end to beyond the other (translate; where it turns round, it is out of sight), drifts up and down (transform) and swells and
+     narrows (scale). All three run on the compositor. */
   .blob {
+    --c: var(--chrome);
     position: absolute;
-    top: -70px; /* the blob's middle is the card's top left corner, from where the paths below move it */
-    left: -110px;
-    width: 220px;
-    height: 140px;
-    background: radial-gradient(closest-side, var(--chrome), transparent);
-    /* Soft, not a torch: without the blur each blob is a lit oval with a visible shape. It costs frames (see DESIGN.md). */
-    filter: blur(22px);
-    animation: wander 11s ease-in-out infinite alternate;
+    top: -150px; /* the blob's middle is the card's top left corner, from where the paths below move it */
+    left: -210px;
+    width: 420px;
+    height: 300px;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--c) 100%, transparent) 0%,
+      color-mix(in srgb, var(--c) 97%, transparent) 10%,
+      color-mix(in srgb, var(--c) 88.5%, transparent) 20%,
+      color-mix(in srgb, var(--c) 75.4%, transparent) 30%,
+      color-mix(in srgb, var(--c) 59.3%, transparent) 40%,
+      color-mix(in srgb, var(--c) 42.2%, transparent) 50%,
+      color-mix(in srgb, var(--c) 26.2%, transparent) 60%,
+      color-mix(in srgb, var(--c) 13.3%, transparent) 70%,
+      color-mix(in srgb, var(--c) 4.7%, transparent) 80%,
+      color-mix(in srgb, var(--c) 0.7%, transparent) 90%,
+      color-mix(in srgb, var(--c) 0%, transparent) 100%
+    );
+    animation:
+      cross var(--cross) linear infinite alternate,
+      drift var(--drift) ease-in-out infinite alternate,
+      swell var(--swell) ease-in-out infinite alternate;
+    animation-delay: calc(-1 * var(--ph) - var(--t, 0ms)); /* --t: see inStep */
+    --cross: 70s;
+    --drift: 43s;
+    --swell: 29s;
+    --ph: 18s;
+    --x0: -30cqw;
+    --x1: 130cqw;
+    --y0: 20cqh;
+    --y1: 80cqh;
+    --s: 1.15 0.88;
   }
   .blob.two {
-    width: 280px;
-    left: -140px;
-    animation-name: wander-back;
-    animation-duration: 15s;
-    animation-delay: -6s;
+    top: -170px;
+    left: -260px;
+    width: 520px;
+    height: 340px;
+    --cross: 95s;
+    --drift: 61s;
+    --swell: 53s;
+    --ph: 41s;
+    --x0: 130cqw;
+    --x1: -30cqw;
+    --y0: 80cqh;
+    --y1: 25cqh;
+    --s: 0.9 1.12;
   }
   .blob.three {
-    width: 160px;
-    height: 110px;
-    left: -80px;
-    top: -55px;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--chrome) 55%, white), transparent);
-    animation-duration: 8s;
-    animation-delay: -3s;
+    --c: var(--chrome-hot);
+    top: -120px;
+    left: -170px;
+    width: 340px;
+    height: 240px;
+    --cross: 125s;
+    --drift: 47s;
+    --swell: 37s;
+    --ph: 77s;
+    --x0: -20cqw;
+    --x1: 120cqw;
+    --y0: 35cqh;
+    --y1: 90cqh;
+    --s: 1.1 0.9;
   }
   @media (prefers-reduced-motion: reduce) {
     .blob {
       animation: none;
     }
   }
-  @keyframes wander {
-    0% {
-      transform: translate(8cqw, 25cqh) scale(1);
+  @keyframes cross {
+    from {
+      translate: var(--x0) 0;
     }
-    33% {
-      transform: translate(45cqw, 80cqh) scale(1.28, 0.86);
-    }
-    66% {
-      transform: translate(72cqw, 20cqh) scale(1.1, 1.05);
-    }
-    100% {
-      transform: translate(95cqw, 65cqh) scale(0.86, 1.16);
+    to {
+      translate: var(--x1) 0;
     }
   }
-  @keyframes wander-back {
-    0% {
-      transform: translate(90cqw, 75cqh) scale(1.1, 0.9);
+  @keyframes drift {
+    from {
+      transform: translateY(var(--y0));
     }
-    33% {
-      transform: translate(55cqw, 15cqh) scale(0.9, 1.15);
+    to {
+      transform: translateY(var(--y1));
     }
-    66% {
-      transform: translate(25cqw, 70cqh) scale(1.25, 0.9);
+  }
+  @keyframes swell {
+    from {
+      scale: 1;
     }
-    100% {
-      transform: translate(6cqw, 30cqh) scale(1, 1.1);
+    to {
+      scale: var(--s);
     }
   }
   /* Liquid Glass: a lit rim that is brightest where light falls on a curved edge (top left, bottom right), a little depth

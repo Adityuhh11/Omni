@@ -14,7 +14,7 @@ func Default() Config {
 		Search: Search{
 			Start: StartModes[0], Pace: "balanced", PDFPages: PDFPageModes[0], Photos: PhotoModes[0], Videos: VideoModes[0], Audio: AudioModes[0], GroupResults: true, PauseOnBattery: true,
 		},
-		UI:        UI{SelectionEffect: true, Theme: Themes[0], Ring: true, Accent: Accents[0], BarBorder: true},
+		UI:        UI{SelectionEffect: true, Theme: Themes[0], Ring: true, Accent: Accents[0], BarBorder: true, Liquid: true},
 		QuickOpen: QuickOpen{Enabled: true, Count: QuickOpenMin, Suggest: true},
 		Chat:      Chat{Load: ChatLoads[0], UnloadAfterMinutes: 10, ContextTokens: 8192, KeepHistory: true, HistoryDays: 90, OnTop: true},
 		Timer: Timer{FocusMinutes: 25, ShortBreakMinutes: 5, LongBreakMinutes: 15, Rounds: 4, PresetMinutes: []int{5, 10, 25, 45},
