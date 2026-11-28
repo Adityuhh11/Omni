@@ -25,6 +25,7 @@
   // svelte-ignore state_referenced_locally
   let accent = $state(view.Accent);
   let barBorder = $state(true);
+  let liquid = $state(true);
   let quick = $state<QuickOpen | null>(null);
   let appChoices = $state<AppChoice[]>([]);
   let forgotten = $state(false);
@@ -50,7 +51,7 @@
   const QUERY = "{q}";
 
   onMount(async () => {
-    Settings.Look().then((look) => (barBorder = look.BarBorder));
+    Settings.Look().then((look) => ((barBorder = look.BarBorder), (liquid = look.Liquid)));
     Settings.QuickOpen().then((q) => (quick = q));
     Settings.QuickOpenApps().then((list) => (appChoices = list ?? []));
     browsers = (await Settings.Browsers()) ?? [];
@@ -109,6 +110,13 @@
     else flashSaved();
   }
 
+  async function saveLiquid() {
+    applyLook({ Liquid: liquid });
+    error = await Settings.SetLiquid(liquid);
+    if (error !== "") applyLook({ Liquid: (liquid = !liquid) });
+    else flashSaved();
+  }
+
   async function saveBarBorder() {
     applyLook({ BarBorder: barBorder });
     error = await Settings.SetBarBorder(barBorder);
@@ -147,6 +155,13 @@
         <span class="sub">A thin line in the accent colour round the search bar; off, the bar only glows while you type</span>
       </span>
       <input type="checkbox" class="switch" bind:checked={barBorder} onchange={saveBarBorder} />
+    </label>
+    <label class="item">
+      <span class="text">
+        <span class="name">Liquid light</span>
+        <span class="sub">A faint glow in the accent colour that drifts slowly through the search bar, the results and the quick-open tiles</span>
+      </span>
+      <input type="checkbox" class="switch" bind:checked={liquid} onchange={saveLiquid} />
     </label>
   {/if}
   <label class="item">

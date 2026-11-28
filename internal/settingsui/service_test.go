@@ -834,4 +834,10 @@ func TestAnAccentMayBeAnyColourAndTheBarEdgeIsSaved(t *testing.T) {
 	if msg := h.svc.SetBarBorder(false); msg != "" || h.svc.Look().BarBorder {
 		t.Fatalf("SetBarBorder: %q", msg)
 	}
+	if !h.svc.Look().Liquid {
+		t.Fatal("a fresh install has the liquid light on")
+	}
+	if msg := h.svc.SetLiquid(false); msg != "" || h.svc.Look().Liquid {
+		t.Fatalf("SetLiquid: %q", msg)
+	}
 }

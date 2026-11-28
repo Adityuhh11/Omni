@@ -30,10 +30,10 @@ export const ACCENTS = [
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** What every window wears; the launcher's config.UI. */
-export type Look = { Theme: string; Ring: boolean; Accent: string; BarBorder: boolean };
+export type Look = { Theme: string; Ring: boolean; Accent: string; BarBorder: boolean; Liquid: boolean };
 
 const KEY = "omni.look";
-const DEFAULT: Look = { Theme: "black", Ring: true, Accent: ACCENTS[0].id, BarBorder: true };
+const DEFAULT: Look = { Theme: "black", Ring: true, Accent: ACCENTS[0].id, BarBorder: true, Liquid: true };
 
 const listeners = new Set<(look: Look) => void>();
 
@@ -51,6 +51,7 @@ export function currentLook(): Look {
     Ring: d.ring !== "off",
     Accent: d.accent ?? DEFAULT.Accent,
     BarBorder: d.barBorder !== "false",
+    Liquid: d.liquid !== "false",
   };
 }
 
@@ -78,6 +79,7 @@ export function applyLook(next: Partial<Look>) {
     Ring: next.Ring ?? before.Ring,
     Accent: ACCENTS.some((a) => a.id === next.Accent) ? next.Accent! : next.Accent && HEX.test(next.Accent) ? next.Accent.toLowerCase() : before.Accent,
     BarBorder: next.BarBorder ?? before.BarBorder,
+    Liquid: next.Liquid ?? before.Liquid,
   };
   const d = document.documentElement.dataset;
   d.theme = look.Theme;
@@ -85,6 +87,7 @@ export function applyLook(next: Partial<Look>) {
   d.ring = look.Ring ? "on" : "off";
   d.accent = look.Accent; // a colour of the person's own stays as "#rrggbb": theme.css matches it by its "#"
   d.barBorder = String(look.BarBorder);
+  d.liquid = String(look.Liquid);
   paintAccent(look.Accent);
   if ((Object.keys(look) as (keyof Look)[]).some((k) => look[k] !== before[k])) listeners.forEach((fn) => fn(look));
   try {

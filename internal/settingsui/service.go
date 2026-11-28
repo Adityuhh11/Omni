@@ -239,6 +239,11 @@ func (s *Service) SetRing(on bool) string {
 	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Ring = on }))
 }
 
+// SetLiquid turns the slow accent light in the Glass bar and its tiles on or off.
+func (s *Service) SetLiquid(on bool) string {
+	return reason(s.o.Store.Update(func(c *config.Config) { c.UI.Liquid = on }))
+}
+
 // SetAccent changes the colour of focus, the bar's icon and edge, filled buttons and the selection; anything that is neither one of
 // config.Accents nor a "#rrggbb" colour is refused.
 func (s *Service) SetAccent(name string) string {

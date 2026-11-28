@@ -79,6 +79,8 @@ type UI struct {
 	Accent string `toml:"accent"`
 	// BarBorder draws a thin edge in the accent round the search bar in the Glass theme; off, the bar has no edge at all.
 	BarBorder bool `toml:"bar_border"`
+	// Liquid lets the accent light drift slowly through the Glass bar and its quick-open tiles; off, nothing of it is drawn.
+	Liquid bool `toml:"liquid"`
 	// Lights and BarAccent are retired keys (the Glass theme's floating lights, and the colour of the second Glass theme's bar, which
 	// the accent replaced). Load reads them so old files still open and then clears them, so they are never written back.
 	Lights    *bool   `toml:"lights,omitempty" json:"-"`
