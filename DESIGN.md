@@ -20,7 +20,7 @@ Three choices in Settings, General change this, and every window follows at once
   faint text shadow. Where the system cannot blur (Windows' energy saver: nearly opaque) or the person asked for less transparency
   (opaque), the plate is dense again. What floats inside a card is denser and blurs what it covers (`--glass-raised`, `--glass-blur`).
   No ring: the bar is slimmer (50 px), its edge a hairline in the accent (`[ui] bar_border` turns it off), and its rim lit brightest at
-  the top left. Motion is three accent blobs of light, slow (a pass across the row takes 70 to 125 seconds), brighter while the bar has the keyboard and
+  the top left. Motion is three accent blobs of light, slow (a pass across the row takes 30 to 53 seconds, at a walking pace for liquid), brighter while the bar has the keyboard and
   while you type (opacity 0.18 at rest, 0.45 typing). They cross the card, results and all, and go on through the quick-open tiles: the card
   and each tile run a copy, started on the same clock (`inStep`), so it reads as one flow. `[ui] liquid` ("Liquid light" in Settings, Glass
   only) turns it off, and then nothing of it is in the page. A blob is a wide ellipse that falls away as (1 - r^2)^3, soft in the picture itself, with no

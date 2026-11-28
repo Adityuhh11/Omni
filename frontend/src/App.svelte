@@ -1134,8 +1134,8 @@
   }
   /* Glass: no metal and no bevel, and a slimmer bar. The plate reaches the card's edge, which is a hairline in the accent (or nothing,
      if the bar is set to have no edge), and the light under the text moves like a slow liquid: three faint blobs of the accent drift
-     across the whole row, the card with its results and then the quick-open tiles, and change shape as they go, each pass taking a
-     minute or more, brighter while the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from
+     across the whole row, the card with its results and then the quick-open tiles, and change shape as they go, each pass taking
+     half a minute or more, brighter while the bar has the keyboard and while you type. Nothing in it moves fast enough to pull the eye from
      what is being typed. Settings can turn it off (`[ui] liquid`), and then none of it is in the page. */
   .liquid {
     display: none;
@@ -1237,14 +1237,14 @@
       drift var(--drift) ease-in-out infinite alternate,
       swell var(--swell) ease-in-out infinite alternate;
     animation-delay: calc(-1 * var(--ph) - var(--t, 0ms)); /* --t: see inStep */
-    --cross: 70s;
-    --drift: 43s;
-    --swell: 29s;
-    --ph: 18s;
-    --x0: -30cqw;
-    --x1: 130cqw;
-    --y0: 20cqh;
-    --y1: 80cqh;
+    --cross: 30s;
+    --drift: 19s;
+    --swell: 13s;
+    --ph: 9s;
+    --x0: -15cqw;
+    --x1: 115cqw;
+    --y0: 10cqh;
+    --y1: 70cqh;
     --s: 1.15 0.88;
   }
   .blob.two {
@@ -1252,14 +1252,14 @@
     left: -260px;
     width: 520px;
     height: 340px;
-    --cross: 95s;
-    --drift: 61s;
-    --swell: 53s;
-    --ph: 41s;
-    --x0: 130cqw;
-    --x1: -30cqw;
-    --y0: 80cqh;
-    --y1: 25cqh;
+    --cross: 41s;
+    --drift: 27s;
+    --swell: 23s;
+    --ph: 17s;
+    --x0: 115cqw;
+    --x1: -15cqw;
+    --y0: 65cqh;
+    --y1: 8cqh;
     --s: 0.9 1.12;
   }
   .blob.three {
@@ -1268,14 +1268,14 @@
     left: -170px;
     width: 340px;
     height: 240px;
-    --cross: 125s;
-    --drift: 47s;
-    --swell: 37s;
-    --ph: 77s;
-    --x0: -20cqw;
-    --x1: 120cqw;
-    --y0: 35cqh;
-    --y1: 90cqh;
+    --cross: 53s;
+    --drift: 21s;
+    --swell: 17s;
+    --ph: 31s;
+    --x0: -10cqw;
+    --x1: 112cqw;
+    --y0: 20cqh;
+    --y1: 75cqh;
     --s: 1.1 0.9;
   }
   @media (prefers-reduced-motion: reduce) {
